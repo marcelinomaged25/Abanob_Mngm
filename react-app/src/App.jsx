@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Church, Clock3, Home, LayoutDashboard, LoaderCircle, Pencil, Phone, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
 
-const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:5080").replace(/\/$/, "");
+const apiUrl = (import.meta.env.VITE_API_URL || "https://abanob-mngm.onrender.com").replace(/\/$/, "");
 const today = () => new Date().toISOString().slice(0, 10);
 const dateLabel = (value) => value ? new Intl.DateTimeFormat("ar-EG", { day: "numeric", month: "long", year: "numeric" }).format(new Date(`${value}T12:00:00`)) : "—";
 const normalizeArabic = (value) => String(value || "").replace(/[إأآ]/g, "ا");
