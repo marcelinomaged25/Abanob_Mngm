@@ -197,6 +197,18 @@ tbody tr:hover td { background: #f5f8ff; }
 .call-member-info { display: grid; min-width: 0; gap: 3px; }
 .call-member-info strong { overflow: hidden; color: var(--ink); font-size: 13px; white-space: nowrap; text-overflow: ellipsis; }
 .call-member-info small { color: var(--muted); font-size: 11px; }
+.phone-copy-row { display: inline-flex; align-items: center; justify-content: flex-start; gap: 6px; min-height: 22px; }
+.copy-phone { display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 1px solid #d7deeb; border-radius: 6px; background: #f5f7fb; color: var(--blue); cursor: pointer; }
+.copy-phone:hover { border-color: var(--blue); background: var(--blue-soft); }
+.call-group-heading.group-tone-1 { border-right: 5px solid #079a9e; }
+.call-group-heading.group-tone-2 { border-right: 5px solid #3565cc; }
+.call-group-heading.group-tone-3 { border-right: 5px solid #1f9250; }
+.call-group-heading.group-tone-4 { border-right: 5px solid #e34259; }
+.call-group-heading.group-tone-5 { border-right: 5px solid #ef9d58; }
+.call-group-heading.group-tone-6 { border-right: 5px solid #6f7c91; }
+.call-group-heading.group-tone-7 { border-right: 5px solid #d17812; }
+.call-group-heading.group-tone-8 { border-right: 5px solid #8a4bb5; }
+.call-group-heading.group-tone-9 { border-right: 5px solid #6ca881; }
 .call-member:has(input:checked) { border-color: #9bd8c3; background: #effaf5; }
 .qr-dialog { position: relative; width: min(700px, 100%); padding: 28px; border: 1px solid var(--line); border-radius: 15px; background: var(--paper); box-shadow: 0 24px 80px rgba(13, 24, 42, .28); text-align: center; }
 .qr-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 20px; }
