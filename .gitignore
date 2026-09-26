@@ -1,0 +1,7 @@
+node_modules/
+.env
+*.inspect.ndjson
+bin/
+obj/
+dist/
+.DS_Store

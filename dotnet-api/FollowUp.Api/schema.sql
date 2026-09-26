@@ -1,0 +1,14 @@
+create table if not exists groups (number text primary key, display_order integer not null unique);
+create table if not exists people (id bigserial primary key, record_key integer not null unique, name text not null, note text not null default '', phone1 text not null default '', phone2 text not null default '', group_number text references groups(number), address text not null default '', role text not null default 'boy', is_active boolean not null default true, created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+do $$ begin if exists (select 1 from information_schema.columns where table_name='people' and column_name='source_row') then alter table people rename column source_row to record_key; end if; end $$;
+alter table people add column if not exists is_active boolean not null default true;
+alter table people add column if not exists role text not null default 'boy';
+create table if not exists settings (key text primary key, value jsonb not null, updated_at timestamptz not null default now());
+create table if not exists visit_records (person_id bigint not null references people(id) on delete cascade, visit_date date not null, recorded_at timestamptz not null default now(), primary key (person_id, visit_date));
+create table if not exists call_assignments (week_start date not null, group_number text not null references groups(number), servant text not null, assigned_at timestamptz not null default now(), primary key (week_start, group_number));
+create table if not exists call_records (person_id bigint not null references people(id) on delete cascade, week_start date not null, servant text not null default '', recorded_at timestamptz not null default now(), primary key (person_id, week_start));
+create table if not exists attendance_records (person_id bigint not null references people(id) on delete cascade, attendance_type text not null check (attendance_type in ('choir','mass')), attendance_date date not null, recorded_at timestamptz not null default now(), primary key (person_id, attendance_type, attendance_date));
+create index if not exists people_group_idx on people(group_number, record_key);
+create index if not exists visit_records_person_idx on visit_records(person_id, visit_date desc);
+create index if not exists call_records_person_idx on call_records(person_id, week_start desc);
+create index if not exists attendance_person_idx on attendance_records(person_id, attendance_type, attendance_date desc);
