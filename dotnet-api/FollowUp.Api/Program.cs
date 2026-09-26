@@ -15,13 +15,13 @@ if (string.IsNullOrWhiteSpace(appPassword)) throw new InvalidOperationException(
 var dataSource = NpgsqlDataSource.Create(connectionString);
 builder.Services.AddSingleton(dataSource);
 builder.Services.AddCors(options => options.AddPolicy("frontend", policy => policy
-    .WithOrigins(frontendOrigin, "http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174")
     .SetIsOriginAllowed(origin =>
     {
         if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
         return uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
             || uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
-            || uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase);
+            || uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase)
+            || uri.ToString().TrimEnd('/').Equals(frontendOrigin.TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
     })
     .AllowAnyHeader().AllowAnyMethod()));
 
