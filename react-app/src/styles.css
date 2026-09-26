@@ -413,6 +413,32 @@ tbody tr:hover td { background: #f5f8ff; }
   .four-donut::after { width: 80px; height: 80px; }
   .four-donut strong { font-size: 21px; }
   .donut-legend { min-width: 0; flex: 1 1 170px; }
+  .dashboard-attendance-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .daily-chart, .dashboard-attendance-table { width: 100%; min-width: 0; padding: 14px; }
+  .daily-chart .chart-heading { margin-bottom: 12px; }
+  .four-donut-wrap { flex-direction: column; align-items: center; }
+  .donut-legend { display: grid; grid-template-columns: 1fr 1fr; width: 100%; flex: none; gap: 8px 12px; }
+  .donut-legend span { min-width: 0; justify-content: flex-start; font-size: 10px; }
+  .dashboard-attendance-table .table-title-row { gap: 10px; }
+  .dashboard-attendance-table .dashboard-table-search { width: 100%; min-width: 0; }
+  .dashboard-attendance-table .table-wrap { overflow: hidden; }
+  .dashboard-attendance-table table { width: 100%; min-width: 0 !important; table-layout: fixed; }
+  .dashboard-attendance-table th, .dashboard-attendance-table td { padding: 10px 7px; font-size: 11px; }
+  .dashboard-attendance-table th:nth-child(2), .dashboard-attendance-table td:nth-child(2) { display: none; }
+  .dashboard-attendance-table th:first-child, .dashboard-attendance-table td:first-child { width: 68%; }
+  .dashboard-attendance-table th:last-child, .dashboard-attendance-table td:last-child { width: 32%; text-align: center; }
+  .dashboard-attendance-table .name-cell { min-width: 0; overflow-wrap: anywhere; white-space: normal; }
+  .people-table { width: 100%; min-width: 0; padding: 14px; }
+  .people-table .table-wrap { overflow: hidden; }
+  .people-table .table-wrap table { width: 100%; min-width: 0 !important; table-layout: fixed; }
+  .people-table th, .people-table td { padding: 9px 6px; font-size: 10px; }
+  .people-table th:nth-child(2), .people-table td:nth-child(2), .people-table th:nth-child(4), .people-table td:nth-child(4), .people-table th:nth-child(5), .people-table td:nth-child(5) { display: none; }
+  .people-table th:first-child, .people-table td:first-child { width: 55%; }
+  .people-table th:nth-child(3), .people-table td:nth-child(3) { width: 29%; }
+  .people-table th:last-child, .people-table td:last-child { width: 16%; }
+  .people-table .name-cell { min-width: 0; overflow-wrap: anywhere; white-space: normal; }
+  .people-table .people-actions { width: auto; gap: 3px; }
+  .people-table .row-action { width: 27px; height: 27px; }
   .dashboard-metric strong { font-size: 22px; }
   .call-group-heading { grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; }
   .call-group-heading small { grid-column: 1 / -1; }
