@@ -183,6 +183,21 @@ tbody tr:hover td { background: #f5f8ff; }
 .attendance-person.present .attendance-check { border-color: var(--teal); background: var(--teal); }
 .attendance-name { overflow: hidden; font-weight: 800; white-space: nowrap; text-overflow: ellipsis; }
 .attendance-meta { color: var(--muted); font-size: 11px; }
+.call-groups-list { display: grid; gap: 16px; }
+.call-group { overflow: hidden; border: 1px solid #d9d1bb; border-radius: 12px; background: #fffdf7; }
+.call-group-heading { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 22px; padding: 13px 16px; border-bottom: 1px solid #e5dcc6; background: #f7f0df; }
+.call-group-heading > div { display: grid; gap: 3px; }
+.call-group-heading span { color: var(--muted); font-size: 10px; }
+.call-group-heading strong { color: var(--ink); font-size: 18px; }
+.call-group-heading b { color: var(--blue-dark); font-size: 13px; }
+.call-group-heading small { color: var(--muted); font-size: 11px; }
+.call-group-members { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 12px; }
+.call-member { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding: 11px 13px; border: 1px solid #e2d8c0; border-radius: 9px; background: #fffefb; cursor: pointer; }
+.call-member:hover { border-color: #c5b486; background: #fff9e9; }
+.call-member-info { display: grid; min-width: 0; gap: 3px; }
+.call-member-info strong { overflow: hidden; color: var(--ink); font-size: 13px; white-space: nowrap; text-overflow: ellipsis; }
+.call-member-info small { color: var(--muted); font-size: 11px; }
+.call-member:has(input:checked) { border-color: #9bd8c3; background: #effaf5; }
 .qr-dialog { position: relative; width: min(700px, 100%); padding: 28px; border: 1px solid var(--line); border-radius: 15px; background: var(--paper); box-shadow: 0 24px 80px rgba(13, 24, 42, .28); text-align: center; }
 .qr-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 20px; }
 .qr-card { display: grid; justify-items: center; gap: 9px; padding: 18px; border: 1px solid var(--line); border-radius: 10px; background: #fbfcfe; }
@@ -366,3 +381,29 @@ tbody tr:hover td { background: #f5f8ff; }
 
 @media (max-width: 1100px) { .app-shell { grid-template-columns: 210px minmax(0, 1fr); } .app-content { padding-inline: 22px; } .control-grid { grid-template-columns: 1fr 1fr; } .overview-panel { grid-column: 1 / -1; min-height: auto; } .group-cards { grid-template-columns: repeat(3, 1fr); } .people-layout { grid-template-columns: 1fr; } .attendance-grid { grid-template-columns: repeat(3, 1fr); } .dashboard-metrics { grid-template-columns: repeat(3, 1fr); } .dashboard-main-grid, .dashboard-secondary { grid-template-columns: 1fr; } }
 @media (max-width: 680px) { .app-shell { display: block; } .app-sidebar { position: static; height: auto; padding: 14px; } .sidebar-brand { padding-bottom: 12px; } .sidebar-label, .sidebar-footer { display: none; } .sidebar-nav { display: flex; gap: 5px; overflow-x: auto; } .sidebar-item { flex: 1 0 auto; justify-content: center; width: auto; padding: 10px 12px; font-size: 10px; } .sidebar-item span { display: none; } .app-content { padding: 16px 12px 34px; } .shell { padding: 16px 12px 34px; } .topbar { margin: -16px -12px 18px; padding: 12px; } .topbar, .section-title-row, .table-title-row { align-items: flex-start; flex-direction: column; } .top-actions { align-self: flex-end; } .brand-mark { width: 45px; height: 45px; } .control-grid { grid-template-columns: 1fr; } .group-cards { grid-template-columns: repeat(2, 1fr); } .table-actions { align-items: stretch; flex-direction: column; width: 100%; } .search-box, .secondary-button { width: 100%; } .mode-tabs, .sub-tabs { width: 100%; margin-right: 0; overflow-x: auto; } .mode-tab { flex: 1; min-width: max-content; padding-inline: 11px; font-size: 11px; } .panel, .group-strip, .table-section { padding: 15px; } .person-form { grid-template-columns: 1fr; } .form-wide, .form-actions { grid-column: auto; } h1 { font-size: 24px; } h2 { font-size: 16px; } .verse-band { padding: 15px; } .attendance-controls { align-items: stretch; flex-direction: column; } .attendance-controls label { min-width: 0; } .attendance-save { width: 100%; margin: 0; } .attendance-grid { grid-template-columns: 1fr 1fr; } .qr-cards { grid-template-columns: 1fr; } .dashboard-hero { align-items: flex-start; padding: 18px; } .hero-date { align-items: flex-end; flex-direction: column; gap: 10px; } .dashboard-hero img { width: 76px; height: 76px; } .dashboard-hero h2 { font-size: 20px; } .dashboard-columns, .dashboard-main-grid, .dashboard-secondary { grid-template-columns: 1fr; } .dashboard-attendance-columns { grid-template-columns: 1fr; } .dashboard-metrics, .historical-metrics { grid-template-columns: repeat(2, 1fr); } .calendar-day { min-height: 49px; padding: 5px; } .calendar-weekdays { font-size: 8px; } .calendar-dots { margin-top: 9px; } }
+@media (max-width: 680px) {
+  .app-sidebar { padding: 10px; }
+  .sidebar-brand { gap: 8px; padding-inline: 4px; }
+  .sidebar-brand strong { font-size: 14px; }
+  .sidebar-nav { margin-inline: -4px; padding-bottom: 2px; }
+  .sidebar-item { min-width: 76px; padding: 9px 8px; }
+  .topbar { gap: 10px; }
+  .topbar h1 { font-size: 21px; }
+  .mode-tabs, .sub-tabs { flex-wrap: nowrap; }
+  .mode-tab { min-width: 112px; }
+  .dashboard-metrics { gap: 8px; }
+  .dashboard-metric { padding: 12px 9px; }
+  .dashboard-metric strong { font-size: 22px; }
+  .call-group-heading { grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; }
+  .call-group-heading small { grid-column: 1 / -1; }
+  .call-group-members { grid-template-columns: 1fr; padding: 9px; }
+  .call-member { min-height: 54px; }
+  .table-wrap { max-width: 100%; }
+  .table-wrap table { min-width: 680px; }
+  .people-table .table-wrap table { min-width: 760px; }
+  .attendance-grid { gap: 8px; }
+  .attendance-person { min-height: 64px; padding: 9px; }
+  .attendance-name { font-size: 12px; }
+  .login-panel { padding: 24px 18px; }
+  .login-panel h1 { font-size: 23px; }
+}
