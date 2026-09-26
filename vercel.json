@@ -1,0 +1,7 @@
+{
+  "buildCommand": "npm --prefix react-app ci && npm --prefix react-app run build",
+  "outputDirectory": "react-app/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
