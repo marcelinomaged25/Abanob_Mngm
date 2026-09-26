@@ -390,6 +390,7 @@ tbody tr:hover td { background: #f5f8ff; }
   .sidebar-item { min-width: 76px; padding: 9px 8px; }
   .app-content, .shell, .home-dashboard, .attendance-page, .people-layout { min-width: 0; width: 100%; }
   .home-dashboard > *, .dashboard-metrics > * { min-width: 0; }
+  .people-layout, .person-form-panel, .person-form, .person-form label, .person-form input, .person-form select, .person-form textarea, .form-actions { width: 100%; max-width: 100%; min-width: 0; }
   .app-content { padding: 12px 10px 28px; }
   .topbar { margin: -12px -10px 14px; padding: 10px; }
   .topbar h1 { max-width: 100%; overflow-wrap: anywhere; }
@@ -407,6 +408,11 @@ tbody tr:hover td { background: #f5f8ff; }
   .hero-date img { align-self: flex-end; }
   .dashboard-metric { min-width: 0; padding: 12px 9px; overflow: hidden; }
   .dashboard-metric span, .dashboard-metric small { overflow-wrap: anywhere; }
+  .four-donut-wrap { width: 100%; min-width: 0; flex-wrap: wrap; gap: 14px; overflow: hidden; }
+  .four-donut { width: 132px; height: 132px; flex: 0 0 132px; }
+  .four-donut::after { width: 80px; height: 80px; }
+  .four-donut strong { font-size: 21px; }
+  .donut-legend { min-width: 0; flex: 1 1 170px; }
   .dashboard-metric strong { font-size: 22px; }
   .call-group-heading { grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; }
   .call-group-heading small { grid-column: 1 / -1; }
