@@ -25,6 +25,7 @@ await using (var connection = await dataSource.OpenConnectionAsync())
 await using (var command = new NpgsqlCommand(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "schema.sql")), connection))
     await command.ExecuteNonQueryAsync();
 
+app.MapGet("/", () => Results.Ok(new { service = "Abanob Choir Follow-up API", status = "ok" }));
 app.MapGet("/api/health", async (NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();
