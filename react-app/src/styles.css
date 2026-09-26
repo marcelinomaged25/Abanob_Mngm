@@ -382,22 +382,33 @@ tbody tr:hover td { background: #f5f8ff; }
 @media (max-width: 1100px) { .app-shell { grid-template-columns: 210px minmax(0, 1fr); } .app-content { padding-inline: 22px; } .control-grid { grid-template-columns: 1fr 1fr; } .overview-panel { grid-column: 1 / -1; min-height: auto; } .group-cards { grid-template-columns: repeat(3, 1fr); } .people-layout { grid-template-columns: 1fr; } .attendance-grid { grid-template-columns: repeat(3, 1fr); } .dashboard-metrics { grid-template-columns: repeat(3, 1fr); } .dashboard-main-grid, .dashboard-secondary { grid-template-columns: 1fr; } }
 @media (max-width: 680px) { .app-shell { display: block; } .app-sidebar { position: static; height: auto; padding: 14px; } .sidebar-brand { padding-bottom: 12px; } .sidebar-label, .sidebar-footer { display: none; } .sidebar-nav { display: flex; gap: 5px; overflow-x: auto; } .sidebar-item { flex: 1 0 auto; justify-content: center; width: auto; padding: 10px 12px; font-size: 10px; } .sidebar-item span { display: none; } .app-content { padding: 16px 12px 34px; } .shell { padding: 16px 12px 34px; } .topbar { margin: -16px -12px 18px; padding: 12px; } .topbar, .section-title-row, .table-title-row { align-items: flex-start; flex-direction: column; } .top-actions { align-self: flex-end; } .brand-mark { width: 45px; height: 45px; } .control-grid { grid-template-columns: 1fr; } .group-cards { grid-template-columns: repeat(2, 1fr); } .table-actions { align-items: stretch; flex-direction: column; width: 100%; } .search-box, .secondary-button { width: 100%; } .mode-tabs, .sub-tabs { width: 100%; margin-right: 0; overflow-x: auto; } .mode-tab { flex: 1; min-width: max-content; padding-inline: 11px; font-size: 11px; } .panel, .group-strip, .table-section { padding: 15px; } .person-form { grid-template-columns: 1fr; } .form-wide, .form-actions { grid-column: auto; } h1 { font-size: 24px; } h2 { font-size: 16px; } .verse-band { padding: 15px; } .attendance-controls { align-items: stretch; flex-direction: column; } .attendance-controls label { min-width: 0; } .attendance-save { width: 100%; margin: 0; } .attendance-grid { grid-template-columns: 1fr 1fr; } .qr-cards { grid-template-columns: 1fr; } .dashboard-hero { align-items: flex-start; padding: 18px; } .hero-date { align-items: flex-end; flex-direction: column; gap: 10px; } .dashboard-hero img { width: 76px; height: 76px; } .dashboard-hero h2 { font-size: 20px; } .dashboard-columns, .dashboard-main-grid, .dashboard-secondary { grid-template-columns: 1fr; } .dashboard-attendance-columns { grid-template-columns: 1fr; } .dashboard-metrics, .historical-metrics { grid-template-columns: repeat(2, 1fr); } .calendar-day { min-height: 49px; padding: 5px; } .calendar-weekdays { font-size: 8px; } .calendar-dots { margin-top: 9px; } }
 @media (max-width: 680px) {
+  html, body, #root { max-width: 100%; overflow-x: hidden; }
   .app-sidebar { padding: 10px; }
   .sidebar-brand { gap: 8px; padding-inline: 4px; }
   .sidebar-brand strong { font-size: 14px; }
   .sidebar-nav { margin-inline: -4px; padding-bottom: 2px; }
   .sidebar-item { min-width: 76px; padding: 9px 8px; }
+  .app-content, .shell, .home-dashboard, .attendance-page, .people-layout { min-width: 0; width: 100%; }
+  .app-content { padding: 12px 10px 28px; }
+  .topbar { margin: -12px -10px 14px; padding: 10px; }
+  .topbar h1 { max-width: 100%; overflow-wrap: anywhere; }
   .topbar { gap: 10px; }
   .topbar h1 { font-size: 21px; }
   .mode-tabs, .sub-tabs { flex-wrap: nowrap; }
   .mode-tab { min-width: 112px; }
   .dashboard-metrics { gap: 8px; }
+  .dashboard-hero { min-height: 0; }
+  .dashboard-hero p:not(.section-kicker) { font-size: 11px; }
+  .hero-date { width: 100%; align-items: stretch; }
+  .hero-date label, .hero-date input { width: 100%; }
+  .hero-date img { align-self: flex-end; }
   .dashboard-metric { padding: 12px 9px; }
   .dashboard-metric strong { font-size: 22px; }
   .call-group-heading { grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; }
   .call-group-heading small { grid-column: 1 / -1; }
   .call-group-members { grid-template-columns: 1fr; padding: 9px; }
   .call-member { min-height: 54px; }
+  .call-member-info strong { white-space: normal; overflow-wrap: anywhere; }
   .table-wrap { max-width: 100%; }
   .table-wrap table { min-width: 680px; }
   .people-table .table-wrap table { min-width: 760px; }
@@ -406,4 +417,5 @@ tbody tr:hover td { background: #f5f8ff; }
   .attendance-name { font-size: 12px; }
   .login-panel { padding: 24px 18px; }
   .login-panel h1 { font-size: 23px; }
+  .toast { right: 10px; bottom: 10px; left: 10px; text-align: center; }
 }
