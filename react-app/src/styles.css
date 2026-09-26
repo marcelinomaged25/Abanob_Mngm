@@ -132,6 +132,8 @@ tbody tr:hover td { background: #f5f8ff; }
 .toast.error { background: #ba3347; }
 .login-screen { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 18px; background: radial-gradient(circle at 15% 10%, #eaf1ff 0, transparent 35%), var(--canvas); }
 .login-panel { width: min(450px, 100%); padding: 32px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); box-shadow: 0 18px 48px rgba(23, 33, 55, .12); }
+.login-brand { display: grid; place-items: center; margin: -6px 0 16px; }
+.login-brand img { width: 82px; height: 82px; object-fit: cover; border: 3px solid #f4c530; border-radius: 50%; background: white; box-shadow: 0 8px 18px rgba(23, 33, 55, .14); }
 .login-panel h1 { margin-bottom: 26px; font-size: 27px; }
 .login-panel label { margin-bottom: 7px; color: #46536a; font-weight: 700; }
 .login-panel input { width: 100%; padding: 11px; border: 1px solid #cbd3df; border-radius: 9px; }

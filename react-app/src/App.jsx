@@ -160,7 +160,7 @@ export default function App() {
     catch (reportError) { setError(reportError.message); }
   }
 
-  if (!password) return <main className="login-screen"><form className="login-panel" onSubmit={login}><p className="eyebrow">كنيسة السيدة العذراء مريم بارض الشركة</p><h1>إدارة خورس القديس أبانوب</h1><label htmlFor="app-password">كلمة مرور الخدام</label><input id="app-password" type="password" autoComplete="current-password" value={passwordDraft} onChange={(event) => setPasswordDraft(event.target.value)} required autoFocus /><button className="primary-button" disabled={busy}>{busy ? <LoaderCircle size={17} className="spin" /> : null} دخول</button>{error && <p className="login-error">{error}</p>}</form></main>;
+  if (!password) return <main className="login-screen"><form className="login-panel" onSubmit={login}><div className="login-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /></div><p className="eyebrow">كنيسة السيدة العذراء مريم بارض الشركة</p><h1>إدارة خورس القديس أبانوب</h1><label htmlFor="app-password">كلمة مرور الخدام</label><input id="app-password" type="password" autoComplete="current-password" value={passwordDraft} onChange={(event) => setPasswordDraft(event.target.value)} required autoFocus /><button className="primary-button" disabled={busy}>{busy ? <LoaderCircle size={17} className="spin" /> : null} دخول</button>{error && <p className="login-error">{error}</p>}</form></main>;
 
   const navItem = (nextMode, icon, label) => <button className={`sidebar-item ${mode === nextMode || (nextMode === "visit" && (mode === "call" || mode === "history")) ? "active" : ""}`} onClick={() => switchMode(nextMode)}>{icon}<span>{label}</span></button>;
   return <main className="app-shell">
