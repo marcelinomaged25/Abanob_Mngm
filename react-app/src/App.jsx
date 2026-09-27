@@ -70,7 +70,8 @@ export default function App() {
       if (nextMode === "attendance") {
         const result = await request(`/api/attendance?type=${attendanceType}&date=${date || today()}`, {}, auth);
         const directory = await request("/api/state?mode=visit", {}, auth);
-        setState(directory); setAttendanceDate(result.date); setAttendanceChecks(Object.fromEntries((result.attended || []).map((id) => [id, true]))); return;
+        const attendedKeys = new Set(result.attended || []);
+        setState(directory); setAttendanceDate(result.date); setAttendanceChecks(Object.fromEntries((directory.rows || []).filter((row) => attendedKeys.has(String(row.recordKey))).map((row) => [row.id, true]))); return;
       }
       const params = new URLSearchParams({ mode: nextMode === "visit" ? "visit" : "call" });
       if (nextMode === "visit") params.set("date", date || today());
