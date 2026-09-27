@@ -47,6 +47,7 @@ export default function App() {
   const [trendMonth, setTrendMonth] = useState(today().slice(0, 7));
   const [scanPerson, setScanPerson] = useState(null);
   const [scanType, setScanType] = useState("both");
+  const [scanDate, setScanDate] = useState(today());
 
   const request = useCallback(async (path, options = {}, auth = password) => {
     const response = await fetch(`${apiUrl}${path}`, { ...options, headers: { ...(options.body ? { "Content-Type": "application/json" } : {}), ...(auth ? { "X-App-Password": auth } : {}), ...options.headers } });
@@ -123,7 +124,9 @@ export default function App() {
     setBusy(true); setError("");
     try {
       const types = scanType === "both" ? ["choir", "mass"] : [scanType];
-      for (const type of types) await request("/api/attendance", { method: "POST", body: JSON.stringify({ type, date: today(), checks: { [scanPerson.recordKey]: true } }) });
+      for (const type of types) await request("/api/attendance", { method: "POST", body: JSON.stringify({ type, date: scanDate, checks: { [scanPerson.recordKey]: true } }) });
+      setAttendanceDate(scanDate);
+      await load("home", dashboardDate, password, trendMonth);
       setNotice(`تم تسجيل حضور ${scanPerson.name}`); setScanPerson(null);
     } catch (saveError) { setError(saveError.message); } finally { setBusy(false); }
   }
@@ -208,7 +211,7 @@ export default function App() {
     {followUpMode && <FollowUpDashboard mode={mode} state={state} selectedDate={selectedDate} setSelectedDate={setSelectedDate} rotationStart={rotationStart} setRotationStart={setRotationStart} servantsText={servantsText} setServantsText={setServantsText} busy={busy} saveFollowUp={saveFollowUp} load={load} checkedCount={checkedCount} percent={percent} />}
     {mode === "people" && <PeopleManager state={state} rows={rows} query={query} setQuery={setQuery} busy={busy} editingPerson={editingPerson} personDraft={personDraft} setPersonDraft={setPersonDraft} savePerson={savePerson} editPerson={editPerson} archivePerson={archivePerson} cancelEdit={() => { setEditingPerson(null); setPersonDraft(emptyPerson); }} />}
     {mode === "attendance" && <AttendanceManager state={state} rows={rows} attendanceType={attendanceType} setAttendanceType={(type) => { setAttendanceType(type); load("attendance", attendanceDate); }} attendanceDate={attendanceDate} setAttendanceDate={(date) => { setAttendanceDate(date); load("attendance", date); }} checks={attendanceChecks} setChecks={setAttendanceChecks} save={saveAttendance} busy={busy} query={query} setQuery={setQuery} />}
-    {mode === "qr" && <QrScannerPage password={password} request={request} person={scanPerson} setPerson={setScanPerson} scanType={scanType} setScanType={setScanType} save={saveScannedAttendance} busy={busy} />}
+    {mode === "qr" && <QrScannerPage request={request} person={scanPerson} setPerson={setScanPerson} scanType={scanType} setScanType={setScanType} scanDate={scanDate} setScanDate={setScanDate} save={saveScannedAttendance} busy={busy} />}
     {mode === "qr-print" && <QrCardsPage rows={state.rows} />}
     {mode === "home" && <HomeDashboard dashboard={dashboard} dashboardDate={dashboardDate} setDashboardDate={(date) => { setDashboardDate(date); load("home", date); }} trendMonth={trendMonth} setTrendMonth={(month) => { setTrendMonth(month); load("home", dashboardDate, password, month); }} openReport={openReport} />}
     {mode === "stray" && <StraySheepPage people={dashboard.people || []} openReport={openReport} />}
@@ -321,10 +324,10 @@ function QrCardsPage({ rows }) {
   const printCards = (target = null) => { setPrintTarget(target); window.setTimeout(() => { window.print(); setPrintTarget(null); }, 80); };
   return <section className="qr-page"><div className="section-title-row table-title-row"><div><p className="section-kicker">بطاقات الحضور</p><h2>QR لكل مخدوم</h2><span className="date-label">اطبع الكل أو اختار كارت واحد واحفظه PDF</span></div><div className="qr-page-actions"><label className="search-box qr-search"><Search size={17} /><input type="search" placeholder="ابحث بالاسم أو الرقم" value={query} onChange={(event) => setQuery(event.target.value)} /></label><button className="primary-button qr-print-button" onClick={() => printCards()}><Copy size={15} /> طباعة الكل / PDF</button></div></div><div className="qr-print-grid">{filteredPeople.map((person) => <QrCard person={person} printTarget={printTarget} onPrint={printCards} key={person.id} />)}{!filteredPeople.length && <p className="empty-row">لا يوجد شخص بهذا البحث</p>}</div></section>;
 }
-function QrScannerPage({ request, person, setPerson, scanType, setScanType, save, busy }) {
+function QrScannerPage({ request, person, setPerson, scanType, setScanType, scanDate, setScanDate, save, busy }) {
   const [scannerError, setScannerError] = useState("");
   useEffect(() => { const scanner = new Html5Qrcode("qr-reader"); scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 230, height: 230 } }, async (decoded) => { try { await scanner.stop(); const token = decoded.includes("/qr/") ? decoded.split("/qr/").pop().split(/[?#]/)[0] : decoded.trim(); setPerson(await request(`/api/qr/${encodeURIComponent(token)}`)); } catch (error) { setScannerError(error.message); } }, () => {}).catch((error) => setScannerError("اسمح للمتصفح باستخدام الكاميرا")); return () => { scanner.stop().catch(() => {}); }; }, [request, setPerson]);
-  return <section className="qr-scan-page"><div className="qr-scan-panel"><p className="section-kicker">تسجيل حضور سريع</p><h2>امسح QR الخاص بالمخدوم</h2><div id="qr-reader" className="qr-reader" />{scannerError && <p className="login-error">{scannerError}</p>}{person && <div className="scanned-person"><strong>{person.name}</strong><small>{person.phone1 || "بدون رقم"}</small><div className="segmented-control"><button className={scanType === "choir" ? "active" : ""} onClick={() => setScanType("choir")}>خورس</button><button className={scanType === "mass" ? "active" : ""} onClick={() => setScanType("mass")}>قداس</button><button className={scanType === "both" ? "active" : ""} onClick={() => setScanType("both")}>الاتنين</button></div><button className="primary-button" disabled={busy} onClick={save}>تأكيد تسجيل الحضور</button></div>}</div></section>;
+  return <section className="qr-scan-page"><div className="qr-scan-panel"><p className="section-kicker">تسجيل حضور سريع</p><h2>امسح QR الخاص بالمخدوم</h2><label className="qr-scan-date">تاريخ الحضور<input type="date" value={scanDate} onChange={(event) => setScanDate(event.target.value)} /></label><div id="qr-reader" className="qr-reader" />{scannerError && <p className="login-error">{scannerError}</p>}{person && <div className="scanned-person"><strong>{person.name}</strong><small>{person.phone1 || "بدون رقم"}</small><div className="segmented-control"><button className={scanType === "choir" ? "active" : ""} onClick={() => setScanType("choir")}>خورس</button><button className={scanType === "mass" ? "active" : ""} onClick={() => setScanType("mass")}>قداس</button><button className={scanType === "both" ? "active" : ""} onClick={() => setScanType("both")}>الاتنين</button></div><button className="primary-button" disabled={busy} onClick={save}>تأكيد تسجيل الحضور</button></div>}</div></section>;
 }
 
 function AttendanceManager({ state, rows, attendanceType, setAttendanceType, attendanceDate, setAttendanceDate, checks, setChecks, save, busy, query, setQuery }) {
