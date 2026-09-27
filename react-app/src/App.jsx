@@ -62,7 +62,7 @@ export default function App() {
       if (nextMode === "stray") {
         const result = await request(`/api/dashboard?date=${date || today()}&month=${monthOverride}`, {}, auth); setDashboard(result); setDashboardDate(result.selectedDate); setTrendMonth(result.trendMonth || monthOverride); return;
       }
-      if (nextMode === "reports") { const selectedMonth = monthOverride || reportMonth; setVisitReports(await request(`/api/visit-reports?month=${selectedMonth}`, {}, auth)); return; }
+      if (nextMode === "reports") { const selectedMonth = monthOverride || reportMonth; const selectedYear = selectedMonth.slice(0, 4); setVisitReports(await request(`/api/visit-reports?year=${selectedYear}&month=${selectedMonth}`, {}, auth)); return; }
       if (nextMode === "activity") { setActivity(await request("/api/activity", {}, auth)); return; }
       if (nextMode === "attendance") {
         const result = await request(`/api/attendance?type=${attendanceType}&date=${date || today()}`, {}, auth);
