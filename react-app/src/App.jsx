@@ -117,7 +117,7 @@ export default function App() {
   function switchMode(nextMode) {
     setMode(nextMode); setQuery(""); setReport(null);
     if (nextMode === "people") { setEditingPerson(null); setPersonDraft(emptyPerson); }
-    if (nextMode === "attendance") load(nextMode, attendanceDate); else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate); else if (nextMode === "reports") load(nextMode); else if (nextMode === "qr") setScanPerson(null); else if (nextMode === "qr-print") return; else load(nextMode, nextMode === "visit" ? selectedDate : undefined);
+    if (nextMode === "attendance") load(nextMode, attendanceDate); else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate); else if (nextMode === "reports") load(nextMode); else if (nextMode === "qr") { setScanPerson(null); load("people"); } else if (nextMode === "qr-print") load("people"); else load(nextMode, nextMode === "visit" ? selectedDate : undefined);
   }
 
   async function saveScannedAttendance() {
