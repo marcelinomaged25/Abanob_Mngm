@@ -311,7 +311,7 @@ function PeopleManager({ state, rows, query, setQuery, busy, editingPerson, pers
 function QrCard({ person, onPrint, printTarget }) {
   const [src, setSrc] = useState("");
   useEffect(() => { QRCode.toDataURL(`${window.location.origin}/qr/${person.qrToken}`, { margin: 1, width: 180, errorCorrectionLevel: "M" }).then(setSrc); }, [person.qrToken]);
-  return <article className={`qr-print-card ${printTarget === person.id ? "print-target" : ""}`}><button type="button" className="qr-card-preview" onClick={() => onPrint(person.id)} title={`طباعة QR الخاص بـ ${person.name}`}><div>{src ? <img src={src} alt={`QR ${person.name}`} /> : <span className="qr-loading">جاري إنشاء QR</span>}</div><strong>{person.name}</strong><small>{person.phone1 || "بدون رقم"}</small></button><button type="button" className="secondary-button qr-single-print" onClick={() => onPrint(person.id)}>طباعة هذا الكود</button></article>;
+  return <article className={`qr-print-card ${printTarget === person.id ? "print-target" : ""}`}><button type="button" className="qr-card-preview" onClick={() => onPrint(person.id)} title={`طباعة QR الخاص بـ ${person.name}`}><div>{src ? <img src={src} alt={`QR ${person.name}`} /> : <span className="qr-loading">جاري إنشاء QR</span>}</div><strong>{person.name}</strong></button><button type="button" className="secondary-button qr-single-print" onClick={() => onPrint(person.id)}>طباعة هذا الكود</button></article>;
 }
 function QrCardsPage({ rows }) {
   const people = rows.filter((row) => row.role === "boy");
