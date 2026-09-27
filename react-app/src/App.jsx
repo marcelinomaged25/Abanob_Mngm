@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Church, Clock3, Copy, Home, LayoutDashboard, LoaderCircle, Pencil, Phone, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Church, CircleAlert, Clock3, Copy, Home, LayoutDashboard, LoaderCircle, Pencil, Phone, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "https://abanob-mngm.onrender.com").replace(/\/$/, "");
 const today = () => new Date().toISOString().slice(0, 10);
@@ -50,6 +50,9 @@ export default function App() {
       if (nextMode === "home") {
         const result = await request(`/api/dashboard?date=${date || today()}&month=${monthOverride}`, {}, auth); setDashboard(result); setDashboardDate(result.selectedDate); setTrendMonth(result.trendMonth || monthOverride); return;
       }
+      if (nextMode === "stray") {
+        const result = await request(`/api/dashboard?date=${date || today()}&month=${monthOverride}`, {}, auth); setDashboard(result); setDashboardDate(result.selectedDate); setTrendMonth(result.trendMonth || monthOverride); return;
+      }
       if (nextMode === "attendance") {
         const result = await request(`/api/attendance?type=${attendanceType}&date=${date || today()}`, {}, auth);
         const directory = await request("/api/state?mode=visit", {}, auth);
@@ -97,7 +100,7 @@ export default function App() {
   function switchMode(nextMode) {
     setMode(nextMode); setQuery(""); setReport(null);
     if (nextMode === "people") { setEditingPerson(null); setPersonDraft(emptyPerson); }
-    if (nextMode === "attendance") load(nextMode, attendanceDate); else load(nextMode, nextMode === "visit" ? selectedDate : undefined);
+    if (nextMode === "attendance") load(nextMode, attendanceDate); else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate); else load(nextMode, nextMode === "visit" ? selectedDate : undefined);
   }
 
   function updateCheck(recordKey, field, checked) {
@@ -164,7 +167,7 @@ export default function App() {
 
   const navItem = (nextMode, icon, label) => <button className={`sidebar-item ${mode === nextMode || (nextMode === "visit" && (mode === "call" || mode === "history")) ? "active" : ""}`} onClick={() => switchMode(nextMode)}>{icon}<span>{label}</span></button>;
   return <main className="app-shell">
-    <aside className="app-sidebar"><div className="sidebar-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>كنيستي</strong><span>إدارة الخدمة</span></div></div><p className="sidebar-label">أقسام لوحة الإدارة</p><nav className="sidebar-nav">{navItem("home", <LayoutDashboard size={17} />, "نظرة عامة")}{navItem("attendance", <UserCheck size={17} />, "الحضور والغياب")}{navItem("visit", <Home size={17} />, "الافتقاد")}{navItem("history", <Users size={17} />, "أفراد الخورس")}{navItem("people", <Pencil size={17} />, "إدارة الخورس")}</nav><div className="sidebar-footer"><span>خورس القديس أبانوب</span><button className="icon-button" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={() => { sessionStorage.removeItem("choir-password"); setPassword(""); setPasswordDraft(""); }}>×</button></div></aside>
+    <aside className="app-sidebar"><div className="sidebar-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>كنيستي</strong><span>إدارة الخدمة</span></div></div><p className="sidebar-label">أقسام لوحة الإدارة</p><nav className="sidebar-nav">{navItem("home", <LayoutDashboard size={17} />, "نظرة عامة")}{navItem("attendance", <UserCheck size={17} />, "الحضور والغياب")}{navItem("visit", <Home size={17} />, "الافتقاد")}{navItem("stray", <CircleAlert size={17} />, "الخروف الضال")}{navItem("history", <Users size={17} />, "أفراد الخورس")}{navItem("people", <Pencil size={17} />, "إدارة الخورس")}</nav><div className="sidebar-footer"><span>خورس القديس أبانوب</span><button className="icon-button" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={() => { sessionStorage.removeItem("choir-password"); setPassword(""); setPasswordDraft(""); }}>×</button></div></aside>
     <section className="app-content"><header className="topbar"><div className="brand-lockup"><div><p className="eyebrow">كنيسة السيدة العذراء مريم بارض الشركة</p><h1>إدارة خورس القديس أبانوب</h1></div></div><div className="top-actions"><span className="save-state">{loading ? "جاري التحميل" : busy ? "جاري الحفظ" : notice || "جاهز"}</span></div></header>
     {mode === "visit" && state.verse && <section className="verse-band"><p>{state.verse}</p></section>}
     {mode === "visit" || mode === "call" ? <div className="sub-tabs"><button className={mode === "visit" ? "active" : ""} onClick={() => switchMode("visit")}><Home size={15} /> زيارة البيت</button><button className={mode === "call" ? "active" : ""} onClick={() => switchMode("call")}><Phone size={15} /> الاتصال الأسبوعي</button></div> : null}
@@ -173,11 +176,22 @@ export default function App() {
     {mode === "people" && <PeopleManager state={state} rows={rows} query={query} setQuery={setQuery} busy={busy} editingPerson={editingPerson} personDraft={personDraft} setPersonDraft={setPersonDraft} savePerson={savePerson} editPerson={editPerson} archivePerson={archivePerson} cancelEdit={() => { setEditingPerson(null); setPersonDraft(emptyPerson); }} />}
     {mode === "attendance" && <AttendanceManager state={state} rows={rows} attendanceType={attendanceType} setAttendanceType={(type) => { setAttendanceType(type); load("attendance", attendanceDate); }} attendanceDate={attendanceDate} setAttendanceDate={(date) => { setAttendanceDate(date); load("attendance", date); }} checks={attendanceChecks} setChecks={setAttendanceChecks} save={saveAttendance} busy={busy} query={query} setQuery={setQuery} />}
     {mode === "home" && <HomeDashboard dashboard={dashboard} dashboardDate={dashboardDate} setDashboardDate={(date) => { setDashboardDate(date); load("home", date); }} trendMonth={trendMonth} setTrendMonth={(month) => { setTrendMonth(month); load("home", dashboardDate, password, month); }} openReport={openReport} />}
+    {mode === "stray" && <StraySheepPage people={dashboard.people || []} openReport={openReport} />}
     {(mode === "visit" || mode === "call") && <PeopleTable mode={mode} rows={rows} query={query} setQuery={setQuery} busy={busy} saveFollowUp={saveFollowUp} updateCheck={updateCheck} openReport={openReport} loading={loading} />}
     {mode === "history" && <MembersDirectoryByRole rows={rows} query={query} setQuery={setQuery} openReport={openReport} loading={loading} />}
     {(error || notice) && <div className={`toast visible ${error ? "error" : ""}`} role="status">{error || notice}</div>}
     {report && <ReportModal report={report} close={() => setReport(null)} />}
     </section></main>;
+}
+
+function StraySheepPage({ people, openReport }) {
+  const rows = people.filter((person) => person.role !== "servant").map((person) => {
+    const attendance = (person.choirCount || 0) + (person.massCount || 0);
+    const followUp = (person.visitCount || 0) + (person.callCount || 0);
+    const activity = attendance * 2 + followUp;
+    return { ...person, attendance, followUp, activity, need: Math.max(0, 100 - Math.min(100, activity * 10)) };
+  }).sort((a, b) => a.activity - b.activity || a.attendance - b.attendance || a.name.localeCompare(b.name, "ar"));
+  return <section className="stray-page"><section className="stray-hero"><div><p className="section-kicker">متابعة الرعاية</p><h2>الخروف الضال</h2><p>الأسماء الأكثر احتياجًا للمتابعة حسب الحضور والافتقاد.</p></div><CircleAlert size={30} /></section><section className="stray-note"><strong>طريقة الترتيب</strong><span>الأعلى في القائمة هو الأقل حضورًا في الخورس والقداس، والأقل افتقادًا بالزيارة والاتصال.</span></section><section className="table-section stray-table"><div className="section-title-row table-title-row"><div><p className="section-kicker">أولوية المتابعة</p><h2>{rows.length} مخدوم</h2></div><span className="date-label">من الأكثر احتياجًا إلى الأقل</span></div><div className="stray-list">{rows.map((row, index) => <button className={`stray-person group-tone-${groupTone(row.group)}`} key={row.id} onClick={() => openReport(row)}><span className="stray-rank">{index + 1}</span><span className="stray-person-info"><strong>{row.name}</strong><small>{row.phone1 || "بدون رقم"}</small></span><span className="stray-stats"><b>{row.need}%</b><small>احتياج متابعة</small></span><span className="stray-counts"><span>خورس {row.choirCount || 0}</span><span>قداس {row.massCount || 0}</span><span>زيارة {row.visitCount || 0}</span><span>اتصال {row.callCount || 0}</span></span></button>)}</div>{!rows.length && <p className="empty-row">لا توجد بيانات مخدومين</p>}</section></section>;
 }
 
 function HomeDashboard({ dashboard, dashboardDate, setDashboardDate, trendMonth, setTrendMonth, openReport }) {
