@@ -254,6 +254,9 @@ tbody tr:hover td { background: #f5f8ff; }
 .report-bar-column span { max-width: 76px; overflow: hidden; color: #71809a; font-size: 10px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .month-filter-button { white-space: nowrap; }
 .activity-page table { min-width: 620px; }
+.mode-visit .overview-panel .metric:first-child { display: none; }
+.mode-visit .table-section:not(.call-groups-section) table th:first-child, .mode-visit .table-section:not(.call-groups-section) table td:first-child { display: none; }
+.mode-visit .table-section:not(.call-groups-section) tbody tr { background: #fffdf7; }
 .reports-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .reports-metrics article { display: grid; gap: 5px; padding: 17px; border: 1px solid #d9d1bb; border-radius: 14px; background: #fffdf7; box-shadow: var(--shadow); }
 .reports-metrics span { color: var(--muted); font-size: 11px; }
