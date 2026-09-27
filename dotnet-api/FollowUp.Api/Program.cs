@@ -156,6 +156,21 @@ api.MapGet("/visit-reports", async (int? year, string? month, NpgsqlDataSource d
     await using (var command = new NpgsqlCommand("select extract(year from visit_date)::int,count(distinct person_id) from visit_records group by extract(year from visit_date) order by extract(year from visit_date) desc", connection))
     await using (var reader = await command.ExecuteReaderAsync())
         while (await reader.ReadAsync()) yearly.Add(new { year = reader.GetInt32(0), count = reader.GetInt64(1) });
+    var callDaily = new List<object>();
+    await using (var command = new NpgsqlCommand($"select week_start::text,count(distinct person_id) from call_records where week_start >= DATE '{monthStartSql}' and week_start < DATE '{monthEndSql}' group by week_start order by week_start desc", connection))
+    await using (var reader = await command.ExecuteReaderAsync())
+        while (await reader.ReadAsync()) callDaily.Add(new { date = reader.GetString(0), count = reader.GetInt64(1) });
+    var callMonthly = new List<object>();
+    await using (var command = new NpgsqlCommand("select to_char(date_trunc('month',week_start),'YYYY-MM'),count(distinct person_id) from call_records where extract(year from week_start)=$1 group by date_trunc('month',week_start) order by date_trunc('month',week_start)", connection))
+    {
+        command.Parameters.AddWithValue(selectedYear);
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync()) callMonthly.Add(new { month = reader.GetString(0), count = reader.GetInt64(1) });
+    }
+    var callYearly = new List<object>();
+    await using (var command = new NpgsqlCommand("select extract(year from week_start)::int,count(distinct person_id) from call_records group by extract(year from week_start) order by extract(year from week_start) desc", connection))
+    await using (var reader = await command.ExecuteReaderAsync())
+        while (await reader.ReadAsync()) callYearly.Add(new { year = reader.GetInt32(0), count = reader.GetInt64(1) });
     var monthlyCalls = await Scalar($"select count(distinct person_id) from call_records where week_start >= DATE '{monthStartSql}' and week_start < DATE '{monthEndSql}'");
     var yearlyCalls = await Scalar($"select count(distinct person_id) from call_records where week_start >= DATE '{yearStartSql}' and week_start < DATE '{yearEndSql}'");
     var servantStats = new List<object>();
@@ -164,7 +179,7 @@ api.MapGet("/visit-reports", async (int? year, string? month, NpgsqlDataSource d
         await using var servantReader = await servantCommand.ExecuteReaderAsync();
         while (await servantReader.ReadAsync()) servantStats.Add(new { servant = servantReader.GetString(0), people = servantReader.GetInt64(1), calls = servantReader.GetInt64(2) });
     }
-    return Results.Ok(new { year = selectedYear, month = monthStart.ToString("yyyy-MM"), totalPeople, daily, monthly, yearly, servantStats, totals = new { daily = dailyTotal, monthly = monthlyTotal, yearly = yearlyTotal, monthlyCalls, yearlyCalls } });
+    return Results.Ok(new { year = selectedYear, month = monthStart.ToString("yyyy-MM"), totalPeople, daily, monthly, yearly, callDaily, callMonthly, callYearly, servantStats, totals = new { daily = dailyTotal, monthly = monthlyTotal, yearly = yearlyTotal, monthlyCalls, yearlyCalls } });
 });
 
 api.MapGet("/history/{personId:long}", async (long personId, NpgsqlDataSource db) =>

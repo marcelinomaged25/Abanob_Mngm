@@ -241,6 +241,16 @@ tbody tr:hover td { background: #f5f8ff; }
 .report-month-picker { display: grid; gap: 5px; min-width: 168px; color: #c5d0e5; font-size: 11px; font-weight: 700; }
 .report-month-picker input { min-height: 40px; padding: 8px 10px; border: 1px solid #d8c99f; border-radius: 9px; background: #fffdf7; color: #172137; color-scheme: light; font: inherit; direction: ltr; text-align: left; }
 .report-month-picker input::-webkit-calendar-picker-indicator { opacity: .72; cursor: pointer; }
+.report-period-switch { display: flex; gap: 4px; padding: 4px; border: 1px solid rgba(255,255,255,.24); border-radius: 10px; background: rgba(255,255,255,.08); }
+.report-period-switch button { border: 0; border-radius: 7px; padding: 8px 11px; background: transparent; color: #dbe4f4; cursor: pointer; font-weight: 800; }
+.report-period-switch button.active { background: #f2c94c; color: #172137; }
+.report-chart-card { margin-top: 18px; }
+.report-bar-chart { display: flex; align-items: end; gap: 10px; min-height: 260px; padding: 24px 12px 8px; overflow-x: auto; border-top: 1px solid #eee5d2; }
+.report-bar-column { display: flex; flex: 1 0 42px; min-width: 42px; height: 220px; flex-direction: column; align-items: center; justify-content: end; gap: 6px; }
+.report-bar-column strong { color: #172137; font-size: 12px; }
+.report-bar-column i { width: min(34px, 80%); min-height: 8px; border-radius: 8px 8px 2px 2px; background: linear-gradient(180deg, #27a99d, #087f78); box-shadow: 0 5px 12px rgba(8,127,120,.18); }
+.report-chart-card:nth-of-type(3) .report-bar-column i { background: linear-gradient(180deg, #e5b52e, #c68a05); box-shadow: 0 5px 12px rgba(198,138,5,.18); }
+.report-bar-column span { max-width: 76px; overflow: hidden; color: #71809a; font-size: 10px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .month-filter-button { white-space: nowrap; }
 .activity-page table { min-width: 620px; }
 .reports-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
@@ -515,6 +525,10 @@ tbody tr:hover td { background: #f5f8ff; }
   .reports-hero h2 { font-size: 20px; }
   .reports-hero-actions { width: 100%; align-items: stretch; gap: 8px; }
   .report-month-picker { min-width: 0; flex: 1 1 150px; }
+  .report-period-switch { flex: 1 1 180px; justify-content: center; }
+  .report-period-switch button { flex: 1; }
+  .report-bar-chart { gap: 7px; min-height: 220px; padding-inline: 4px; }
+  .report-bar-column { height: 180px; }
   .reports-hero-actions svg { display: none; }
   .month-filter-button { white-space: normal; }
   .reports-metrics { grid-template-columns: 1fr; gap: 8px; }
