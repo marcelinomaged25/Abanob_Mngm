@@ -608,8 +608,12 @@ tbody tr:hover td { background: #f5f8ff; }
   .app-shell { display: block; min-height: 0; }
   .app-content { padding: 0; }
   .qr-page { margin: 0; }
-  .qr-print-grid { grid-template-columns: repeat(4, 1fr); gap: 8px; }
-  .qr-print-card { border-color: #bbb; box-shadow: none; }
+  .qr-print-grid { display: block; margin: 0; }
+  .qr-print-card { min-height: 100vh; align-content: center; border: 0; border-color: #bbb; border-radius: 0; box-shadow: none; page-break-after: always; break-after: page; }
+  .qr-print-card:last-child { page-break-after: auto; break-after: auto; }
+  .qr-print-card img, .qr-loading { width: 260px; height: 260px; }
+  .qr-print-card strong { margin-top: 16px; font-size: 24px; }
+  .qr-print-card small { font-size: 14px; }
 }
 
 /* Final control alignment: keep fields and actions on one consistent rhythm. */
