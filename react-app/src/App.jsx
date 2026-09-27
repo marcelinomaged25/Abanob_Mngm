@@ -126,7 +126,9 @@ export default function App() {
       const types = scanType === "both" ? ["choir", "mass"] : [scanType];
       for (const type of types) await request("/api/attendance", { method: "POST", body: JSON.stringify({ type, date: scanDate, checks: { [scanPerson.recordKey]: true } }) });
       setAttendanceDate(scanDate);
-      await load("home", dashboardDate, password, trendMonth);
+      setDashboardDate(scanDate);
+      setTrendMonth(scanDate.slice(0, 7));
+      await load("home", scanDate, password, scanDate.slice(0, 7));
       setNotice(`تم تسجيل حضور ${scanPerson.name}`); setScanPerson(null);
     } catch (saveError) { setError(saveError.message); } finally { setBusy(false); }
   }
