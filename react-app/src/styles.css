@@ -558,3 +558,24 @@ tbody tr:hover td { background: #f5f8ff; }
   .login-panel h1 { font-size: 23px; }
   .toast { right: 10px; bottom: 10px; left: 10px; text-align: center; }
 }
+
+/* Final control alignment: keep fields and actions on one consistent rhythm. */
+.search-box, .attendance-controls input, .person-form input, .person-form select, .person-form textarea, .login-panel input { min-height: 42px; }
+.search-box { height: 44px; }
+.search-box input { min-height: 40px; }
+.primary-button, .secondary-button, .cancel-button, .sub-tabs button, .segmented-control button { min-height: 42px; }
+.primary-button, .secondary-button, .cancel-button { line-height: 1.2; }
+.table-actions { flex-wrap: wrap; }
+.table-actions .search-box { flex: 1 1 260px; }
+.table-actions .secondary-button { min-width: 132px; }
+.attendance-controls input { min-height: 42px; margin-top: 6px; padding: 10px 12px; }
+.attendance-controls .segmented-control { min-height: 42px; }
+.section-kicker { line-height: 1.4; }
+.section-title-row h2, .panel-heading h2 { line-height: 1.45; }
+
+@media (max-width: 680px) {
+  .table-actions .search-box, .table-actions .secondary-button { flex: 1 1 100%; width: 100%; }
+  .table-actions .secondary-button { min-width: 0; }
+  .search-box { height: 42px; }
+  .sub-tabs button, .segmented-control button { min-height: 40px; }
+}
