@@ -1,0 +1,14 @@
+{
+  "name": "إدارة خورس القديس أبانوب",
+  "short_name": "خورس أبانوب",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f8fb",
+  "theme_color": "#07152f",
+  "icons": [
+    { "src": "/app-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "/saint-abanoub.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
