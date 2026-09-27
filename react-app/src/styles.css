@@ -236,6 +236,8 @@ tbody tr:hover td { background: #f5f8ff; }
 .reports-hero p:not(.section-kicker) { margin: 0; color: #c5d0e5; font-size: 12px; }
 .reports-hero-actions { display: flex; align-items: center; gap: 16px; }
 .reports-hero-actions .secondary-button { margin: 0; background: #f2c94c; border-color: #f2c94c; color: #172137; }
+.report-month-picker { display: grid; gap: 4px; color: #c5d0e5; font-size: 11px; }
+.report-month-picker input { min-height: 34px; padding: 6px 10px; border: 1px solid #d8c99f; border-radius: 8px; background: #fffdf7; color: #172137; font: inherit; }
 .month-filter-button { white-space: nowrap; }
 .activity-page table { min-width: 620px; }
 .reports-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }

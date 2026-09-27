@@ -115,11 +115,11 @@ api.MapGet("/dashboard", async (string? date, string? month, NpgsqlDataSource db
     return Results.Ok(new { selectedDate = dashboardDate.ToString("yyyy-MM-dd"), trendMonth = trendMonth.ToString("yyyy-MM"), summary, dailySummary, people, dailyPeople, calendar, weeklyTrend });
 });
 
-api.MapGet("/visit-reports", async (int? year, NpgsqlDataSource db) =>
+api.MapGet("/visit-reports", async (int? year, string? month, NpgsqlDataSource db) =>
 {
     var today = CairoToday();
     var selectedYear = year is >= 2000 and <= 2100 ? year.Value : today.Year;
-    var monthNumber = selectedYear == today.Year ? today.Month : 1;
+    var monthNumber = DateOnly.TryParse($"{month}-01", out var requestedMonth) && requestedMonth.Year == selectedYear ? requestedMonth.Month : (selectedYear == today.Year ? today.Month : 1);
     var monthStart = new DateOnly(selectedYear, monthNumber, 1);
     var monthEnd = monthStart.AddMonths(1);
     var yearStart = new DateOnly(selectedYear, 1, 1);
@@ -140,9 +140,8 @@ api.MapGet("/visit-reports", async (int? year, NpgsqlDataSource db) =>
     var monthlyTotal = await Scalar($"select count(distinct person_id) from visit_records where visit_date >= DATE '{monthStartSql}' and visit_date < DATE '{monthEndSql}'");
     var yearlyTotal = await Scalar($"select count(distinct person_id) from visit_records where visit_date >= DATE '{yearStartSql}' and visit_date < DATE '{yearEndSql}'");
     var daily = new List<object>();
-    await using (var command = new NpgsqlCommand("select visit_date::text,count(distinct person_id) from visit_records where extract(year from visit_date)=$1 group by visit_date order by visit_date desc", connection))
+    await using (var command = new NpgsqlCommand($"select visit_date::text,count(distinct person_id) from visit_records where visit_date >= DATE '{monthStartSql}' and visit_date < DATE '{monthEndSql}' group by visit_date order by visit_date desc", connection))
     {
-        command.Parameters.AddWithValue(selectedYear);
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync()) daily.Add(new { date = reader.GetString(0), count = reader.GetInt64(1) });
     }
@@ -165,7 +164,7 @@ api.MapGet("/visit-reports", async (int? year, NpgsqlDataSource db) =>
         await using var servantReader = await servantCommand.ExecuteReaderAsync();
         while (await servantReader.ReadAsync()) servantStats.Add(new { servant = servantReader.GetString(0), people = servantReader.GetInt64(1), calls = servantReader.GetInt64(2) });
     }
-    return Results.Ok(new { year = selectedYear, totalPeople, daily, monthly, yearly, servantStats, totals = new { daily = dailyTotal, monthly = monthlyTotal, yearly = yearlyTotal, monthlyCalls, yearlyCalls } });
+    return Results.Ok(new { year = selectedYear, month = monthStart.ToString("yyyy-MM"), totalPeople, daily, monthly, yearly, servantStats, totals = new { daily = dailyTotal, monthly = monthlyTotal, yearly = yearlyTotal, monthlyCalls, yearlyCalls } });
 });
 
 api.MapGet("/history/{personId:long}", async (long personId, NpgsqlDataSource db) =>
