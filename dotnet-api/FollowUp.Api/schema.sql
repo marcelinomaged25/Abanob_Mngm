@@ -8,9 +8,7 @@ create table if not exists visit_records (person_id bigint not null references p
 create table if not exists call_assignments (week_start date not null, group_number text not null references groups(number), servant text not null, assigned_at timestamptz not null default now(), primary key (week_start, group_number));
 create table if not exists call_records (person_id bigint not null references people(id) on delete cascade, week_start date not null, servant text not null default '', recorded_at timestamptz not null default now(), primary key (person_id, week_start));
 create table if not exists attendance_records (person_id bigint not null references people(id) on delete cascade, attendance_type text not null check (attendance_type in ('choir','mass')), attendance_date date not null, recorded_at timestamptz not null default now(), primary key (person_id, attendance_type, attendance_date));
-create table if not exists activity_log (id bigserial primary key, actor_role text not null default 'admin', action text not null, entity text not null, details text not null default '', created_at timestamptz not null default now());
 create index if not exists people_group_idx on people(group_number, record_key);
-create index if not exists activity_log_created_idx on activity_log(created_at desc);
 create index if not exists visit_records_person_idx on visit_records(person_id, visit_date desc);
 create index if not exists call_records_person_idx on call_records(person_id, week_start desc);
 create index if not exists attendance_person_idx on attendance_records(person_id, attendance_type, attendance_date desc);

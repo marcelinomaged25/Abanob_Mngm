@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { BarChart3, CalendarDays, Check, ChevronLeft, ChevronRight, Church, CircleAlert, Clock3, Copy, Home, LayoutDashboard, LoaderCircle, Pencil, Phone, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
+import { BarChart3, CalendarDays, Check, ChevronLeft, ChevronRight, Church, CircleAlert, Copy, Home, LayoutDashboard, LoaderCircle, Pencil, Phone, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "https://abanob-mngm.onrender.com").replace(/\/$/, "");
 const today = () => {
@@ -40,7 +40,6 @@ export default function App() {
   const [dashboard, setDashboard] = useState({ summary: {}, people: [] });
   const [visitReports, setVisitReports] = useState(emptyVisitReports);
   const [reportMonth, setReportMonth] = useState(today().slice(0, 7));
-  const [activity, setActivity] = useState([]);
   const [includeVisitedThisMonth, setIncludeVisitedThisMonth] = useState(false);
   const [dashboardDate, setDashboardDate] = useState(today());
   const [trendMonth, setTrendMonth] = useState(today().slice(0, 7));
@@ -63,7 +62,6 @@ export default function App() {
         const result = await request(`/api/dashboard?date=${date || today()}&month=${monthOverride}`, {}, auth); setDashboard(result); setDashboardDate(result.selectedDate); setTrendMonth(result.trendMonth || monthOverride); return;
       }
       if (nextMode === "reports") { const selectedMonth = monthOverride || reportMonth; const selectedYear = selectedMonth.slice(0, 4); setVisitReports(await request(`/api/visit-reports?year=${selectedYear}&month=${selectedMonth}`, {}, auth)); return; }
-      if (nextMode === "activity") { setActivity(await request("/api/activity", {}, auth)); return; }
       if (nextMode === "attendance") {
         const result = await request(`/api/attendance?type=${attendanceType}&date=${date || today()}`, {}, auth);
         const directory = await request("/api/state?mode=visit", {}, auth);
@@ -188,7 +186,7 @@ export default function App() {
 
   const navItem = (nextMode, icon, label) => <button className={`sidebar-item ${mode === nextMode || (nextMode === "visit" && (mode === "call" || mode === "history" || mode === "reports")) ? "active" : ""}`} onClick={() => switchMode(nextMode)}>{icon}<span>{label}</span></button>;
   return <main className={`app-shell mode-${mode}`}>
-    <aside className="app-sidebar"><div className="sidebar-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>كنيستي</strong><span>إدارة الخدمة</span></div></div><p className="sidebar-label">أقسام لوحة الإدارة</p><nav className="sidebar-nav">{navItem("home", <LayoutDashboard size={17} />, "نظرة عامة")}{navItem("attendance", <UserCheck size={17} />, "الحضور والغياب")}{navItem("visit", <Home size={17} />, "الافتقاد")}{navItem("stray", <CircleAlert size={17} />, "الخروف الضال")}{navItem("history", <Users size={17} />, "أفراد الخورس")}{navItem("people", <Pencil size={17} />, "إدارة الخورس")}{navItem("activity", <Clock3 size={17} />, "سجل النشاط")}</nav><div className="sidebar-footer"><span>خورس القديس أبانوب</span><button className="icon-button" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={() => { sessionStorage.removeItem("choir-password"); setPassword(""); setPasswordDraft(""); }}>×</button></div></aside>
+    <aside className="app-sidebar"><div className="sidebar-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>كنيستي</strong><span>إدارة الخدمة</span></div></div><p className="sidebar-label">أقسام لوحة الإدارة</p><nav className="sidebar-nav">{navItem("home", <LayoutDashboard size={17} />, "نظرة عامة")}{navItem("attendance", <UserCheck size={17} />, "الحضور والغياب")}{navItem("visit", <Home size={17} />, "الافتقاد")}{navItem("stray", <CircleAlert size={17} />, "الخروف الضال")}{navItem("history", <Users size={17} />, "أفراد الخورس")}{navItem("people", <Pencil size={17} />, "إدارة الخورس")}</nav><div className="sidebar-footer"><span>خورس القديس أبانوب</span><button className="icon-button" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={() => { sessionStorage.removeItem("choir-password"); setPassword(""); setPasswordDraft(""); }}>×</button></div></aside>
     <section className="app-content"><header className="topbar"><div className="brand-lockup"><div><p className="eyebrow">كنيسة السيدة العذراء مريم بارض الشركة</p><h1>إدارة خورس القديس أبانوب</h1></div></div><div className="top-actions">{mode === "reports" && <button className="copy-phone" title="تصدير التقرير" onClick={exportCsv}><Copy size={14} /></button>}<span className="save-state">{loading ? "جاري التحميل" : busy ? "جاري الحفظ" : notice || "جاهز"}</span></div></header>
     {mode === "visit" && state.verse && <section className="verse-band"><p>{state.verse}</p></section>}
     {mode === "visit" || mode === "call" || mode === "reports" ? <div className="sub-tabs"><button className={mode === "visit" ? "active" : ""} onClick={() => switchMode("visit")}><Home size={15} /> زيارة البيت</button><button className={mode === "call" ? "active" : ""} onClick={() => switchMode("call")}><Phone size={15} /> الاتصال الأسبوعي</button><button className={mode === "reports" ? "active" : ""} onClick={() => switchMode("reports")}><BarChart3 size={15} /> تقارير الافتقاد</button></div> : null}
@@ -200,7 +198,6 @@ export default function App() {
     {mode === "stray" && <StraySheepPage people={dashboard.people || []} openReport={openReport} />}
     {(mode === "visit" || mode === "call") && <PeopleTable mode={mode} rows={mode === "visit" ? visitRows : rows} query={query} setQuery={setQuery} busy={busy} saveFollowUp={saveFollowUp} updateCheck={updateCheck} openReport={openReport} loading={loading} includeVisitedThisMonth={includeVisitedThisMonth} setIncludeVisitedThisMonth={setIncludeVisitedThisMonth} />}
     {mode === "reports" && <VisitReportsPage reports={visitReports} exportCsv={exportCsv} month={reportMonth} setMonth={(month) => { setReportMonth(month); load("reports", undefined, password, month); }} />}
-    {mode === "activity" && <ActivityPage activity={activity} />}
     {mode === "history" && <MembersDirectoryByRole rows={rows} query={query} setQuery={setQuery} openReport={openReport} loading={loading} />}
     {(error || notice) && <div className={`toast visible ${error ? "error" : ""}`} role="status">{error || notice}</div>}
     {report && <ReportModal report={report} close={() => setReport(null)} />}
@@ -231,10 +228,6 @@ function VisitReportsPage({ reports, exportCsv, month, setMonth }) {
 function CopyPhone({ value, name }) {
   if (!value) return <span>—</span>;
   return <span className="phone-copy-cell"><span dir="ltr">{value}</span><button type="button" className="copy-phone" title="نسخ الرقم" aria-label={`نسخ رقم ${name}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); navigator.clipboard?.writeText(value); }}><Copy size={13} /></button></span>;
-}
-
-function ActivityPage({ activity }) {
-  return <section className="table-section activity-page"><div className="section-title-row table-title-row"><div><p className="section-kicker">أمان ومتابعة</p><h2>سجل النشاط</h2></div><span className="date-label">آخر 200 عملية</span></div><div className="table-wrap"><table><thead><tr><th>التاريخ</th><th>المستخدم</th><th>العملية</th><th>التفاصيل</th></tr></thead><tbody>{activity.map((item) => <tr key={item.id}><td className="history-date">{item.createdAt}</td><td>{item.role === "admin" ? "مدير" : "خادم"}</td><td>{item.action}</td><td>{item.details}</td></tr>)}</tbody></table>{!activity.length && <p className="empty-row">لا يوجد نشاط مسجل</p>}</div></section>;
 }
 
 function HomeDashboard({ dashboard, dashboardDate, setDashboardDate, trendMonth, setTrendMonth, openReport }) {
