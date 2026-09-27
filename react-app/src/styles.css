@@ -259,6 +259,9 @@ tbody tr:hover td { background: #f5f8ff; }
 .qr-print-button { width: auto; margin: 0; }
 .qr-print-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
 .qr-print-card { display: grid; justify-items: center; gap: 5px; padding: 14px 10px; border: 1px solid #d9cfb4; border-radius: 12px; background: var(--paper); text-align: center; break-inside: avoid; }
+.qr-card-preview { display: grid; justify-items: center; gap: 5px; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.qr-card-preview:hover strong { color: var(--blue); }
+.qr-single-print { width: auto; min-height: 34px; margin-top: 6px; padding: 7px 10px; font-size: 11px; }
 .qr-print-card img { display: block; width: 132px; height: 132px; }
 .qr-print-card strong { max-width: 100%; color: var(--ink); font-size: 13px; line-height: 1.45; }
 .qr-print-card small { color: var(--muted); font-size: 10px; direction: ltr; }
@@ -610,6 +613,8 @@ tbody tr:hover td { background: #f5f8ff; }
   .qr-page { margin: 0; }
   .qr-print-grid { display: block; margin: 0; }
   .qr-print-card { min-height: 100vh; align-content: center; border: 0; border-color: #bbb; border-radius: 0; box-shadow: none; page-break-after: always; break-after: page; }
+  .qr-single-print { display: none; }
+  .qr-page:has(.print-target) .qr-print-card:not(.print-target) { display: none; }
   .qr-print-card:last-child { page-break-after: auto; break-after: auto; }
   .qr-print-card img, .qr-loading { width: 260px; height: 260px; }
   .qr-print-card strong { margin-top: 16px; font-size: 24px; }
