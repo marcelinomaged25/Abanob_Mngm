@@ -200,6 +200,7 @@ tbody tr:hover td { background: #f5f8ff; }
 .phone-copy-row { display: inline-flex; align-items: center; justify-content: flex-start; gap: 6px; min-height: 22px; }
 .copy-phone { display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 1px solid #d7deeb; border-radius: 6px; background: #f5f7fb; color: var(--blue); cursor: pointer; }
 .copy-phone:hover { border-color: var(--blue); background: var(--blue-soft); }
+.phone-copy-cell { display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
 .call-group-heading.group-tone-1 { border-right: 5px solid #079a9e; }
 .call-group-heading.group-tone-2 { border-right: 5px solid #3565cc; }
 .call-group-heading.group-tone-3 { border-right: 5px solid #1f9250; }
