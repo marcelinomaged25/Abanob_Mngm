@@ -64,13 +64,15 @@ h2 { margin-bottom: 0; font-size: 17px; line-height: 1.4; }
 .panel { min-height: 228px; padding: 22px; }
 .panel-heading { align-items: flex-start; margin-bottom: 18px; }
 .count-badge, .week-mark { display: grid; place-items: center; min-width: 34px; height: 30px; padding: 0 9px; border: 1px solid #cdd9ff; border-radius: 8px; background: var(--blue-soft); color: var(--blue); font-size: 12px; font-weight: 800; }
-textarea, input[type="date"], input[type="search"] { width: 100%; border: 1px solid #cbd3df; border-radius: 9px; background: #fbfcfe; color: var(--ink); outline: none; }
+textarea, input[type="date"], input[type="month"], input[type="search"] { width: 100%; border: 1px solid #cbd3df; border-radius: 9px; background: #fbfcfe; color: var(--ink); outline: none; }
 textarea { min-height: 116px; padding: 11px 12px; resize: vertical; line-height: 1.75; }
 textarea:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(36, 82, 223, .13); }
 .field-hint, label { display: block; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .field-hint { margin-top: 7px; }
 .settings-panel label { margin: 13px 0 6px; color: #46536a; font-weight: 700; }
-input[type="date"] { padding: 10px 11px; }
+input[type="date"], input[type="month"] { min-height: 44px; padding: 10px 12px; color-scheme: light; font-size: 14px; }
+.settings-panel input[type="date"], .settings-panel input[type="month"] { display: block; direction: ltr; text-align: left; background: #fbfcfe; border-color: #cbd6e7; }
+.settings-panel input[type="date"]::-webkit-calendar-picker-indicator, .settings-panel input[type="month"]::-webkit-calendar-picker-indicator { opacity: .72; cursor: pointer; }
 .period-range { margin-top: 8px; color: #40506a; font-size: 12px; font-weight: 700; line-height: 1.75; }
 .primary-button { width: 100%; margin-top: 16px; border: 0; border-radius: 9px; padding: 11px 15px; background: var(--blue); color: white; font-size: 13px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 10px rgba(36, 82, 223, .18); transition: background .16s ease, transform .16s ease; }
 .primary-button:hover { background: var(--blue-dark); transform: translateY(-1px); }
@@ -234,10 +236,11 @@ tbody tr:hover td { background: #f5f8ff; }
 .reports-hero .section-kicker { color: #f2c94c; }
 .reports-hero h2 { margin-bottom: 6px; font-size: 25px; }
 .reports-hero p:not(.section-kicker) { margin: 0; color: #c5d0e5; font-size: 12px; }
-.reports-hero-actions { display: flex; align-items: center; gap: 16px; }
+.reports-hero-actions { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; }
 .reports-hero-actions .secondary-button { margin: 0; background: #f2c94c; border-color: #f2c94c; color: #172137; }
-.report-month-picker { display: grid; gap: 4px; color: #c5d0e5; font-size: 11px; }
-.report-month-picker input { min-height: 34px; padding: 6px 10px; border: 1px solid #d8c99f; border-radius: 8px; background: #fffdf7; color: #172137; font: inherit; }
+.report-month-picker { display: grid; gap: 5px; min-width: 168px; color: #c5d0e5; font-size: 11px; font-weight: 700; }
+.report-month-picker input { min-height: 40px; padding: 8px 10px; border: 1px solid #d8c99f; border-radius: 9px; background: #fffdf7; color: #172137; color-scheme: light; font: inherit; direction: ltr; text-align: left; }
+.report-month-picker input::-webkit-calendar-picker-indicator { opacity: .72; cursor: pointer; }
 .month-filter-button { white-space: nowrap; }
 .activity-page table { min-width: 620px; }
 .reports-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
@@ -510,7 +513,8 @@ tbody tr:hover td { background: #f5f8ff; }
   .stray-counts { grid-column: 2 / -1; padding-top: 4px; border-top: 1px solid #eee5d4; }
   .reports-hero { padding: 16px; }
   .reports-hero h2 { font-size: 20px; }
-  .reports-hero-actions { gap: 8px; }
+  .reports-hero-actions { width: 100%; align-items: stretch; gap: 8px; }
+  .report-month-picker { min-width: 0; flex: 1 1 150px; }
   .reports-hero-actions svg { display: none; }
   .month-filter-button { white-space: normal; }
   .reports-metrics { grid-template-columns: 1fr; gap: 8px; }
