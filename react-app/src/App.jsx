@@ -315,9 +315,11 @@ function QrCard({ person, onPrint, printTarget }) {
 }
 function QrCardsPage({ rows }) {
   const people = rows.filter((row) => row.role === "boy");
+  const [query, setQuery] = useState("");
+  const filteredPeople = people.filter((person) => normalizeArabic(`${person.name} ${person.phone1 || ""} ${person.phone2 || ""}`).toLocaleLowerCase("ar").includes(normalizeArabic(query).toLocaleLowerCase("ar")));
   const [printTarget, setPrintTarget] = useState(null);
   const printCards = (target = null) => { setPrintTarget(target); window.setTimeout(() => { window.print(); setPrintTarget(null); }, 80); };
-  return <section className="qr-page"><div className="section-title-row table-title-row"><div><p className="section-kicker">بطاقات الحضور</p><h2>QR لكل مخدوم</h2><span className="date-label">اطبع الكل أو اختار كارت واحد واحفظه PDF</span></div><button className="primary-button qr-print-button" onClick={() => printCards()}><Copy size={15} /> طباعة الكل / PDF</button></div><div className="qr-print-grid">{people.map((person) => <QrCard person={person} printTarget={printTarget} onPrint={printCards} key={person.id} />)}</div></section>;
+  return <section className="qr-page"><div className="section-title-row table-title-row"><div><p className="section-kicker">بطاقات الحضور</p><h2>QR لكل مخدوم</h2><span className="date-label">اطبع الكل أو اختار كارت واحد واحفظه PDF</span></div><div className="qr-page-actions"><label className="search-box qr-search"><Search size={17} /><input type="search" placeholder="ابحث بالاسم أو الرقم" value={query} onChange={(event) => setQuery(event.target.value)} /></label><button className="primary-button qr-print-button" onClick={() => printCards()}><Copy size={15} /> طباعة الكل / PDF</button></div></div><div className="qr-print-grid">{filteredPeople.map((person) => <QrCard person={person} printTarget={printTarget} onPrint={printCards} key={person.id} />)}{!filteredPeople.length && <p className="empty-row">لا يوجد شخص بهذا البحث</p>}</div></section>;
 }
 function QrScannerPage({ request, person, setPerson, scanType, setScanType, save, busy }) {
   const [scannerError, setScannerError] = useState("");
