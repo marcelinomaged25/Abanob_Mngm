@@ -241,9 +241,10 @@ tbody tr:hover td { background: #f5f8ff; }
 .report-month-picker { display: grid; gap: 5px; min-width: 168px; color: #c5d0e5; font-size: 11px; font-weight: 700; }
 .report-month-picker input { min-height: 40px; padding: 8px 10px; border: 1px solid #d8c99f; border-radius: 9px; background: #fffdf7; color: #172137; color-scheme: light; font: inherit; direction: ltr; text-align: left; }
 .report-month-picker input::-webkit-calendar-picker-indicator { opacity: .72; cursor: pointer; }
-.report-period-switch { display: flex; gap: 4px; padding: 4px; border: 1px solid rgba(255,255,255,.24); border-radius: 10px; background: rgba(255,255,255,.08); }
-.report-period-switch button { border: 0; border-radius: 7px; padding: 8px 11px; background: transparent; color: #dbe4f4; cursor: pointer; font-weight: 800; }
-.report-period-switch button.active { background: #f2c94c; color: #172137; }
+.report-period-switch { display: flex; min-height: 42px; gap: 3px; padding: 4px; border: 1px solid #d8c99f; border-radius: 10px; background: #fffdf7; box-shadow: 0 4px 10px rgba(8, 25, 56, .08); }
+.report-period-switch button { min-width: 55px; border: 0; border-radius: 7px; padding: 7px 11px; background: transparent; color: #64728b; cursor: pointer; font-size: 12px; font-weight: 800; transition: background .16s ease, color .16s ease; }
+.report-period-switch button:hover { color: #172137; background: #f7efd9; }
+.report-period-switch button.active { background: #e3b126; color: #172137; box-shadow: 0 2px 5px rgba(177, 125, 0, .2); }
 .report-chart-card { margin-top: 18px; }
 .report-bar-chart { display: flex; align-items: end; gap: 10px; min-height: 260px; padding: 24px 12px 8px; overflow-x: auto; border-top: 1px solid #eee5d2; }
 .report-bar-column { display: flex; flex: 1 0 42px; min-width: 42px; height: 220px; flex-direction: column; align-items: center; justify-content: end; gap: 6px; }
