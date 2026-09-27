@@ -99,18 +99,19 @@ api.MapGet("/visit-reports", async (int? year, NpgsqlDataSource db) =>
     var today = CairoToday();
     var selectedYear = year is >= 2000 and <= 2100 ? year.Value : today.Year;
     var monthNumber = selectedYear == today.Year ? today.Month : 1;
+    var monthStart = new DateOnly(selectedYear, monthNumber, 1);
+    var monthEnd = monthStart.AddMonths(1);
     await using var connection = await db.OpenConnectionAsync();
-    async Task<long> Scalar(string sql, params NpgsqlParameter[] parameters)
+    async Task<long> Scalar(string sql, params (string Name, object Value)[] parameters)
     {
         await using var command = new NpgsqlCommand(sql, connection);
-        command.Parameters.AddRange(parameters);
+        foreach (var parameter in parameters) command.Parameters.AddWithValue(parameter.Name, parameter.Value);
         return Convert.ToInt64(await command.ExecuteScalarAsync());
     }
     var totalPeople = await Scalar("select count(*) from people where is_active=true and role='boy'");
-    var dailyTotal = await Scalar("select count(distinct person_id) from visit_records where visit_date=$1", new NpgsqlParameter("p1", today));
-    var monthStart = new DateOnly(selectedYear, monthNumber, 1);
-    var monthlyTotal = await Scalar("select count(distinct person_id) from visit_records where visit_date >= $1 and visit_date < ($1 + interval '1 month')", new NpgsqlParameter("p1", monthStart));
-    var yearlyTotal = await Scalar("select count(distinct person_id) from visit_records where extract(year from visit_date)=$1", new NpgsqlParameter("p1", selectedYear));
+    var dailyTotal = await Scalar("select count(distinct person_id) from visit_records where visit_date=$1", ("p1", today));
+    var monthlyTotal = await Scalar("select count(distinct person_id) from visit_records where visit_date >= $1 and visit_date < $2", ("p1", monthStart), ("p2", monthEnd));
+    var yearlyTotal = await Scalar("select count(distinct person_id) from visit_records where visit_date >= $1 and visit_date < $2", ("p1", new DateOnly(selectedYear, 1, 1)), ("p2", new DateOnly(selectedYear + 1, 1, 1)));
     var daily = new List<object>();
     await using (var command = new NpgsqlCommand("select visit_date::text,count(distinct person_id) from visit_records where extract(year from visit_date)=$1 group by visit_date order by visit_date desc", connection))
     {
@@ -129,7 +130,16 @@ api.MapGet("/visit-reports", async (int? year, NpgsqlDataSource db) =>
     await using (var command = new NpgsqlCommand("select extract(year from visit_date)::int,count(distinct person_id) from visit_records group by extract(year from visit_date) order by extract(year from visit_date) desc", connection))
     await using (var reader = await command.ExecuteReaderAsync())
         while (await reader.ReadAsync()) yearly.Add(new { year = reader.GetInt32(0), count = reader.GetInt64(1) });
-    return Results.Ok(new { year = selectedYear, totalPeople, daily, monthly, yearly, totals = new { daily = dailyTotal, monthly = monthlyTotal, yearly = yearlyTotal } });
+    var monthlyCalls = await Scalar("select count(distinct person_id) from call_records where week_start >= $1 and week_start < $2", ("p1", monthStart), ("p2", monthEnd));
+    var yearlyCalls = await Scalar("select count(distinct person_id) from call_records where week_start >= $1 and week_start < $2", ("p1", new DateOnly(selectedYear, 1, 1)), ("p2", new DateOnly(selectedYear + 1, 1, 1)));
+    var servantStats = new List<object>();
+    await using (var servantCommand = new NpgsqlCommand("select coalesce(nullif(servant,''),'غير محدد'),count(distinct person_id),count(distinct week_start) from call_records where week_start >= $1 and week_start < $2 group by 1 order by count(distinct person_id) desc", connection))
+    {
+        servantCommand.Parameters.AddWithValue("p1", new DateOnly(selectedYear, 1, 1)); servantCommand.Parameters.AddWithValue("p2", new DateOnly(selectedYear + 1, 1, 1));
+        await using var servantReader = await servantCommand.ExecuteReaderAsync();
+        while (await servantReader.ReadAsync()) servantStats.Add(new { servant = servantReader.GetString(0), people = servantReader.GetInt64(1), calls = servantReader.GetInt64(2) });
+    }
+    return Results.Ok(new { year = selectedYear, totalPeople, daily, monthly, yearly, servantStats, totals = new { daily = dailyTotal, monthly = monthlyTotal, yearly = yearlyTotal, monthlyCalls, yearlyCalls } });
 });
 
 api.MapGet("/history/{personId:long}", async (long personId, NpgsqlDataSource db) =>
@@ -305,6 +315,14 @@ static async Task<object> BuildState(NpgsqlDataSource db, string mode, string? s
     await using (var command = new NpgsqlCommand("select id,record_key,name,note,phone1,phone2,group_number,address,role from people where is_active=true order by record_key", connection))
     await using (var reader = await command.ExecuteReaderAsync())
         while (await reader.ReadAsync()) people.Add(new Person(reader.GetInt64(0), reader.GetInt32(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.IsDBNull(6) ? "" : reader.GetString(6), reader.GetString(7), reader.GetString(8)));
+    var visitedThisMonth = new HashSet<long>();
+    var monthStart = new DateOnly(date.Year, date.Month, 1);
+    await using (var command = new NpgsqlCommand("select person_id from visit_records where visit_date >= $1 and visit_date < $2", connection))
+    {
+        command.Parameters.AddWithValue(monthStart); command.Parameters.AddWithValue(monthStart.AddMonths(1));
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync()) visitedThisMonth.Add(reader.GetInt64(0));
+    }
     var groups = new List<Group>();
     await using (var command = new NpgsqlCommand("select g.number,g.display_order from groups g where exists (select 1 from people p where p.group_number=g.number and p.is_active=true and p.role='boy') order by g.display_order", connection))
     await using (var reader = await command.ExecuteReaderAsync())
@@ -347,7 +365,7 @@ static async Task<object> BuildState(NpgsqlDataSource db, string mode, string? s
     var rows = people.Select(person =>
     {
         lastCall.TryGetValue(person.Id, out var call);
-        return new { id = person.Id, recordKey = person.RecordKey, name = person.Name, note = person.Note, phone1 = person.Phone1, phone2 = person.Phone2, group = person.Group, address = person.Address, role = person.Role, visited = mode == "visit" && visits.Contains(person.Id), called = calls.ContainsKey(person.Id), servant = calls.GetValueOrDefault(person.Id) ?? savedAssignments.GetValueOrDefault(person.Group) ?? autoAssignments.GetValueOrDefault(person.Group) ?? "", lastVisitedDate = lastVisit.GetValueOrDefault(person.Id) ?? "", lastCalledWeek = call.Week ?? "", lastCaller = call.Servant ?? "", lastChoirDate = lastChoir.GetValueOrDefault(person.Id) ?? "", lastMassDate = lastMass.GetValueOrDefault(person.Id) ?? "" };
+        return new { id = person.Id, recordKey = person.RecordKey, name = person.Name, note = person.Note, phone1 = person.Phone1, phone2 = person.Phone2, group = person.Group, address = person.Address, role = person.Role, visited = mode == "visit" && visits.Contains(person.Id), visitedThisMonth = visitedThisMonth.Contains(person.Id), called = calls.ContainsKey(person.Id), servant = calls.GetValueOrDefault(person.Id) ?? savedAssignments.GetValueOrDefault(person.Group) ?? autoAssignments.GetValueOrDefault(person.Group) ?? "", lastVisitedDate = lastVisit.GetValueOrDefault(person.Id) ?? "", lastCalledWeek = call.Week ?? "", lastCaller = call.Servant ?? "", lastChoirDate = lastChoir.GetValueOrDefault(person.Id) ?? "", lastMassDate = lastMass.GetValueOrDefault(person.Id) ?? "" };
     }).ToArray();
     var groupStates = groups.Select(group => new { number = group.Number, members = group.Members, recordKeys = group.RecordKeys, servant = savedAssignments.GetValueOrDefault(group.Number) ?? autoAssignments.GetValueOrDefault(group.Number) ?? "" }).ToArray();
     var weekEnd = week.AddDays(6);

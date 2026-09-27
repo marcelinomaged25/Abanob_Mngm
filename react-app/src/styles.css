@@ -234,7 +234,7 @@ tbody tr:hover td { background: #f5f8ff; }
 .reports-hero .section-kicker { color: #f2c94c; }
 .reports-hero h2 { margin-bottom: 6px; font-size: 25px; }
 .reports-hero p:not(.section-kicker) { margin: 0; color: #c5d0e5; font-size: 12px; }
-.reports-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.reports-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .reports-metrics article { display: grid; gap: 5px; padding: 17px; border: 1px solid #d9d1bb; border-radius: 14px; background: #fffdf7; box-shadow: var(--shadow); }
 .reports-metrics span { color: var(--muted); font-size: 11px; }
 .reports-metrics strong { color: var(--ink); font-size: 28px; }
@@ -248,6 +248,10 @@ tbody tr:hover td { background: #f5f8ff; }
 .monthly-report-list { display: grid; gap: 12px; }
 .monthly-report-list > div { display: grid; grid-template-columns: 100px 120px 1fr; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; }
 .monthly-report-list b { color: var(--ink); }
+.servant-report-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.servant-report-list article { display: grid; gap: 4px; padding: 13px; border: 1px solid #e2d8c0; border-radius: 10px; background: #fffefb; }
+.servant-report-list strong { color: var(--ink); }
+.servant-report-list span, .servant-report-list small { color: var(--muted); font-size: 11px; }
 .qr-dialog { position: relative; width: min(700px, 100%); padding: 28px; border: 1px solid var(--line); border-radius: 15px; background: var(--paper); box-shadow: 0 24px 80px rgba(13, 24, 42, .28); text-align: center; }
 .qr-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 20px; }
 .qr-card { display: grid; justify-items: center; gap: 9px; padding: 18px; border: 1px solid var(--line); border-radius: 10px; background: #fbfcfe; }
@@ -506,6 +510,7 @@ tbody tr:hover td { background: #f5f8ff; }
   .visit-days-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .visit-days-grid article { padding: 11px; }
   .monthly-report-list > div { grid-template-columns: 75px 90px minmax(0, 1fr); gap: 7px; font-size: 10px; }
+  .servant-report-list { grid-template-columns: 1fr; }
   .dashboard-metric strong { font-size: 22px; }
   .call-group-heading { grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; }
   .call-group-heading small { grid-column: 1 / -1; }
