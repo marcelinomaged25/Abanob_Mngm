@@ -234,6 +234,10 @@ tbody tr:hover td { background: #f5f8ff; }
 .reports-hero .section-kicker { color: #f2c94c; }
 .reports-hero h2 { margin-bottom: 6px; font-size: 25px; }
 .reports-hero p:not(.section-kicker) { margin: 0; color: #c5d0e5; font-size: 12px; }
+.reports-hero-actions { display: flex; align-items: center; gap: 16px; }
+.reports-hero-actions .secondary-button { margin: 0; background: #f2c94c; border-color: #f2c94c; color: #172137; }
+.month-filter-button { white-space: nowrap; }
+.activity-page table { min-width: 620px; }
 .reports-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .reports-metrics article { display: grid; gap: 5px; padding: 17px; border: 1px solid #d9d1bb; border-radius: 14px; background: #fffdf7; box-shadow: var(--shadow); }
 .reports-metrics span { color: var(--muted); font-size: 11px; }
@@ -504,6 +508,9 @@ tbody tr:hover td { background: #f5f8ff; }
   .stray-counts { grid-column: 2 / -1; padding-top: 4px; border-top: 1px solid #eee5d4; }
   .reports-hero { padding: 16px; }
   .reports-hero h2 { font-size: 20px; }
+  .reports-hero-actions { gap: 8px; }
+  .reports-hero-actions svg { display: none; }
+  .month-filter-button { white-space: normal; }
   .reports-metrics { grid-template-columns: 1fr; gap: 8px; }
   .reports-metrics article { padding: 13px; }
   .reports-metrics strong { font-size: 24px; }

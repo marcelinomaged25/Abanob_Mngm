@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls(Environment.GetEnvironmentVariable("ASPNETCORE_URLS") ?? "http://localhost:5080");
 var connectionString = ConnectionString(Environment.GetEnvironmentVariable("DATABASE_URL") ?? builder.Configuration.GetConnectionString("Database") ?? "");
 var appPassword = Environment.GetEnvironmentVariable("APP_PASSWORD") ?? "";
+var staffPassword = Environment.GetEnvironmentVariable("STAFF_PASSWORD") ?? "";
 var frontendOrigin = Environment.GetEnvironmentVariable("FRONTEND_ORIGIN") ?? "http://localhost:5173";
 if (string.IsNullOrWhiteSpace(connectionString)) throw new InvalidOperationException("Set DATABASE_URL before starting the API.");
 if (string.IsNullOrWhiteSpace(appPassword)) throw new InvalidOperationException("Set APP_PASSWORD before starting the API.");
@@ -47,8 +48,36 @@ api.AddEndpointFilter(async (context, next) =>
     var supplied = context.HttpContext.Request.Headers["X-App-Password"].ToString();
     var suppliedHash = SHA256.HashData(Encoding.UTF8.GetBytes(supplied));
     var expectedHash = SHA256.HashData(Encoding.UTF8.GetBytes(appPassword));
-    if (!CryptographicOperations.FixedTimeEquals(suppliedHash, expectedHash)) return Results.Unauthorized();
+    var role = CryptographicOperations.FixedTimeEquals(suppliedHash, expectedHash) ? "admin" : "";
+    if (role.Length == 0 && !string.IsNullOrWhiteSpace(staffPassword))
+    {
+        var staffHash = SHA256.HashData(Encoding.UTF8.GetBytes(staffPassword));
+        if (CryptographicOperations.FixedTimeEquals(suppliedHash, staffHash)) role = "staff";
+    }
+    if (role.Length == 0) return Results.Unauthorized();
+    context.HttpContext.Items["role"] = role;
     return await next(context);
+});
+
+api.MapGet("/session", (HttpContext context) => Results.Ok(new { role = context.Items["role"]?.ToString() ?? "staff" }));
+api.MapGet("/activity", async (NpgsqlDataSource db, HttpContext context) =>
+{
+    if (!IsAdmin(context)) return Results.StatusCode(StatusCodes.Status403Forbidden);
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("select id,actor_role,action,entity,details,created_at at time zone 'Africa/Cairo' from activity_log order by created_at desc limit 200", connection);
+    await using var reader = await command.ExecuteReaderAsync();
+    var entries = new List<object>();
+    while (await reader.ReadAsync()) entries.Add(new { id = reader.GetInt64(0), role = reader.GetString(1), action = reader.GetString(2), entity = reader.GetString(3), details = reader.GetString(4), createdAt = reader.GetFieldValue<DateTime>(5).ToString("yyyy-MM-dd HH:mm") });
+    return Results.Ok(entries);
+});
+api.MapGet("/export/visits", async (NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("select v.visit_date::text,p.record_key,p.name,p.phone1,p.address from visit_records v join people p on p.id=v.person_id order by v.visit_date desc,p.record_key", connection);
+    await using var reader = await command.ExecuteReaderAsync();
+    var csv = new StringBuilder("التاريخ,رقم السجل,الاسم,الهاتف,العنوان\n");
+    while (await reader.ReadAsync()) csv.Append(string.Join(',', CsvCell(reader.GetString(0)), reader.GetInt32(1), CsvCell(reader.GetString(2)), CsvCell(reader.GetString(3)), CsvCell(reader.GetString(4)))).Append('\n');
+    return Results.Text(csv.ToString(), "text/csv; charset=utf-8");
 });
 
 api.MapGet("/state", async (string? mode, string? date, string? week, NpgsqlDataSource db) =>
@@ -172,7 +201,7 @@ api.MapGet("/attendance", async (string? type, string? date, NpgsqlDataSource db
     return Results.Ok(new { type = attendanceType, date = attendanceDate.ToString("yyyy-MM-dd"), attended });
 });
 
-api.MapPost("/attendance", async (AttendanceSave payload, NpgsqlDataSource db) =>
+api.MapPost("/attendance", async (AttendanceSave payload, NpgsqlDataSource db, HttpContext context) =>
 {
     var attendanceType = payload.Type is "choir" or "mass" ? payload.Type : "";
     if (attendanceType.Length == 0) return Results.BadRequest(new { error = "اختر نوع الحضور" });
@@ -184,39 +213,48 @@ api.MapPost("/attendance", async (AttendanceSave payload, NpgsqlDataSource db) =
     await using (var insert = new NpgsqlCommand("insert into attendance_records(person_id,attendance_type,attendance_date) select p.id,$1,$2 from jsonb_each_text($3::jsonb) checks join people p on p.record_key=checks.key::integer where checks.value='true' and p.is_active=true on conflict do nothing", connection, transaction))
     { insert.Parameters.AddWithValue(attendanceType); insert.Parameters.AddWithValue(attendanceDate); insert.Parameters.AddWithValue(JsonSerializer.Serialize(payload.Checks ?? new Dictionary<string, bool>())); await insert.ExecuteNonQueryAsync(); }
     await transaction.CommitAsync();
+    await LogActivity(db, context, "attendance", "attendance", $"{attendanceType}:{attendanceDate:yyyy-MM-dd}");
     return Results.Ok(new { type = attendanceType, date = attendanceDate.ToString("yyyy-MM-dd") });
 });
 
-api.MapPost("/people", async (PersonInput payload, NpgsqlDataSource db) =>
+api.MapPost("/people", async (PersonInput payload, NpgsqlDataSource db, HttpContext context) =>
 {
+    if (!IsAdmin(context)) return Results.StatusCode(StatusCodes.Status403Forbidden);
     if (!ValidPerson(payload, out var error)) return Results.BadRequest(new { error });
     await using var connection = await db.OpenConnectionAsync();
     await using var command = new NpgsqlCommand("insert into people(record_key,name,note,phone1,phone2,group_number,address,role) values((select coalesce(max(record_key),0)+1 from people),$1,$2,$3,$4,$5,$6,$7) returning id", connection);
     command.Parameters.AddWithValue(payload.Name.Trim()); command.Parameters.AddWithValue(payload.Note?.Trim() ?? ""); command.Parameters.AddWithValue(payload.Phone1?.Trim() ?? ""); command.Parameters.AddWithValue(payload.Phone2?.Trim() ?? ""); command.Parameters.AddWithValue(string.IsNullOrWhiteSpace(payload.Group) ? (object)DBNull.Value : payload.Group.Trim()); command.Parameters.AddWithValue(payload.Address?.Trim() ?? ""); command.Parameters.AddWithValue(NormalizeRole(payload.Role));
     var id = (long)(await command.ExecuteScalarAsync())!;
+    await LogActivity(db, context, "create", "person", payload.Name.Trim());
     return Results.Created($"/api/people/{id}", new { id });
 });
 
-api.MapPut("/people/{personId:long}", async (long personId, PersonInput payload, NpgsqlDataSource db) =>
+api.MapPut("/people/{personId:long}", async (long personId, PersonInput payload, NpgsqlDataSource db, HttpContext context) =>
 {
+    if (!IsAdmin(context)) return Results.StatusCode(StatusCodes.Status403Forbidden);
     if (!ValidPerson(payload, out var error)) return Results.BadRequest(new { error });
     await using var connection = await db.OpenConnectionAsync();
     await using var command = new NpgsqlCommand("update people set name=$1,note=$2,phone1=$3,phone2=$4,group_number=$5,address=$6,role=$7,updated_at=now() where id=$8 and is_active=true", connection);
     command.Parameters.AddWithValue(payload.Name.Trim()); command.Parameters.AddWithValue(payload.Note?.Trim() ?? ""); command.Parameters.AddWithValue(payload.Phone1?.Trim() ?? ""); command.Parameters.AddWithValue(payload.Phone2?.Trim() ?? ""); command.Parameters.AddWithValue(string.IsNullOrWhiteSpace(payload.Group) ? (object)DBNull.Value : payload.Group.Trim()); command.Parameters.AddWithValue(payload.Address?.Trim() ?? ""); command.Parameters.AddWithValue(NormalizeRole(payload.Role)); command.Parameters.AddWithValue(personId);
-    return await command.ExecuteNonQueryAsync() == 0 ? Results.NotFound(new { error = "الاسم غير موجود" }) : Results.NoContent();
+    if (await command.ExecuteNonQueryAsync() == 0) return Results.NotFound(new { error = "الاسم غير موجود" });
+    await LogActivity(db, context, "update", "person", $"{personId}:{payload.Name.Trim()}");
+    return Results.NoContent();
 });
 
-api.MapDelete("/people/{personId:long}", async (long personId, NpgsqlDataSource db) =>
+api.MapDelete("/people/{personId:long}", async (long personId, NpgsqlDataSource db, HttpContext context) =>
 {
+    if (!IsAdmin(context)) return Results.StatusCode(StatusCodes.Status403Forbidden);
     await using var connection = await db.OpenConnectionAsync();
     await using var command = new NpgsqlCommand("update people set is_active=false,updated_at=now() where id=$1 and is_active=true", connection);
     command.Parameters.AddWithValue(personId);
-    return await command.ExecuteNonQueryAsync() == 0 ? Results.NotFound(new { error = "الاسم غير موجود" }) : Results.NoContent();
+    if (await command.ExecuteNonQueryAsync() == 0) return Results.NotFound(new { error = "الاسم غير موجود" });
+    await LogActivity(db, context, "archive", "person", personId.ToString());
+    return Results.NoContent();
 });
 
-api.MapPost("/visits", async (VisitSave payload, NpgsqlDataSource db) =>
+api.MapPost("/visits", async (VisitSave payload, NpgsqlDataSource db, HttpContext context) =>
 {
-    var date = ParseDate(payload.Date, DateOnly.FromDateTime(DateTime.UtcNow));
+    var date = ParseDate(payload.Date, CairoToday());
     await using var connection = await db.OpenConnectionAsync();
     await using var transaction = await connection.BeginTransactionAsync();
     await using (var delete = new NpgsqlCommand("delete from visit_records where visit_date=$1 and person_id in (select id from people where is_active=true)", connection, transaction))
@@ -231,10 +269,11 @@ api.MapPost("/visits", async (VisitSave payload, NpgsqlDataSource db) =>
         await insert.ExecuteNonQueryAsync();
     }
     await transaction.CommitAsync();
+    await LogActivity(db, context, "visit", "visit", date.ToString("yyyy-MM-dd"));
     return Results.Ok(await BuildState(db, "visit", date.ToString("yyyy-MM-dd"), null));
 });
 
-api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
+api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db, HttpContext context) =>
 {
     var today = CairoToday();
     var servants = (payload.Servants ?? []).Select(name => name.Trim()).Where(name => name.Length > 0).Distinct(StringComparer.Ordinal).ToArray();
@@ -296,6 +335,7 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
         await saveCalls.ExecuteNonQueryAsync();
     }
     await transaction.CommitAsync();
+    await LogActivity(db, context, "call", "call", week.ToString("yyyy-MM-dd"));
     return Results.Ok(await BuildState(db, "call", null, null));
 });
 
@@ -392,6 +432,16 @@ static bool ValidPerson(PersonInput payload, out string error)
     if (string.IsNullOrWhiteSpace(payload.Name)) { error = "اكتب اسم الشخص"; return false; }
     error = "";
     return true;
+}
+
+static bool IsAdmin(HttpContext context) => string.Equals(context.Items["role"]?.ToString(), "admin", StringComparison.Ordinal);
+static string CsvCell(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
+static async Task LogActivity(NpgsqlDataSource db, HttpContext context, string action, string entity, string details)
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("insert into activity_log(actor_role,action,entity,details) values($1,$2,$3,$4)", connection);
+    command.Parameters.AddWithValue(context.Items["role"]?.ToString() ?? "staff"); command.Parameters.AddWithValue(action); command.Parameters.AddWithValue(entity); command.Parameters.AddWithValue(details);
+    await command.ExecuteNonQueryAsync();
 }
 
 static string NormalizeRole(string? role) => role is "servant" ? "servant" : "boy";

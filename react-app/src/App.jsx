@@ -2,7 +2,11 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { BarChart3, CalendarDays, Check, ChevronLeft, ChevronRight, Church, CircleAlert, Clock3, Copy, Home, LayoutDashboard, LoaderCircle, Pencil, Phone, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "https://abanob-mngm.onrender.com").replace(/\/$/, "");
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+};
 const dateLabel = (value) => value ? new Intl.DateTimeFormat("ar-EG", { day: "numeric", month: "long", year: "numeric" }).format(new Date(`${value}T12:00:00`)) : "—";
 const normalizeArabic = (value) => String(value || "").replace(/[إأآ]/g, "ا");
 const emptyState = { rows: [], groups: [], servants: [], historySummary: [] };
@@ -17,6 +21,7 @@ function groupTone(group) {
 export default function App() {
   const [password, setPassword] = useState(() => sessionStorage.getItem("choir-password") || "");
   const [passwordDraft, setPasswordDraft] = useState("");
+  const [userRole, setUserRole] = useState("");
   const [mode, setMode] = useState("home");
   const [state, setState] = useState(emptyState);
   const [selectedDate, setSelectedDate] = useState(today());
@@ -35,6 +40,8 @@ export default function App() {
   const [attendanceChecks, setAttendanceChecks] = useState({});
   const [dashboard, setDashboard] = useState({ summary: {}, people: [] });
   const [visitReports, setVisitReports] = useState(emptyVisitReports);
+  const [activity, setActivity] = useState([]);
+  const [includeVisitedThisMonth, setIncludeVisitedThisMonth] = useState(false);
   const [dashboardDate, setDashboardDate] = useState(today());
   const [trendMonth, setTrendMonth] = useState(today().slice(0, 7));
 
@@ -56,6 +63,7 @@ export default function App() {
         const result = await request(`/api/dashboard?date=${date || today()}&month=${monthOverride}`, {}, auth); setDashboard(result); setDashboardDate(result.selectedDate); setTrendMonth(result.trendMonth || monthOverride); return;
       }
       if (nextMode === "reports") { setVisitReports(await request("/api/visit-reports", {}, auth)); return; }
+      if (nextMode === "activity") { setActivity(await request("/api/activity", {}, auth)); return; }
       if (nextMode === "attendance") {
         const result = await request(`/api/attendance?type=${attendanceType}&date=${date || today()}`, {}, auth);
         const directory = await request("/api/state?mode=visit", {}, auth);
@@ -74,13 +82,13 @@ export default function App() {
     } finally { setLoading(false); }
   }, [attendanceType, mode, password, request, selectedDate]);
 
-  useEffect(() => { if (password) load(mode, mode === "attendance" ? attendanceDate : selectedDate, password); }, [password]);
+  useEffect(() => { if (password) { request("/api/session", {}, password).then((result) => setUserRole(result.role || "staff")).catch(() => setUserRole("staff")); load(mode, mode === "attendance" ? attendanceDate : selectedDate, password); } }, [password]);
 
   const rows = useMemo(() => {
     const term = normalizeArabic(query).trim().toLocaleLowerCase("ar");
     return state.rows.filter((row) => normalizeArabic([row.name, row.group, row.phone1, row.phone2, row.address, row.note, row.servant, row.lastCaller].filter(Boolean).join(" ")).toLocaleLowerCase("ar").includes(term));
   }, [query, state.rows]);
-  const visitRows = useMemo(() => state.rows.filter((row) => !row.visitedThisMonth), [state.rows]);
+  const visitRows = useMemo(() => includeVisitedThisMonth ? state.rows : state.rows.filter((row) => !row.visitedThisMonth), [includeVisitedThisMonth, state.rows]);
   const checkedCount = state.rows.filter((row) => mode === "visit" ? row.visited : row.called).length;
   const percent = state.rows.length ? Math.round(checkedCount * 100 / state.rows.length) : 0;
   const followUpMode = mode === "visit" || mode === "call";
@@ -91,6 +99,8 @@ export default function App() {
     if (!candidate) return;
     setBusy(true); setError(""); sessionStorage.setItem("choir-password", candidate); setPassword(candidate);
     try {
+      const session = await request("/api/session", {}, candidate);
+      setUserRole(session.role || "staff");
       const result = await request(`/api/dashboard?date=${today()}&month=${today().slice(0, 7)}`, {}, candidate);
       setDashboard(result);
       setDashboardDate(result.selectedDate);
@@ -105,6 +115,14 @@ export default function App() {
     setMode(nextMode); setQuery(""); setReport(null);
     if (nextMode === "people") { setEditingPerson(null); setPersonDraft(emptyPerson); }
     if (nextMode === "attendance") load(nextMode, attendanceDate); else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate); else if (nextMode === "reports") load(nextMode); else load(nextMode, nextMode === "visit" ? selectedDate : undefined);
+  }
+
+  async function exportCsv() {
+    try {
+      const response = await fetch(`${apiUrl}/api/export/visits`, { headers: { "X-App-Password": password } });
+      if (!response.ok) throw new Error("تعذر تصدير التقرير");
+      const blob = await response.blob(); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = `follow-up-visits-${today()}.csv`; link.click(); URL.revokeObjectURL(url); setNotice("تم تصدير التقرير");
+    } catch (exportError) { setError(exportError.message); }
   }
 
   function updateCheck(recordKey, field, checked) {
@@ -171,8 +189,8 @@ export default function App() {
 
   const navItem = (nextMode, icon, label) => <button className={`sidebar-item ${mode === nextMode || (nextMode === "visit" && (mode === "call" || mode === "history" || mode === "reports")) ? "active" : ""}`} onClick={() => switchMode(nextMode)}>{icon}<span>{label}</span></button>;
   return <main className="app-shell">
-    <aside className="app-sidebar"><div className="sidebar-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>كنيستي</strong><span>إدارة الخدمة</span></div></div><p className="sidebar-label">أقسام لوحة الإدارة</p><nav className="sidebar-nav">{navItem("home", <LayoutDashboard size={17} />, "نظرة عامة")}{navItem("attendance", <UserCheck size={17} />, "الحضور والغياب")}{navItem("visit", <Home size={17} />, "الافتقاد")}{navItem("stray", <CircleAlert size={17} />, "الخروف الضال")}{navItem("history", <Users size={17} />, "أفراد الخورس")}{navItem("people", <Pencil size={17} />, "إدارة الخورس")}</nav><div className="sidebar-footer"><span>خورس القديس أبانوب</span><button className="icon-button" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={() => { sessionStorage.removeItem("choir-password"); setPassword(""); setPasswordDraft(""); }}>×</button></div></aside>
-    <section className="app-content"><header className="topbar"><div className="brand-lockup"><div><p className="eyebrow">كنيسة السيدة العذراء مريم بارض الشركة</p><h1>إدارة خورس القديس أبانوب</h1></div></div><div className="top-actions"><span className="save-state">{loading ? "جاري التحميل" : busy ? "جاري الحفظ" : notice || "جاهز"}</span></div></header>
+    <aside className="app-sidebar"><div className="sidebar-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>كنيستي</strong><span>إدارة الخدمة</span></div></div><p className="sidebar-label">أقسام لوحة الإدارة</p><nav className="sidebar-nav">{navItem("home", <LayoutDashboard size={17} />, "نظرة عامة")}{navItem("attendance", <UserCheck size={17} />, "الحضور والغياب")}{navItem("visit", <Home size={17} />, "الافتقاد")}{navItem("stray", <CircleAlert size={17} />, "الخروف الضال")}{navItem("history", <Users size={17} />, "أفراد الخورس")}{userRole === "admin" && navItem("people", <Pencil size={17} />, "إدارة الخورس")}{userRole === "admin" && navItem("activity", <Clock3 size={17} />, "سجل النشاط")}</nav><div className="sidebar-footer"><span>خورس القديس أبانوب</span><button className="icon-button" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={() => { sessionStorage.removeItem("choir-password"); setPassword(""); setPasswordDraft(""); setUserRole(""); }}>×</button></div></aside>
+    <section className="app-content"><header className="topbar"><div className="brand-lockup"><div><p className="eyebrow">كنيسة السيدة العذراء مريم بارض الشركة</p><h1>إدارة خورس القديس أبانوب</h1></div></div><div className="top-actions">{mode === "reports" && <button className="copy-phone" title="تصدير التقرير" onClick={exportCsv}><Copy size={14} /></button>}<span className="save-state">{loading ? "جاري التحميل" : busy ? "جاري الحفظ" : notice || "جاهز"}</span></div></header>
     {mode === "visit" && state.verse && <section className="verse-band"><p>{state.verse}</p></section>}
     {mode === "visit" || mode === "call" || mode === "reports" ? <div className="sub-tabs"><button className={mode === "visit" ? "active" : ""} onClick={() => switchMode("visit")}><Home size={15} /> زيارة البيت</button><button className={mode === "call" ? "active" : ""} onClick={() => switchMode("call")}><Phone size={15} /> الاتصال الأسبوعي</button><button className={mode === "reports" ? "active" : ""} onClick={() => switchMode("reports")}><BarChart3 size={15} /> تقارير الافتقاد</button></div> : null}
 
@@ -181,8 +199,9 @@ export default function App() {
     {mode === "attendance" && <AttendanceManager state={state} rows={rows} attendanceType={attendanceType} setAttendanceType={(type) => { setAttendanceType(type); load("attendance", attendanceDate); }} attendanceDate={attendanceDate} setAttendanceDate={(date) => { setAttendanceDate(date); load("attendance", date); }} checks={attendanceChecks} setChecks={setAttendanceChecks} save={saveAttendance} busy={busy} query={query} setQuery={setQuery} />}
     {mode === "home" && <HomeDashboard dashboard={dashboard} dashboardDate={dashboardDate} setDashboardDate={(date) => { setDashboardDate(date); load("home", date); }} trendMonth={trendMonth} setTrendMonth={(month) => { setTrendMonth(month); load("home", dashboardDate, password, month); }} openReport={openReport} />}
     {mode === "stray" && <StraySheepPage people={dashboard.people || []} openReport={openReport} />}
-    {(mode === "visit" || mode === "call") && <PeopleTable mode={mode} rows={mode === "visit" ? visitRows : rows} query={query} setQuery={setQuery} busy={busy} saveFollowUp={saveFollowUp} updateCheck={updateCheck} openReport={openReport} loading={loading} />}
-    {mode === "reports" && <VisitReportsPage reports={visitReports} />}
+    {(mode === "visit" || mode === "call") && <PeopleTable mode={mode} rows={mode === "visit" ? visitRows : rows} query={query} setQuery={setQuery} busy={busy} saveFollowUp={saveFollowUp} updateCheck={updateCheck} openReport={openReport} loading={loading} includeVisitedThisMonth={includeVisitedThisMonth} setIncludeVisitedThisMonth={setIncludeVisitedThisMonth} />}
+    {mode === "reports" && <VisitReportsPage reports={visitReports} exportCsv={exportCsv} />}
+    {mode === "activity" && <ActivityPage activity={activity} />}
     {mode === "history" && <MembersDirectoryByRole rows={rows} query={query} setQuery={setQuery} openReport={openReport} loading={loading} />}
     {(error || notice) && <div className={`toast visible ${error ? "error" : ""}`} role="status">{error || notice}</div>}
     {report && <ReportModal report={report} close={() => setReport(null)} />}
@@ -199,7 +218,7 @@ function StraySheepPage({ people, openReport }) {
   return <section className="stray-page"><section className="stray-hero"><div><p className="section-kicker">متابعة الرعاية</p><h2>الخروف الضال</h2><p>الأسماء الأكثر احتياجًا للمتابعة حسب الحضور والافتقاد.</p></div><CircleAlert size={30} /></section><section className="stray-note"><strong>طريقة الترتيب</strong><span>الأعلى في القائمة هو الأقل حضورًا في الخورس والقداس، والأقل افتقادًا بالزيارة والاتصال.</span></section><section className="table-section stray-table"><div className="section-title-row table-title-row"><div><p className="section-kicker">أولوية المتابعة</p><h2>{rows.length} مخدوم</h2></div><span className="date-label">من الأكثر احتياجًا إلى الأقل</span></div><div className="stray-list">{rows.map((row, index) => <button className={`stray-person group-tone-${groupTone(row.group)}`} key={row.id} onClick={() => openReport(row)}><span className="stray-rank">{index + 1}</span><span className="stray-person-info"><strong>{row.name}</strong><small>{row.phone1 || "بدون رقم"}</small></span><span className="stray-stats"><b>{row.need}%</b><small>احتياج متابعة</small></span><span className="stray-counts"><span>خورس {row.choirCount || 0}</span><span>قداس {row.massCount || 0}</span><span>زيارة {row.visitCount || 0}</span><span>اتصال {row.callCount || 0}</span></span></button>)}</div>{!rows.length && <p className="empty-row">لا توجد بيانات مخدومين</p>}</section></section>;
 }
 
-function VisitReportsPage({ reports }) {
+function VisitReportsPage({ reports, exportCsv }) {
   const totalPeople = reports.totalPeople || 0;
   const monthlyVisited = reports.totals?.monthly || 0;
   const yearlyVisited = reports.totals?.yearly || 0;
@@ -213,6 +232,10 @@ function VisitReportsPage({ reports }) {
 function CopyPhone({ value, name }) {
   if (!value) return <span>—</span>;
   return <span className="phone-copy-cell"><span dir="ltr">{value}</span><button type="button" className="copy-phone" title="نسخ الرقم" aria-label={`نسخ رقم ${name}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); navigator.clipboard?.writeText(value); }}><Copy size={13} /></button></span>;
+}
+
+function ActivityPage({ activity }) {
+  return <section className="table-section activity-page"><div className="section-title-row table-title-row"><div><p className="section-kicker">أمان ومتابعة</p><h2>سجل النشاط</h2></div><span className="date-label">آخر 200 عملية</span></div><div className="table-wrap"><table><thead><tr><th>التاريخ</th><th>المستخدم</th><th>العملية</th><th>التفاصيل</th></tr></thead><tbody>{activity.map((item) => <tr key={item.id}><td className="history-date">{item.createdAt}</td><td>{item.role === "admin" ? "مدير" : "خادم"}</td><td>{item.action}</td><td>{item.details}</td></tr>)}</tbody></table>{!activity.length && <p className="empty-row">لا يوجد نشاط مسجل</p>}</div></section>;
 }
 
 function HomeDashboard({ dashboard, dashboardDate, setDashboardDate, trendMonth, setTrendMonth, openReport }) {
@@ -307,9 +330,9 @@ function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateChec
   return <section className="table-section call-groups-section"><div className="section-title-row table-title-row"><div><p className="section-kicker">بيانات الافتقاد</p><h2>الاتصال الأسبوعي حسب الجروب</h2></div><div className="table-actions"><label className="search-box"><Search size={17} /><input type="search" placeholder="ابحث بالاسم أو الجروب أو الخادم" value={query} onChange={(event) => setQuery(event.target.value)} /></label><button className="secondary-button" disabled={busy} onClick={() => saveFollowUp()}><Check size={16} /> احفظ الاتصالات</button></div></div><div className="call-groups-list">{groups.map(([group, members]) => <section className="call-group" key={group}><header className={`call-group-heading group-tone-${group}`}><div><span>الجروب</span><strong>{group}</strong></div><div><span>مسؤول الاتصال</span><b>{members[0]?.servant || "غير موزع"}</b></div><small>{members.length} أفراد · تم الاتصال بـ {members.filter((row) => row.called).length}</small></header><div className="call-group-members">{members.map((row) => <label className="call-member" key={row.id}><span className="call-member-info"><strong>{row.name}</strong><span className="phone-copy-row"><small dir="ltr">{row.phone1 || "بدون رقم"}</small>{row.phone1 && <button type="button" className="copy-phone" title="نسخ الرقم" aria-label={`نسخ رقم ${row.name}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); navigator.clipboard?.writeText(row.phone1); }}><Copy size={13} /></button>}</span></span><input className="status-check" type="checkbox" checked={row.called} onChange={(event) => updateCheck(row.recordKey, "called", event.target.checked)} aria-label={`تم الاتصال بـ ${row.name}`} /></label>)}</div></section>)}{!groups.length && <p className="empty-row">{loading ? "جاري تحميل البيانات" : "لا توجد نتائج"}</p>}</div></section>;
 }
 
-function PeopleTable({ mode, rows, query, setQuery, busy, saveFollowUp, updateCheck, openReport, loading }) {
+function PeopleTable({ mode, rows, query, setQuery, busy, saveFollowUp, updateCheck, openReport, loading, includeVisitedThisMonth, setIncludeVisitedThisMonth }) {
   if (mode === "call") return <CallGroupsTable rows={rows} query={query} setQuery={setQuery} busy={busy} saveFollowUp={saveFollowUp} updateCheck={updateCheck} loading={loading} />;
-  return <section className="table-section"><div className="section-title-row table-title-row"><div><p className="section-kicker">بيانات الافتقاد</p><h2>{mode === "visit" ? "زيارة البيت" : mode === "call" ? "الاتصال الأسبوعي" : "آخر متابعة لكل ولد"}</h2></div><div className="table-actions"><label className="search-box"><Search size={17} /><input type="search" placeholder="ابحث بالاسم أو الجروب أو الخادم" value={query} onChange={(event) => setQuery(event.target.value)} /></label>{mode !== "history" && <button className="secondary-button" disabled={busy} onClick={() => saveFollowUp()}><Check size={16} /> احفظ {mode === "visit" ? "الزيارات" : "الاتصالات"}</button>}</div></div><div className="table-wrap"><table><thead><tr>{mode === "visit" ? <><th>الجروب</th><th>الاسم</th><th>رقم 1</th><th>العنوان</th><th>تمت الزيارة</th><th>آخر زيارة</th></> : mode === "call" ? <><th>الجروب</th><th>الاسم</th><th>رقم 1</th><th>مسؤول الاتصال</th><th>تم الاتصال</th></> : <><th>الجروب</th><th>الاسم</th><th>رقم 1</th><th>آخر زيارة</th><th>آخر اتصال</th><th>آخر خادم اتصل</th></>}</tr></thead><tbody>{rows.map((row) => <tr className={`group-tone-${groupTone(row.group)}`} key={row.id}><td><span className="group-pill">{row.group}</span></td><td className="name-cell">{mode === "history" ? <button className="person-link" onClick={() => openReport(row)}>{row.name}</button> : row.name}</td><td className="phone-cell">{mode === "visit" ? <CopyPhone value={row.phone1} name={row.name} /> : row.phone1 || "—"}</td>{mode === "visit" ? <><td className="address-cell">{row.address || "—"}</td><td className="check-cell"><input className="status-check" type="checkbox" checked={row.visited} onChange={(event) => updateCheck(row.recordKey, "visited", event.target.checked)} aria-label={`تمت زيارة ${row.name}`} /></td><td className="history-date">{dateLabel(row.lastVisitedDate)}</td></> : mode === "call" ? <><td><span className={`servant-cell ${row.servant ? "" : "muted"}`}>{row.servant || "غير موزع"}</span></td><td className="check-cell"><input className="status-check" type="checkbox" checked={row.called} onChange={(event) => updateCheck(row.recordKey, "called", event.target.checked)} aria-label={`تم الاتصال بـ ${row.name}`} /></td></> : <><td className="history-date">{dateLabel(row.lastVisitedDate)}</td><td className="history-date">{dateLabel(row.lastCalledWeek)}</td><td><span className="servant-cell">{row.lastCaller || "غير مسجل"}</span></td></>}</tr>)}</tbody></table>{!rows.length && <p className="empty-row">{loading ? "جاري تحميل البيانات" : "لا توجد نتائج"}</p>}</div></section>;
+  return <section className="table-section"><div className="section-title-row table-title-row"><div><p className="section-kicker">بيانات الافتقاد</p><h2>{mode === "visit" ? "زيارة البيت" : mode === "call" ? "الاتصال الأسبوعي" : "آخر متابعة لكل ولد"}</h2></div><div className="table-actions"><label className="search-box"><Search size={17} /><input type="search" placeholder="ابحث بالاسم أو الجروب أو الخادم" value={query} onChange={(event) => setQuery(event.target.value)} /></label>{mode === "visit" && <button className="secondary-button month-filter-button" onClick={() => setIncludeVisitedThisMonth(!includeVisitedThisMonth)}>{includeVisitedThisMonth ? "إخفاء من تمت زيارتهم هذا الشهر" : "إظهار كل من تمت زيارتهم"}</button>}{mode !== "history" && <button className="secondary-button" disabled={busy} onClick={() => saveFollowUp()}><Check size={16} /> احفظ {mode === "visit" ? "الزيارات" : "الاتصالات"}</button>}</div></div><div className="table-wrap"><table><thead><tr>{mode === "visit" ? <><th>الجروب</th><th>الاسم</th><th>رقم 1</th><th>العنوان</th><th>تمت الزيارة</th><th>آخر زيارة</th></> : mode === "call" ? <><th>الجروب</th><th>الاسم</th><th>رقم 1</th><th>مسؤول الاتصال</th><th>تم الاتصال</th></> : <><th>الجروب</th><th>الاسم</th><th>رقم 1</th><th>آخر زيارة</th><th>آخر اتصال</th><th>آخر خادم اتصل</th></>}</tr></thead><tbody>{rows.map((row) => <tr className={`group-tone-${groupTone(row.group)}`} key={row.id}><td><span className="group-pill">{row.group}</span></td><td className="name-cell">{mode === "history" ? <button className="person-link" onClick={() => openReport(row)}>{row.name}</button> : row.name}</td><td className="phone-cell">{mode === "visit" ? <CopyPhone value={row.phone1} name={row.name} /> : row.phone1 || "—"}</td>{mode === "visit" ? <><td className="address-cell">{row.address || "—"}</td><td className="check-cell"><input className="status-check" type="checkbox" checked={row.visited} onChange={(event) => updateCheck(row.recordKey, "visited", event.target.checked)} aria-label={`تمت زيارة ${row.name}`} /></td><td className="history-date">{dateLabel(row.lastVisitedDate)}</td></> : mode === "call" ? <><td><span className={`servant-cell ${row.servant ? "" : "muted"}`}>{row.servant || "غير موزع"}</span></td><td className="check-cell"><input className="status-check" type="checkbox" checked={row.called} onChange={(event) => updateCheck(row.recordKey, "called", event.target.checked)} aria-label={`تم الاتصال بـ ${row.name}`} /></td></> : <><td className="history-date">{dateLabel(row.lastVisitedDate)}</td><td className="history-date">{dateLabel(row.lastCalledWeek)}</td><td><span className="servant-cell">{row.lastCaller || "غير مسجل"}</span></td></>}</tr>)}</tbody></table>{!rows.length && <p className="empty-row">{loading ? "جاري تحميل البيانات" : "لا توجد نتائج"}</p>}</div></section>;
 }
 
 function ReportModal({ report, close }) {
