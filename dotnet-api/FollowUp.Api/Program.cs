@@ -8,7 +8,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls(Environment.GetEnvironmentVariable("ASPNETCORE_URLS") ?? "http://localhost:5080");
 var connectionString = ConnectionString(Environment.GetEnvironmentVariable("DATABASE_URL") ?? builder.Configuration.GetConnectionString("Database") ?? "");
 var appPassword = Environment.GetEnvironmentVariable("APP_PASSWORD") ?? "";
-var staffPassword = Environment.GetEnvironmentVariable("STAFF_PASSWORD") ?? "";
 var frontendOrigin = Environment.GetEnvironmentVariable("FRONTEND_ORIGIN") ?? "http://localhost:5173";
 if (string.IsNullOrWhiteSpace(connectionString)) throw new InvalidOperationException("Set DATABASE_URL before starting the API.");
 if (string.IsNullOrWhiteSpace(appPassword)) throw new InvalidOperationException("Set APP_PASSWORD before starting the API.");
@@ -48,21 +47,14 @@ api.AddEndpointFilter(async (context, next) =>
     var supplied = context.HttpContext.Request.Headers["X-App-Password"].ToString();
     var suppliedHash = SHA256.HashData(Encoding.UTF8.GetBytes(supplied));
     var expectedHash = SHA256.HashData(Encoding.UTF8.GetBytes(appPassword));
-    var role = CryptographicOperations.FixedTimeEquals(suppliedHash, expectedHash) ? "admin" : "";
-    if (role.Length == 0 && !string.IsNullOrWhiteSpace(staffPassword))
-    {
-        var staffHash = SHA256.HashData(Encoding.UTF8.GetBytes(staffPassword));
-        if (CryptographicOperations.FixedTimeEquals(suppliedHash, staffHash)) role = "staff";
-    }
-    if (role.Length == 0) return Results.Unauthorized();
-    context.HttpContext.Items["role"] = role;
+    if (!CryptographicOperations.FixedTimeEquals(suppliedHash, expectedHash)) return Results.Unauthorized();
+    context.HttpContext.Items["role"] = "user";
     return await next(context);
 });
 
-api.MapGet("/session", (HttpContext context) => Results.Ok(new { role = context.Items["role"]?.ToString() ?? "staff" }));
-api.MapGet("/activity", async (NpgsqlDataSource db, HttpContext context) =>
+api.MapGet("/session", () => Results.Ok(new { role = "user" }));
+api.MapGet("/activity", async (NpgsqlDataSource db) =>
 {
-    if (!IsAdmin(context)) return Results.StatusCode(StatusCodes.Status403Forbidden);
     await using var connection = await db.OpenConnectionAsync();
     await using var command = new NpgsqlCommand("select id,actor_role,action,entity,details,created_at at time zone 'Africa/Cairo' from activity_log order by created_at desc limit 200", connection);
     await using var reader = await command.ExecuteReaderAsync();
@@ -130,6 +122,12 @@ api.MapGet("/visit-reports", async (int? year, NpgsqlDataSource db) =>
     var monthNumber = selectedYear == today.Year ? today.Month : 1;
     var monthStart = new DateOnly(selectedYear, monthNumber, 1);
     var monthEnd = monthStart.AddMonths(1);
+    var yearStart = new DateOnly(selectedYear, 1, 1);
+    var yearEnd = new DateOnly(selectedYear + 1, 1, 1);
+    var monthStartSql = monthStart.ToString("yyyy-MM-dd");
+    var monthEndSql = monthEnd.ToString("yyyy-MM-dd");
+    var yearStartSql = yearStart.ToString("yyyy-MM-dd");
+    var yearEndSql = yearEnd.ToString("yyyy-MM-dd");
     await using var connection = await db.OpenConnectionAsync();
     async Task<long> Scalar(string sql, params (string Name, object Value)[] parameters)
     {
@@ -138,9 +136,9 @@ api.MapGet("/visit-reports", async (int? year, NpgsqlDataSource db) =>
         return Convert.ToInt64(await command.ExecuteScalarAsync());
     }
     var totalPeople = await Scalar("select count(*) from people where is_active=true and role='boy'");
-    var dailyTotal = await Scalar("select count(distinct person_id) from visit_records where visit_date=$1", ("p1", today));
-    var monthlyTotal = await Scalar("select count(distinct person_id) from visit_records where visit_date >= $1 and visit_date < $2", ("p1", monthStart), ("p2", monthEnd));
-    var yearlyTotal = await Scalar("select count(distinct person_id) from visit_records where visit_date >= $1 and visit_date < $2", ("p1", new DateOnly(selectedYear, 1, 1)), ("p2", new DateOnly(selectedYear + 1, 1, 1)));
+    var dailyTotal = await Scalar($"select count(distinct person_id) from visit_records where visit_date = DATE '{today:yyyy-MM-dd}'");
+    var monthlyTotal = await Scalar($"select count(distinct person_id) from visit_records where visit_date >= DATE '{monthStartSql}' and visit_date < DATE '{monthEndSql}'");
+    var yearlyTotal = await Scalar($"select count(distinct person_id) from visit_records where visit_date >= DATE '{yearStartSql}' and visit_date < DATE '{yearEndSql}'");
     var daily = new List<object>();
     await using (var command = new NpgsqlCommand("select visit_date::text,count(distinct person_id) from visit_records where extract(year from visit_date)=$1 group by visit_date order by visit_date desc", connection))
     {
@@ -159,12 +157,11 @@ api.MapGet("/visit-reports", async (int? year, NpgsqlDataSource db) =>
     await using (var command = new NpgsqlCommand("select extract(year from visit_date)::int,count(distinct person_id) from visit_records group by extract(year from visit_date) order by extract(year from visit_date) desc", connection))
     await using (var reader = await command.ExecuteReaderAsync())
         while (await reader.ReadAsync()) yearly.Add(new { year = reader.GetInt32(0), count = reader.GetInt64(1) });
-    var monthlyCalls = await Scalar("select count(distinct person_id) from call_records where week_start >= $1 and week_start < $2", ("p1", monthStart), ("p2", monthEnd));
-    var yearlyCalls = await Scalar("select count(distinct person_id) from call_records where week_start >= $1 and week_start < $2", ("p1", new DateOnly(selectedYear, 1, 1)), ("p2", new DateOnly(selectedYear + 1, 1, 1)));
+    var monthlyCalls = await Scalar($"select count(distinct person_id) from call_records where week_start >= DATE '{monthStartSql}' and week_start < DATE '{monthEndSql}'");
+    var yearlyCalls = await Scalar($"select count(distinct person_id) from call_records where week_start >= DATE '{yearStartSql}' and week_start < DATE '{yearEndSql}'");
     var servantStats = new List<object>();
-    await using (var servantCommand = new NpgsqlCommand("select coalesce(nullif(servant,''),'غير محدد'),count(distinct person_id),count(distinct week_start) from call_records where week_start >= $1 and week_start < $2 group by 1 order by count(distinct person_id) desc", connection))
+    await using (var servantCommand = new NpgsqlCommand($"select coalesce(nullif(servant,''),'غير محدد'),count(distinct person_id),count(distinct week_start) from call_records where week_start >= DATE '{yearStartSql}' and week_start < DATE '{yearEndSql}' group by 1 order by count(distinct person_id) desc", connection))
     {
-        servantCommand.Parameters.AddWithValue("p1", new DateOnly(selectedYear, 1, 1)); servantCommand.Parameters.AddWithValue("p2", new DateOnly(selectedYear + 1, 1, 1));
         await using var servantReader = await servantCommand.ExecuteReaderAsync();
         while (await servantReader.ReadAsync()) servantStats.Add(new { servant = servantReader.GetString(0), people = servantReader.GetInt64(1), calls = servantReader.GetInt64(2) });
     }
@@ -219,7 +216,6 @@ api.MapPost("/attendance", async (AttendanceSave payload, NpgsqlDataSource db, H
 
 api.MapPost("/people", async (PersonInput payload, NpgsqlDataSource db, HttpContext context) =>
 {
-    if (!IsAdmin(context)) return Results.StatusCode(StatusCodes.Status403Forbidden);
     if (!ValidPerson(payload, out var error)) return Results.BadRequest(new { error });
     await using var connection = await db.OpenConnectionAsync();
     await using var command = new NpgsqlCommand("insert into people(record_key,name,note,phone1,phone2,group_number,address,role) values((select coalesce(max(record_key),0)+1 from people),$1,$2,$3,$4,$5,$6,$7) returning id", connection);
@@ -231,7 +227,6 @@ api.MapPost("/people", async (PersonInput payload, NpgsqlDataSource db, HttpCont
 
 api.MapPut("/people/{personId:long}", async (long personId, PersonInput payload, NpgsqlDataSource db, HttpContext context) =>
 {
-    if (!IsAdmin(context)) return Results.StatusCode(StatusCodes.Status403Forbidden);
     if (!ValidPerson(payload, out var error)) return Results.BadRequest(new { error });
     await using var connection = await db.OpenConnectionAsync();
     await using var command = new NpgsqlCommand("update people set name=$1,note=$2,phone1=$3,phone2=$4,group_number=$5,address=$6,role=$7,updated_at=now() where id=$8 and is_active=true", connection);
@@ -243,7 +238,6 @@ api.MapPut("/people/{personId:long}", async (long personId, PersonInput payload,
 
 api.MapDelete("/people/{personId:long}", async (long personId, NpgsqlDataSource db, HttpContext context) =>
 {
-    if (!IsAdmin(context)) return Results.StatusCode(StatusCodes.Status403Forbidden);
     await using var connection = await db.OpenConnectionAsync();
     await using var command = new NpgsqlCommand("update people set is_active=false,updated_at=now() where id=$1 and is_active=true", connection);
     command.Parameters.AddWithValue(personId);
@@ -434,13 +428,12 @@ static bool ValidPerson(PersonInput payload, out string error)
     return true;
 }
 
-static bool IsAdmin(HttpContext context) => string.Equals(context.Items["role"]?.ToString(), "admin", StringComparison.Ordinal);
 static string CsvCell(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
 static async Task LogActivity(NpgsqlDataSource db, HttpContext context, string action, string entity, string details)
 {
     await using var connection = await db.OpenConnectionAsync();
     await using var command = new NpgsqlCommand("insert into activity_log(actor_role,action,entity,details) values($1,$2,$3,$4)", connection);
-    command.Parameters.AddWithValue(context.Items["role"]?.ToString() ?? "staff"); command.Parameters.AddWithValue(action); command.Parameters.AddWithValue(entity); command.Parameters.AddWithValue(details);
+    command.Parameters.AddWithValue("user"); command.Parameters.AddWithValue(action); command.Parameters.AddWithValue(entity); command.Parameters.AddWithValue(details);
     await command.ExecuteNonQueryAsync();
 }
 

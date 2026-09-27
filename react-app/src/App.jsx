@@ -21,7 +21,6 @@ function groupTone(group) {
 export default function App() {
   const [password, setPassword] = useState(() => sessionStorage.getItem("choir-password") || "");
   const [passwordDraft, setPasswordDraft] = useState("");
-  const [userRole, setUserRole] = useState("");
   const [mode, setMode] = useState("home");
   const [state, setState] = useState(emptyState);
   const [selectedDate, setSelectedDate] = useState(today());
@@ -82,7 +81,7 @@ export default function App() {
     } finally { setLoading(false); }
   }, [attendanceType, mode, password, request, selectedDate]);
 
-  useEffect(() => { if (password) { request("/api/session", {}, password).then((result) => setUserRole(result.role || "staff")).catch(() => setUserRole("staff")); load(mode, mode === "attendance" ? attendanceDate : selectedDate, password); } }, [password]);
+  useEffect(() => { if (password) { load(mode, mode === "attendance" ? attendanceDate : selectedDate, password); } }, [password]);
 
   const rows = useMemo(() => {
     const term = normalizeArabic(query).trim().toLocaleLowerCase("ar");
@@ -99,8 +98,7 @@ export default function App() {
     if (!candidate) return;
     setBusy(true); setError(""); sessionStorage.setItem("choir-password", candidate); setPassword(candidate);
     try {
-      const session = await request("/api/session", {}, candidate);
-      setUserRole(session.role || "staff");
+      await request("/api/session", {}, candidate);
       const result = await request(`/api/dashboard?date=${today()}&month=${today().slice(0, 7)}`, {}, candidate);
       setDashboard(result);
       setDashboardDate(result.selectedDate);
@@ -189,7 +187,7 @@ export default function App() {
 
   const navItem = (nextMode, icon, label) => <button className={`sidebar-item ${mode === nextMode || (nextMode === "visit" && (mode === "call" || mode === "history" || mode === "reports")) ? "active" : ""}`} onClick={() => switchMode(nextMode)}>{icon}<span>{label}</span></button>;
   return <main className="app-shell">
-    <aside className="app-sidebar"><div className="sidebar-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>كنيستي</strong><span>إدارة الخدمة</span></div></div><p className="sidebar-label">أقسام لوحة الإدارة</p><nav className="sidebar-nav">{navItem("home", <LayoutDashboard size={17} />, "نظرة عامة")}{navItem("attendance", <UserCheck size={17} />, "الحضور والغياب")}{navItem("visit", <Home size={17} />, "الافتقاد")}{navItem("stray", <CircleAlert size={17} />, "الخروف الضال")}{navItem("history", <Users size={17} />, "أفراد الخورس")}{userRole === "admin" && navItem("people", <Pencil size={17} />, "إدارة الخورس")}{userRole === "admin" && navItem("activity", <Clock3 size={17} />, "سجل النشاط")}</nav><div className="sidebar-footer"><span>خورس القديس أبانوب</span><button className="icon-button" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={() => { sessionStorage.removeItem("choir-password"); setPassword(""); setPasswordDraft(""); setUserRole(""); }}>×</button></div></aside>
+    <aside className="app-sidebar"><div className="sidebar-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>كنيستي</strong><span>إدارة الخدمة</span></div></div><p className="sidebar-label">أقسام لوحة الإدارة</p><nav className="sidebar-nav">{navItem("home", <LayoutDashboard size={17} />, "نظرة عامة")}{navItem("attendance", <UserCheck size={17} />, "الحضور والغياب")}{navItem("visit", <Home size={17} />, "الافتقاد")}{navItem("stray", <CircleAlert size={17} />, "الخروف الضال")}{navItem("history", <Users size={17} />, "أفراد الخورس")}{navItem("people", <Pencil size={17} />, "إدارة الخورس")}{navItem("activity", <Clock3 size={17} />, "سجل النشاط")}</nav><div className="sidebar-footer"><span>خورس القديس أبانوب</span><button className="icon-button" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={() => { sessionStorage.removeItem("choir-password"); setPassword(""); setPasswordDraft(""); }}>×</button></div></aside>
     <section className="app-content"><header className="topbar"><div className="brand-lockup"><div><p className="eyebrow">كنيسة السيدة العذراء مريم بارض الشركة</p><h1>إدارة خورس القديس أبانوب</h1></div></div><div className="top-actions">{mode === "reports" && <button className="copy-phone" title="تصدير التقرير" onClick={exportCsv}><Copy size={14} /></button>}<span className="save-state">{loading ? "جاري التحميل" : busy ? "جاري الحفظ" : notice || "جاهز"}</span></div></header>
     {mode === "visit" && state.verse && <section className="verse-band"><p>{state.verse}</p></section>}
     {mode === "visit" || mode === "call" || mode === "reports" ? <div className="sub-tabs"><button className={mode === "visit" ? "active" : ""} onClick={() => switchMode("visit")}><Home size={15} /> زيارة البيت</button><button className={mode === "call" ? "active" : ""} onClick={() => switchMode("call")}><Phone size={15} /> الاتصال الأسبوعي</button><button className={mode === "reports" ? "active" : ""} onClick={() => switchMode("reports")}><BarChart3 size={15} /> تقارير الافتقاد</button></div> : null}
