@@ -1,11 +1,12 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Church, CircleAlert, Clock3, Copy, Home, LayoutDashboard, LoaderCircle, Pencil, Phone, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
+import { BarChart3, CalendarDays, Check, ChevronLeft, ChevronRight, Church, CircleAlert, Clock3, Copy, Home, LayoutDashboard, LoaderCircle, Pencil, Phone, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "https://abanob-mngm.onrender.com").replace(/\/$/, "");
 const today = () => new Date().toISOString().slice(0, 10);
 const dateLabel = (value) => value ? new Intl.DateTimeFormat("ar-EG", { day: "numeric", month: "long", year: "numeric" }).format(new Date(`${value}T12:00:00`)) : "—";
 const normalizeArabic = (value) => String(value || "").replace(/[إأآ]/g, "ا");
 const emptyState = { rows: [], groups: [], servants: [], historySummary: [] };
+const emptyVisitReports = { totalPeople: 0, year: new Date().getFullYear(), daily: [], monthly: [], yearly: [], totals: { daily: 0, monthly: 0, yearly: 0 } };
 const emptyPerson = { name: "", group: "", phone1: "", phone2: "", address: "", note: "", role: "boy" };
 
 function groupTone(group) {
@@ -33,6 +34,7 @@ export default function App() {
   const [attendanceDate, setAttendanceDate] = useState(today());
   const [attendanceChecks, setAttendanceChecks] = useState({});
   const [dashboard, setDashboard] = useState({ summary: {}, people: [] });
+  const [visitReports, setVisitReports] = useState(emptyVisitReports);
   const [dashboardDate, setDashboardDate] = useState(today());
   const [trendMonth, setTrendMonth] = useState(today().slice(0, 7));
 
@@ -53,6 +55,7 @@ export default function App() {
       if (nextMode === "stray") {
         const result = await request(`/api/dashboard?date=${date || today()}&month=${monthOverride}`, {}, auth); setDashboard(result); setDashboardDate(result.selectedDate); setTrendMonth(result.trendMonth || monthOverride); return;
       }
+      if (nextMode === "reports") { setVisitReports(await request("/api/visit-reports", {}, auth)); return; }
       if (nextMode === "attendance") {
         const result = await request(`/api/attendance?type=${attendanceType}&date=${date || today()}`, {}, auth);
         const directory = await request("/api/state?mode=visit", {}, auth);
@@ -100,7 +103,7 @@ export default function App() {
   function switchMode(nextMode) {
     setMode(nextMode); setQuery(""); setReport(null);
     if (nextMode === "people") { setEditingPerson(null); setPersonDraft(emptyPerson); }
-    if (nextMode === "attendance") load(nextMode, attendanceDate); else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate); else load(nextMode, nextMode === "visit" ? selectedDate : undefined);
+    if (nextMode === "attendance") load(nextMode, attendanceDate); else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate); else if (nextMode === "reports") load(nextMode); else load(nextMode, nextMode === "visit" ? selectedDate : undefined);
   }
 
   function updateCheck(recordKey, field, checked) {
@@ -165,12 +168,12 @@ export default function App() {
 
   if (!password) return <main className="login-screen"><form className="login-panel" onSubmit={login}><div className="login-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /></div><p className="eyebrow">كنيسة السيدة العذراء مريم بارض الشركة</p><h1>إدارة خورس القديس أبانوب</h1><label htmlFor="app-password">كلمة مرور الخدام</label><input id="app-password" type="password" autoComplete="current-password" value={passwordDraft} onChange={(event) => setPasswordDraft(event.target.value)} required autoFocus /><button className="primary-button" disabled={busy}>{busy ? <LoaderCircle size={17} className="spin" /> : null} دخول</button>{error && <p className="login-error">{error}</p>}</form></main>;
 
-  const navItem = (nextMode, icon, label) => <button className={`sidebar-item ${mode === nextMode || (nextMode === "visit" && (mode === "call" || mode === "history")) ? "active" : ""}`} onClick={() => switchMode(nextMode)}>{icon}<span>{label}</span></button>;
+  const navItem = (nextMode, icon, label) => <button className={`sidebar-item ${mode === nextMode || (nextMode === "visit" && (mode === "call" || mode === "history" || mode === "reports")) ? "active" : ""}`} onClick={() => switchMode(nextMode)}>{icon}<span>{label}</span></button>;
   return <main className="app-shell">
     <aside className="app-sidebar"><div className="sidebar-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>كنيستي</strong><span>إدارة الخدمة</span></div></div><p className="sidebar-label">أقسام لوحة الإدارة</p><nav className="sidebar-nav">{navItem("home", <LayoutDashboard size={17} />, "نظرة عامة")}{navItem("attendance", <UserCheck size={17} />, "الحضور والغياب")}{navItem("visit", <Home size={17} />, "الافتقاد")}{navItem("stray", <CircleAlert size={17} />, "الخروف الضال")}{navItem("history", <Users size={17} />, "أفراد الخورس")}{navItem("people", <Pencil size={17} />, "إدارة الخورس")}</nav><div className="sidebar-footer"><span>خورس القديس أبانوب</span><button className="icon-button" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={() => { sessionStorage.removeItem("choir-password"); setPassword(""); setPasswordDraft(""); }}>×</button></div></aside>
     <section className="app-content"><header className="topbar"><div className="brand-lockup"><div><p className="eyebrow">كنيسة السيدة العذراء مريم بارض الشركة</p><h1>إدارة خورس القديس أبانوب</h1></div></div><div className="top-actions"><span className="save-state">{loading ? "جاري التحميل" : busy ? "جاري الحفظ" : notice || "جاهز"}</span></div></header>
     {mode === "visit" && state.verse && <section className="verse-band"><p>{state.verse}</p></section>}
-    {mode === "visit" || mode === "call" ? <div className="sub-tabs"><button className={mode === "visit" ? "active" : ""} onClick={() => switchMode("visit")}><Home size={15} /> زيارة البيت</button><button className={mode === "call" ? "active" : ""} onClick={() => switchMode("call")}><Phone size={15} /> الاتصال الأسبوعي</button></div> : null}
+    {mode === "visit" || mode === "call" || mode === "reports" ? <div className="sub-tabs"><button className={mode === "visit" ? "active" : ""} onClick={() => switchMode("visit")}><Home size={15} /> زيارة البيت</button><button className={mode === "call" ? "active" : ""} onClick={() => switchMode("call")}><Phone size={15} /> الاتصال الأسبوعي</button><button className={mode === "reports" ? "active" : ""} onClick={() => switchMode("reports")}><BarChart3 size={15} /> تقارير الافتقاد</button></div> : null}
 
     {followUpMode && <FollowUpDashboard mode={mode} state={state} selectedDate={selectedDate} setSelectedDate={setSelectedDate} rotationStart={rotationStart} setRotationStart={setRotationStart} servantsText={servantsText} setServantsText={setServantsText} busy={busy} saveFollowUp={saveFollowUp} load={load} checkedCount={checkedCount} percent={percent} />}
     {mode === "people" && <PeopleManager state={state} rows={rows} query={query} setQuery={setQuery} busy={busy} editingPerson={editingPerson} personDraft={personDraft} setPersonDraft={setPersonDraft} savePerson={savePerson} editPerson={editPerson} archivePerson={archivePerson} cancelEdit={() => { setEditingPerson(null); setPersonDraft(emptyPerson); }} />}
@@ -178,6 +181,7 @@ export default function App() {
     {mode === "home" && <HomeDashboard dashboard={dashboard} dashboardDate={dashboardDate} setDashboardDate={(date) => { setDashboardDate(date); load("home", date); }} trendMonth={trendMonth} setTrendMonth={(month) => { setTrendMonth(month); load("home", dashboardDate, password, month); }} openReport={openReport} />}
     {mode === "stray" && <StraySheepPage people={dashboard.people || []} openReport={openReport} />}
     {(mode === "visit" || mode === "call") && <PeopleTable mode={mode} rows={rows} query={query} setQuery={setQuery} busy={busy} saveFollowUp={saveFollowUp} updateCheck={updateCheck} openReport={openReport} loading={loading} />}
+    {mode === "reports" && <VisitReportsPage reports={visitReports} />}
     {mode === "history" && <MembersDirectoryByRole rows={rows} query={query} setQuery={setQuery} openReport={openReport} loading={loading} />}
     {(error || notice) && <div className={`toast visible ${error ? "error" : ""}`} role="status">{error || notice}</div>}
     {report && <ReportModal report={report} close={() => setReport(null)} />}
@@ -192,6 +196,15 @@ function StraySheepPage({ people, openReport }) {
     return { ...person, attendance, followUp, activity, need: Math.max(0, 100 - Math.min(100, activity * 10)) };
   }).sort((a, b) => a.activity - b.activity || a.attendance - b.attendance || a.name.localeCompare(b.name, "ar"));
   return <section className="stray-page"><section className="stray-hero"><div><p className="section-kicker">متابعة الرعاية</p><h2>الخروف الضال</h2><p>الأسماء الأكثر احتياجًا للمتابعة حسب الحضور والافتقاد.</p></div><CircleAlert size={30} /></section><section className="stray-note"><strong>طريقة الترتيب</strong><span>الأعلى في القائمة هو الأقل حضورًا في الخورس والقداس، والأقل افتقادًا بالزيارة والاتصال.</span></section><section className="table-section stray-table"><div className="section-title-row table-title-row"><div><p className="section-kicker">أولوية المتابعة</p><h2>{rows.length} مخدوم</h2></div><span className="date-label">من الأكثر احتياجًا إلى الأقل</span></div><div className="stray-list">{rows.map((row, index) => <button className={`stray-person group-tone-${groupTone(row.group)}`} key={row.id} onClick={() => openReport(row)}><span className="stray-rank">{index + 1}</span><span className="stray-person-info"><strong>{row.name}</strong><small>{row.phone1 || "بدون رقم"}</small></span><span className="stray-stats"><b>{row.need}%</b><small>احتياج متابعة</small></span><span className="stray-counts"><span>خورس {row.choirCount || 0}</span><span>قداس {row.massCount || 0}</span><span>زيارة {row.visitCount || 0}</span><span>اتصال {row.callCount || 0}</span></span></button>)}</div>{!rows.length && <p className="empty-row">لا توجد بيانات مخدومين</p>}</section></section>;
+}
+
+function VisitReportsPage({ reports }) {
+  const totalPeople = reports.totalPeople || 0;
+  const monthlyVisited = reports.totals?.monthly || 0;
+  const yearlyVisited = reports.totals?.yearly || 0;
+  const monthlyPercent = totalPeople ? Math.round(monthlyVisited * 100 / totalPeople) : 0;
+  const yearlyPercent = totalPeople ? Math.round(yearlyVisited * 100 / totalPeople) : 0;
+  return <section className="visit-reports-page"><section className="reports-hero"><div><p className="section-kicker">تقارير الافتقاد</p><h2>متابعة الزيارات</h2><p>اعرف تقدم الافتقاد يومًا بيوم، وخلال الشهر والسنة.</p></div><BarChart3 size={30} /></section><div className="reports-metrics"><article><span>زيارات اليوم</span><strong>{reports.totals?.daily || 0}</strong><small>من {totalPeople} مخدوم</small></article><article><span>زيارات الشهر</span><strong>{monthlyVisited}</strong><small>{monthlyPercent}% من المخدومين</small><i><b style={{ width: `${Math.min(100, monthlyPercent)}%` }} /></i></article><article><span>زيارات السنة</span><strong>{yearlyVisited}</strong><small>{yearlyPercent}% من المخدومين</small><i><b style={{ width: `${Math.min(100, yearlyPercent)}%` }} /></i></article></div><section className="table-section report-period-section"><div className="section-title-row table-title-row"><div><p className="section-kicker">السجل اليومي</p><h2>زيارات سنة {reports.year}</h2></div><span className="date-label">كل يوم تم فيه تسجيل زيارة</span></div><div className="visit-days-grid">{(reports.daily || []).map((item) => <article key={item.date}><strong>{item.count}</strong><span>{dateLabel(item.date)}</span><small>تمت زيارتهم</small></article>)}{!reports.daily?.length && <p className="empty-row">لا توجد زيارات مسجلة في هذه السنة</p>}</div></section><section className="table-section report-period-section"><div className="section-title-row table-title-row"><div><p className="section-kicker">ملخص شهري</p><h2>تقدم الافتقاد خلال السنة</h2></div></div><div className="monthly-report-list">{(reports.monthly || []).map((item) => <div key={item.month}><span>{item.month}</span><b>{item.count} مخدوم</b><i><em style={{ width: `${totalPeople ? Math.min(100, item.count * 100 / totalPeople) : 0}%` }} /></i></div>)}{!reports.monthly?.length && <p className="empty-row">لا توجد بيانات شهرية</p>}</div></section><section className="table-section report-period-section"><div className="section-title-row table-title-row"><div><p className="section-kicker">ملخص سنوي</p><h2>تقدم الافتقاد عبر السنوات</h2></div></div><div className="monthly-report-list">{(reports.yearly || []).map((item) => <div key={item.year}><span>{item.year}</span><b>{item.count} مخدوم</b><i><em style={{ width: `${totalPeople ? Math.min(100, item.count * 100 / totalPeople) : 0}%` }} /></i></div>)}{!reports.yearly?.length && <p className="empty-row">لا توجد بيانات سنوية</p>}</div></section></section>;
 }
 
 function HomeDashboard({ dashboard, dashboardDate, setDashboardDate, trendMonth, setTrendMonth, openReport }) {
