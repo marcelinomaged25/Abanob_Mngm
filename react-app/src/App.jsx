@@ -174,9 +174,9 @@ export default function App() {
     finally { setBusy(false); }
   }
 
-  async function saveAttendance() {
+  async function saveAttendance(checksToSave = attendanceChecks) {
     setBusy(true); setError(""); setNotice("");
-    try { await request("/api/attendance", { method: "POST", body: JSON.stringify({ type: attendanceType, date: attendanceDate, checks: attendanceChecks }) }); setNotice("تم حفظ الحضور"); await load("attendance", attendanceDate); }
+    try { await request("/api/attendance", { method: "POST", body: JSON.stringify({ type: attendanceType, date: attendanceDate, checks: checksToSave }) }); setNotice("تم حفظ الحضور"); await load("attendance", attendanceDate); }
     catch (saveError) { setError(saveError.message); } finally { setBusy(false); }
   }
 
@@ -338,7 +338,11 @@ function AttendanceManager({ state, rows, attendanceType, setAttendanceType, att
   const sortedRows = [...rows].sort((a, b) => normalizeArabic(a.name).localeCompare(normalizeArabic(b.name), "ar"));
   const visibleQuery = normalizeArabic(query).trim().toLocaleLowerCase("ar");
   const visibleRows = sortedRows.filter((row) => normalizeArabic([row.name, row.phone1, row.phone2].filter(Boolean).join(" ")).toLocaleLowerCase("ar").includes(visibleQuery));
-  const toggle = (recordKey) => setChecks((current) => ({ ...current, [recordKey]: !current[recordKey] }));
+  const toggle = (recordKey) => {
+    const nextChecks = { ...checks, [recordKey]: !checks[recordKey] };
+    setChecks(nextChecks);
+    save(nextChecks);
+  };
   return <section className="attendance-page"><div className="attendance-controls"><label className="search-box attendance-search"><Search size={17} /><input type="search" placeholder="ابحث بالاسم" value={query} onChange={(event) => setQuery(event.target.value)} /></label><div className="segmented-control"><button className={attendanceType === "choir" ? "active" : ""} onClick={() => setAttendanceType("choir")}><Church size={16} /> حضور الخورس</button><button className={attendanceType === "mass" ? "active" : ""} onClick={() => setAttendanceType("mass")}><UserCheck size={16} /> حضور القداس</button></div><label>تاريخ الحضور<input type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} /></label><button className="primary-button attendance-save" disabled={busy} onClick={save}><Check size={16} /> حفظ حضور اليوم</button></div><section className="table-section"><div className="section-title-row table-title-row"><div><p className="section-kicker">خورس واحد</p><h2>{attendanceType === "choir" ? "حضور الخورس" : "حضور القداس"}</h2></div><span className="count-badge">{checked} من {rows.length}</span></div><div className="attendance-grid">{visibleRows.map((row, index) => <Fragment key={row.id}>{(() => { const letter = normalizeArabic(row.name).trim().slice(0, 1); const previousLetter = normalizeArabic(visibleRows[index - 1]?.name?.trim() || "").slice(0, 1); const key = String(row.recordKey); return <>{letter !== previousLetter && <div className="attendance-letter">{letter}</div>}<button className={`attendance-person ${checks[key] ? "present" : ""}`} key={row.id} onClick={() => toggle(key)}><span className="attendance-check">{checks[key] ? <Check size={18} /> : null}</span><span className="attendance-name">{row.name}</span><span className="attendance-meta">{row.role === "servant" ? "خادم" : "مخدوم"}</span></button></>})()}</Fragment>)}</div></section></section>;
 }
 
