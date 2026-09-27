@@ -402,7 +402,8 @@ static async Task<object> BuildState(NpgsqlDataSource db, string mode, string? s
     }).ToArray();
     var groupStates = groups.Select(group => new { number = group.Number, members = group.Members, recordKeys = group.RecordKeys, servant = savedAssignments.GetValueOrDefault(group.Number) ?? autoAssignments.GetValueOrDefault(group.Number) ?? "" }).ToArray();
     var weekEnd = week.AddDays(6);
-    return new { rows, groups = groupStates, servants, rotationStart = rotation.ToString("yyyy-MM-dd"), distributionNotStarted, selectedDate = date.ToString("yyyy-MM-dd"), selectedWeek = week.ToString("yyyy-MM-dd"), weekEnd = weekEnd.ToString("yyyy-MM-dd"), verse, historySummary = rows.Select(row => new { row.recordKey, row.lastVisitedDate, row.lastCalledWeek, row.lastCaller }).ToArray() };
+    var monthTotal = people.Count(person => person.Role == "boy");
+    return new { rows, groups = groupStates, servants, monthVisitedCount = visitedThisMonth.Count, monthTotal, rotationStart = rotation.ToString("yyyy-MM-dd"), distributionNotStarted, selectedDate = date.ToString("yyyy-MM-dd"), selectedWeek = week.ToString("yyyy-MM-dd"), weekEnd = weekEnd.ToString("yyyy-MM-dd"), verse, historySummary = rows.Select(row => new { row.recordKey, row.lastVisitedDate, row.lastCalledWeek, row.lastCaller }).ToArray() };
 }
 
 static async Task<T?> GetSetting<T>(NpgsqlConnection connection, string key)
