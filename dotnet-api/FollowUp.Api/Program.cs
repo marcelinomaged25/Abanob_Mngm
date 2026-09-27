@@ -53,6 +53,15 @@ api.AddEndpointFilter(async (context, next) =>
 });
 
 api.MapGet("/session", () => Results.Ok(new { role = "user" }));
+api.MapGet("/qr/{token}", async (string token, NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("select id,record_key,name,phone1,role from people where qr_token=$1 and is_active=true", connection);
+    command.Parameters.AddWithValue(token);
+    await using var reader = await command.ExecuteReaderAsync();
+    if (!await reader.ReadAsync()) return Results.NotFound(new { error = "QR code غير صالح" });
+    return Results.Ok(new { id = reader.GetInt64(0), recordKey = reader.GetInt32(1), name = reader.GetString(2), phone1 = reader.GetString(3), role = reader.GetString(4) });
+});
 api.MapGet("/export/visits", async (NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();
@@ -222,8 +231,8 @@ api.MapPost("/people", async (PersonInput payload, NpgsqlDataSource db) =>
 {
     if (!ValidPerson(payload, out var error)) return Results.BadRequest(new { error });
     await using var connection = await db.OpenConnectionAsync();
-    await using var command = new NpgsqlCommand("insert into people(record_key,name,note,phone1,phone2,group_number,address,role) values((select coalesce(max(record_key),0)+1 from people),$1,$2,$3,$4,$5,$6,$7) returning id", connection);
-    command.Parameters.AddWithValue(payload.Name.Trim()); command.Parameters.AddWithValue(payload.Note?.Trim() ?? ""); command.Parameters.AddWithValue(payload.Phone1?.Trim() ?? ""); command.Parameters.AddWithValue(payload.Phone2?.Trim() ?? ""); command.Parameters.AddWithValue(string.IsNullOrWhiteSpace(payload.Group) ? (object)DBNull.Value : payload.Group.Trim()); command.Parameters.AddWithValue(payload.Address?.Trim() ?? ""); command.Parameters.AddWithValue(NormalizeRole(payload.Role));
+    await using var command = new NpgsqlCommand("insert into people(record_key,name,note,phone1,phone2,group_number,address,role,qr_token) values((select coalesce(max(record_key),0)+1 from people),$1,$2,$3,$4,$5,$6,$7,$8) returning id", connection);
+    command.Parameters.AddWithValue(payload.Name.Trim()); command.Parameters.AddWithValue(payload.Note?.Trim() ?? ""); command.Parameters.AddWithValue(payload.Phone1?.Trim() ?? ""); command.Parameters.AddWithValue(payload.Phone2?.Trim() ?? ""); command.Parameters.AddWithValue(string.IsNullOrWhiteSpace(payload.Group) ? (object)DBNull.Value : payload.Group.Trim()); command.Parameters.AddWithValue(payload.Address?.Trim() ?? ""); command.Parameters.AddWithValue(NormalizeRole(payload.Role)); command.Parameters.AddWithValue(Convert.ToHexString(RandomNumberGenerator.GetBytes(18)).ToLowerInvariant());
     var id = (long)(await command.ExecuteScalarAsync())!;
     return Results.Created($"/api/people/{id}", new { id });
 });
@@ -345,9 +354,9 @@ static async Task<object> BuildState(NpgsqlDataSource db, string mode, string? s
     var servants = await GetSetting<string[]>(connection, "servants") ?? [];
     var verse = await GetSetting<string?>(connection, "verse") ?? "";
     var people = new List<Person>();
-    await using (var command = new NpgsqlCommand("select id,record_key,name,note,phone1,phone2,group_number,address,role from people where is_active=true order by record_key", connection))
+    await using (var command = new NpgsqlCommand("select id,record_key,name,note,phone1,phone2,group_number,address,role,qr_token from people where is_active=true order by record_key", connection))
     await using (var reader = await command.ExecuteReaderAsync())
-        while (await reader.ReadAsync()) people.Add(new Person(reader.GetInt64(0), reader.GetInt32(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.IsDBNull(6) ? "" : reader.GetString(6), reader.GetString(7), reader.GetString(8)));
+        while (await reader.ReadAsync()) people.Add(new Person(reader.GetInt64(0), reader.GetInt32(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.IsDBNull(6) ? "" : reader.GetString(6), reader.GetString(7), reader.GetString(8), reader.IsDBNull(9) ? "" : reader.GetString(9)));
     var visitedThisMonth = new HashSet<long>();
     var monthStart = new DateOnly(date.Year, date.Month, 1);
     await using (var command = new NpgsqlCommand("select person_id from visit_records where visit_date >= $1 and visit_date < $2", connection))
@@ -398,7 +407,7 @@ static async Task<object> BuildState(NpgsqlDataSource db, string mode, string? s
     var rows = people.Select(person =>
     {
         lastCall.TryGetValue(person.Id, out var call);
-        return new { id = person.Id, recordKey = person.RecordKey, name = person.Name, note = person.Note, phone1 = person.Phone1, phone2 = person.Phone2, group = person.Group, address = person.Address, role = person.Role, visited = mode == "visit" && visits.Contains(person.Id), visitedThisMonth = visitedThisMonth.Contains(person.Id), called = calls.ContainsKey(person.Id), servant = calls.GetValueOrDefault(person.Id) ?? savedAssignments.GetValueOrDefault(person.Group) ?? autoAssignments.GetValueOrDefault(person.Group) ?? "", lastVisitedDate = lastVisit.GetValueOrDefault(person.Id) ?? "", lastCalledWeek = call.Week ?? "", lastCaller = call.Servant ?? "", lastChoirDate = lastChoir.GetValueOrDefault(person.Id) ?? "", lastMassDate = lastMass.GetValueOrDefault(person.Id) ?? "" };
+        return new { id = person.Id, recordKey = person.RecordKey, name = person.Name, note = person.Note, phone1 = person.Phone1, phone2 = person.Phone2, group = person.Group, address = person.Address, role = person.Role, qrToken = person.QrToken, visited = mode == "visit" && visits.Contains(person.Id), visitedThisMonth = visitedThisMonth.Contains(person.Id), called = calls.ContainsKey(person.Id), servant = calls.GetValueOrDefault(person.Id) ?? savedAssignments.GetValueOrDefault(person.Group) ?? autoAssignments.GetValueOrDefault(person.Group) ?? "", lastVisitedDate = lastVisit.GetValueOrDefault(person.Id) ?? "", lastCalledWeek = call.Week ?? "", lastCaller = call.Servant ?? "", lastChoirDate = lastChoir.GetValueOrDefault(person.Id) ?? "", lastMassDate = lastMass.GetValueOrDefault(person.Id) ?? "" };
     }).ToArray();
     var groupStates = groups.Select(group => new { number = group.Number, members = group.Members, recordKeys = group.RecordKeys, servant = savedAssignments.GetValueOrDefault(group.Number) ?? autoAssignments.GetValueOrDefault(group.Number) ?? "" }).ToArray();
     var weekEnd = week.AddDays(6);
@@ -488,7 +497,7 @@ static void LoadEnvironmentFile(string? path)
     }
 }
 
-record Person(long Id, int RecordKey, string Name, string Note, string Phone1, string Phone2, string Group, string Address, string Role);
+record Person(long Id, int RecordKey, string Name, string Note, string Phone1, string Phone2, string Group, string Address, string Role, string QrToken);
 record Group(string Number, int Members, int[] RecordKeys);
 record VisitSave(string Date, Dictionary<string, bool>? Checks);
 record CallSave(string? RotationStart, string[]? Servants, Dictionary<string, bool>? Checks);

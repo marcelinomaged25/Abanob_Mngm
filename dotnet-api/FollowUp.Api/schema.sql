@@ -1,8 +1,11 @@
 create table if not exists groups (number text primary key, display_order integer not null unique);
-create table if not exists people (id bigserial primary key, record_key integer not null unique, name text not null, note text not null default '', phone1 text not null default '', phone2 text not null default '', group_number text references groups(number), address text not null default '', role text not null default 'boy', is_active boolean not null default true, created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+create table if not exists people (id bigserial primary key, record_key integer not null unique, name text not null, note text not null default '', phone1 text not null default '', phone2 text not null default '', group_number text references groups(number), address text not null default '', role text not null default 'boy', qr_token text, is_active boolean not null default true, created_at timestamptz not null default now(), updated_at timestamptz not null default now());
 do $$ begin if exists (select 1 from information_schema.columns where table_name='people' and column_name='source_row') then alter table people rename column source_row to record_key; end if; end $$;
 alter table people add column if not exists is_active boolean not null default true;
 alter table people add column if not exists role text not null default 'boy';
+alter table people add column if not exists qr_token text;
+update people set qr_token = md5(random()::text || clock_timestamp()::text || id::text) where qr_token is null;
+create unique index if not exists people_qr_token_idx on people(qr_token);
 create table if not exists settings (key text primary key, value jsonb not null, updated_at timestamptz not null default now());
 create table if not exists visit_records (person_id bigint not null references people(id) on delete cascade, visit_date date not null, recorded_at timestamptz not null default now(), primary key (person_id, visit_date));
 create table if not exists call_assignments (week_start date not null, group_number text not null references groups(number), servant text not null, assigned_at timestamptz not null default now(), primary key (week_start, group_number));

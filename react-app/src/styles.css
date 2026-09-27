@@ -255,6 +255,22 @@ tbody tr:hover td { background: #f5f8ff; }
 .report-bar-column span { max-width: 76px; overflow: hidden; color: #71809a; font-size: 10px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .month-filter-button { white-space: nowrap; }
 .activity-page table { min-width: 620px; }
+.qr-page, .qr-scan-page { margin-top: 18px; }
+.qr-print-button { width: auto; margin: 0; }
+.qr-print-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+.qr-print-card { display: grid; justify-items: center; gap: 5px; padding: 14px 10px; border: 1px solid #d9cfb4; border-radius: 12px; background: var(--paper); text-align: center; break-inside: avoid; }
+.qr-print-card img { display: block; width: 132px; height: 132px; }
+.qr-print-card strong { max-width: 100%; color: var(--ink); font-size: 13px; line-height: 1.45; }
+.qr-print-card small { color: var(--muted); font-size: 10px; direction: ltr; }
+.qr-loading { display: grid; place-items: center; width: 132px; height: 132px; color: var(--muted); font-size: 11px; }
+.qr-scan-page { display: grid; place-items: center; }
+.qr-scan-panel { width: min(560px, 100%); padding: 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); box-shadow: var(--shadow); text-align: center; }
+.qr-reader { width: min(100%, 420px); margin: 18px auto; overflow: hidden; border: 1px solid #d9cfb4; border-radius: 12px; background: #172137; }
+.qr-reader video { border-radius: 12px; }
+.scanned-person { display: grid; gap: 10px; margin-top: 16px; padding: 16px; border: 1px solid #c7dfd6; border-radius: 12px; background: #f0faf5; }
+.scanned-person strong { font-size: 20px; }
+.scanned-person small { color: var(--muted); direction: ltr; }
+.scanned-person .segmented-control { justify-content: center; margin: 0 auto; }
 .mode-visit .overview-panel .metric:first-child { display: none; }
 .mode-visit .table-section:not(.call-groups-section) table th:first-child, .mode-visit .table-section:not(.call-groups-section) table td:first-child { display: none; }
 .mode-visit .table-section:not(.call-groups-section) tbody tr { background: #fffdf7; }
@@ -580,6 +596,20 @@ tbody tr:hover td { background: #f5f8ff; }
   .attendance-controls .segmented-control { height: auto; width: 100%; }
   .attendance-controls .segmented-control button { flex: 1; }
   .dashboard-attendance-table .dashboard-table-search { width: 100%; }
+  .qr-print-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .qr-print-card { padding: 10px 6px; }
+  .qr-print-card img, .qr-loading { width: 110px; height: 110px; }
+  .qr-scan-panel { padding: 16px; }
+}
+
+@media print {
+  body { background: white; }
+  .app-sidebar, .topbar, .qr-page > .section-title-row, .toast { display: none !important; }
+  .app-shell { display: block; min-height: 0; }
+  .app-content { padding: 0; }
+  .qr-page { margin: 0; }
+  .qr-print-grid { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .qr-print-card { border-color: #bbb; box-shadow: none; }
 }
 
 /* Final control alignment: keep fields and actions on one consistent rhythm. */

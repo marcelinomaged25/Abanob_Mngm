@@ -1,5 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { BarChart3, CalendarDays, Check, ChevronLeft, ChevronRight, Church, CircleAlert, Copy, Home, LayoutDashboard, LoaderCircle, Pencil, Phone, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
+import { BarChart3, CalendarDays, Check, ChevronLeft, ChevronRight, Church, CircleAlert, Copy, Home, LayoutDashboard, LoaderCircle, Pencil, Phone, Plus, QrCode, Search, Trash2, UserCheck, Users, X } from "lucide-react";
+import QRCode from "qrcode";
+import { Html5Qrcode } from "html5-qrcode";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "https://abanob-mngm.onrender.com").replace(/\/$/, "");
 const today = () => {
@@ -43,6 +45,8 @@ export default function App() {
   const [includeVisitedThisMonth, setIncludeVisitedThisMonth] = useState(false);
   const [dashboardDate, setDashboardDate] = useState(today());
   const [trendMonth, setTrendMonth] = useState(today().slice(0, 7));
+  const [scanPerson, setScanPerson] = useState(null);
+  const [scanType, setScanType] = useState("both");
 
   const request = useCallback(async (path, options = {}, auth = password) => {
     const response = await fetch(`${apiUrl}${path}`, { ...options, headers: { ...(options.body ? { "Content-Type": "application/json" } : {}), ...(auth ? { "X-App-Password": auth } : {}), ...options.headers } });
@@ -111,7 +115,17 @@ export default function App() {
   function switchMode(nextMode) {
     setMode(nextMode); setQuery(""); setReport(null);
     if (nextMode === "people") { setEditingPerson(null); setPersonDraft(emptyPerson); }
-    if (nextMode === "attendance") load(nextMode, attendanceDate); else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate); else if (nextMode === "reports") load(nextMode); else load(nextMode, nextMode === "visit" ? selectedDate : undefined);
+    if (nextMode === "attendance") load(nextMode, attendanceDate); else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate); else if (nextMode === "reports") load(nextMode); else if (nextMode === "qr") setScanPerson(null); else if (nextMode === "qr-print") return; else load(nextMode, nextMode === "visit" ? selectedDate : undefined);
+  }
+
+  async function saveScannedAttendance() {
+    if (!scanPerson) return;
+    setBusy(true); setError("");
+    try {
+      const types = scanType === "both" ? ["choir", "mass"] : [scanType];
+      for (const type of types) await request("/api/attendance", { method: "POST", body: JSON.stringify({ type, date: today(), checks: { [scanPerson.recordKey]: true } }) });
+      setNotice(`تم تسجيل حضور ${scanPerson.name}`); setScanPerson(null);
+    } catch (saveError) { setError(saveError.message); } finally { setBusy(false); }
   }
 
   async function exportCsv() {
@@ -186,7 +200,7 @@ export default function App() {
 
   const navItem = (nextMode, icon, label) => <button className={`sidebar-item ${mode === nextMode || (nextMode === "visit" && (mode === "call" || mode === "history" || mode === "reports")) ? "active" : ""}`} onClick={() => switchMode(nextMode)}>{icon}<span>{label}</span></button>;
   return <main className={`app-shell mode-${mode}`}>
-    <aside className="app-sidebar"><div className="sidebar-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>كنيستي</strong><span>إدارة الخدمة</span></div></div><p className="sidebar-label">أقسام لوحة الإدارة</p><nav className="sidebar-nav">{navItem("home", <LayoutDashboard size={17} />, "نظرة عامة")}{navItem("attendance", <UserCheck size={17} />, "الحضور والغياب")}{navItem("visit", <Home size={17} />, "الافتقاد")}{navItem("stray", <CircleAlert size={17} />, "الخروف الضال")}{navItem("history", <Users size={17} />, "أفراد الخورس")}{navItem("people", <Pencil size={17} />, "إدارة الخورس")}</nav><div className="sidebar-footer"><span>خورس القديس أبانوب</span><button className="icon-button" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={() => { sessionStorage.removeItem("choir-password"); setPassword(""); setPasswordDraft(""); }}>×</button></div></aside>
+    <aside className="app-sidebar"><div className="sidebar-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>كنيستي</strong><span>إدارة الخدمة</span></div></div><p className="sidebar-label">أقسام لوحة الإدارة</p><nav className="sidebar-nav">{navItem("home", <LayoutDashboard size={17} />, "نظرة عامة")}{navItem("attendance", <UserCheck size={17} />, "الحضور والغياب")}{navItem("qr", <QrCode size={17} />, "مسح QR")}{navItem("qr-print", <QrCode size={17} />, "طباعة QR")}{navItem("visit", <Home size={17} />, "الافتقاد")}{navItem("stray", <CircleAlert size={17} />, "الخروف الضال")}{navItem("history", <Users size={17} />, "أفراد الخورس")}{navItem("people", <Pencil size={17} />, "إدارة الخورس")}</nav><div className="sidebar-footer"><span>خورس القديس أبانوب</span><button className="icon-button" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={() => { sessionStorage.removeItem("choir-password"); setPassword(""); setPasswordDraft(""); }}>×</button></div></aside>
     <section className="app-content"><header className="topbar"><div className="brand-lockup"><div><p className="eyebrow">كنيسة السيدة العذراء مريم بارض الشركة</p><h1>إدارة خورس القديس أبانوب</h1></div></div><div className="top-actions">{mode === "reports" && <button className="copy-phone" title="تصدير التقرير" onClick={exportCsv}><Copy size={14} /></button>}<span className="save-state">{loading ? "جاري التحميل" : busy ? "جاري الحفظ" : notice || "جاهز"}</span></div></header>
     {mode === "visit" && state.verse && <section className="verse-band"><p>{state.verse}</p></section>}
     {mode === "visit" || mode === "call" || mode === "reports" ? <div className="sub-tabs"><button className={mode === "visit" ? "active" : ""} onClick={() => switchMode("visit")}><Home size={15} /> زيارة البيت</button><button className={mode === "call" ? "active" : ""} onClick={() => switchMode("call")}><Phone size={15} /> الاتصال الأسبوعي</button><button className={mode === "reports" ? "active" : ""} onClick={() => switchMode("reports")}><BarChart3 size={15} /> تقارير الافتقاد</button></div> : null}
@@ -194,6 +208,8 @@ export default function App() {
     {followUpMode && <FollowUpDashboard mode={mode} state={state} selectedDate={selectedDate} setSelectedDate={setSelectedDate} rotationStart={rotationStart} setRotationStart={setRotationStart} servantsText={servantsText} setServantsText={setServantsText} busy={busy} saveFollowUp={saveFollowUp} load={load} checkedCount={checkedCount} percent={percent} />}
     {mode === "people" && <PeopleManager state={state} rows={rows} query={query} setQuery={setQuery} busy={busy} editingPerson={editingPerson} personDraft={personDraft} setPersonDraft={setPersonDraft} savePerson={savePerson} editPerson={editPerson} archivePerson={archivePerson} cancelEdit={() => { setEditingPerson(null); setPersonDraft(emptyPerson); }} />}
     {mode === "attendance" && <AttendanceManager state={state} rows={rows} attendanceType={attendanceType} setAttendanceType={(type) => { setAttendanceType(type); load("attendance", attendanceDate); }} attendanceDate={attendanceDate} setAttendanceDate={(date) => { setAttendanceDate(date); load("attendance", date); }} checks={attendanceChecks} setChecks={setAttendanceChecks} save={saveAttendance} busy={busy} query={query} setQuery={setQuery} />}
+    {mode === "qr" && <QrScannerPage password={password} request={request} person={scanPerson} setPerson={setScanPerson} scanType={scanType} setScanType={setScanType} save={saveScannedAttendance} busy={busy} />}
+    {mode === "qr-print" && <QrCardsPage rows={state.rows} />}
     {mode === "home" && <HomeDashboard dashboard={dashboard} dashboardDate={dashboardDate} setDashboardDate={(date) => { setDashboardDate(date); load("home", date); }} trendMonth={trendMonth} setTrendMonth={(month) => { setTrendMonth(month); load("home", dashboardDate, password, month); }} openReport={openReport} />}
     {mode === "stray" && <StraySheepPage people={dashboard.people || []} openReport={openReport} />}
     {(mode === "visit" || mode === "call") && <PeopleTable mode={mode} rows={mode === "visit" ? visitRows : rows} query={query} setQuery={setQuery} busy={busy} saveFollowUp={saveFollowUp} updateCheck={updateCheck} openReport={openReport} loading={loading} includeVisitedThisMonth={includeVisitedThisMonth} setIncludeVisitedThisMonth={setIncludeVisitedThisMonth} />}
@@ -290,6 +306,21 @@ function PeopleManager({ state, rows, query, setQuery, busy, editingPerson, pers
   const field = (key) => (event) => setPersonDraft({ ...personDraft, [key]: event.target.value });
   const scopedRows = rows.filter((person) => (person.role || "boy") === scope);
   return <section className="people-layout"><article className="panel person-form-panel"><div className="panel-heading"><div><p className="section-kicker">قاعدة بيانات الخورس</p><h2>{editingPerson ? "تعديل بيانات الاسم" : "إضافة ولد أو خادم"}</h2></div><Plus size={19} /></div><form className="person-form" onSubmit={savePerson}><label>الاسم<input value={personDraft.name} onChange={field("name")} required /></label><label>النوع<select value={personDraft.role || "boy"} onChange={field("role")}><option value="boy">ولد</option><option value="servant">خادم</option></select></label><label>رقم الهاتف الأول<input dir="ltr" value={personDraft.phone1} onChange={field("phone1")} /></label><label>رقم الهاتف الثاني<input dir="ltr" value={personDraft.phone2} onChange={field("phone2")} /></label><label className="form-wide">العنوان<input value={personDraft.address} onChange={field("address")} /></label><label className="form-wide">ملاحظات<textarea rows="3" value={personDraft.note} onChange={field("note")} /></label><div className="form-actions"><button className="primary-button" disabled={busy}>{editingPerson ? "حفظ التعديل" : "إضافة الاسم"}</button>{editingPerson && <button type="button" className="cancel-button" onClick={cancelEdit}>إلغاء</button>}</div></form></article><article className="table-section people-table"><div className="section-title-row table-title-row"><div><p className="section-kicker">السجل الحالي</p><div className="segmented-control"><button className={scope === "boy" ? "active" : ""} onClick={() => setScope("boy")}>المخدومين</button><button className={scope === "servant" ? "active" : ""} onClick={() => setScope("servant")}>الخدام</button></div><h2>{scopedRows.length} اسم مسجل</h2></div><label className="search-box"><Search size={17} /><input type="search" placeholder="ابحث بالاسم أو الرقم أو العنوان" value={query} onChange={(event) => setQuery(event.target.value)} /></label></div><div className="table-wrap"><table><thead><tr><th>الاسم</th><th>الجروب</th><th>رقم 1</th><th>رقم 2</th><th>العنوان</th><th>إجراء</th></tr></thead><tbody>{scopedRows.map((person) => <tr className={`group-tone-${groupTone(person.group)}`} key={person.id}><td className="name-cell">{person.name}</td><td><span className="group-pill">{person.group || "—"}</span></td><td dir="ltr">{person.phone1 || "—"}</td><td dir="ltr">{person.phone2 || "—"}</td><td className="address-cell">{person.address || "—"}</td><td className="people-actions"><button className="row-action edit" title="تعديل" onClick={() => editPerson(person)}><Pencil size={15} /></button><button className="row-action delete" title="حذف من المتابعة" onClick={() => archivePerson(person)} disabled={busy}><Trash2 size={15} /></button></td></tr>)}</tbody></table>{!scopedRows.length && <p className="empty-row">لا توجد نتائج</p>}</div></article></section>;
+}
+
+function QrCard({ person }) {
+  const [src, setSrc] = useState("");
+  useEffect(() => { QRCode.toDataURL(`${window.location.origin}/qr/${person.qrToken}`, { margin: 1, width: 180, errorCorrectionLevel: "M" }).then(setSrc); }, [person.qrToken]);
+  return <article className="qr-print-card"><div>{src ? <img src={src} alt={`QR ${person.name}`} /> : <span className="qr-loading">جاري إنشاء QR</span>}</div><strong>{person.name}</strong><small>{person.phone1 || "بدون رقم"}</small></article>;
+}
+function QrCardsPage({ rows }) {
+  const people = rows.filter((row) => row.role === "boy");
+  return <section className="qr-page"><div className="section-title-row table-title-row"><div><p className="section-kicker">بطاقات الحضور</p><h2>QR لكل مخدوم</h2><span className="date-label">اطبع الصفحة أو احفظها PDF من نافذة الطباعة</span></div><button className="primary-button qr-print-button" onClick={() => window.print()}><Copy size={15} /> طباعة / PDF</button></div><div className="qr-print-grid">{people.map((person) => <QrCard person={person} key={person.id} />)}</div></section>;
+}
+function QrScannerPage({ request, person, setPerson, scanType, setScanType, save, busy }) {
+  const [scannerError, setScannerError] = useState("");
+  useEffect(() => { const scanner = new Html5Qrcode("qr-reader"); scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 230, height: 230 } }, async (decoded) => { try { await scanner.stop(); const token = decoded.includes("/qr/") ? decoded.split("/qr/").pop().split(/[?#]/)[0] : decoded.trim(); setPerson(await request(`/api/qr/${encodeURIComponent(token)}`)); } catch (error) { setScannerError(error.message); } }, () => {}).catch((error) => setScannerError("اسمح للمتصفح باستخدام الكاميرا")); return () => { scanner.stop().catch(() => {}); }; }, [request, setPerson]);
+  return <section className="qr-scan-page"><div className="qr-scan-panel"><p className="section-kicker">تسجيل حضور سريع</p><h2>امسح QR الخاص بالمخدوم</h2><div id="qr-reader" className="qr-reader" />{scannerError && <p className="login-error">{scannerError}</p>}{person && <div className="scanned-person"><strong>{person.name}</strong><small>{person.phone1 || "بدون رقم"}</small><div className="segmented-control"><button className={scanType === "choir" ? "active" : ""} onClick={() => setScanType("choir")}>خورس</button><button className={scanType === "mass" ? "active" : ""} onClick={() => setScanType("mass")}>قداس</button><button className={scanType === "both" ? "active" : ""} onClick={() => setScanType("both")}>الاتنين</button></div><button className="primary-button" disabled={busy} onClick={save}>تأكيد تسجيل الحضور</button></div>}</div></section>;
 }
 
 function AttendanceManager({ state, rows, attendanceType, setAttendanceType, attendanceDate, setAttendanceDate, checks, setChecks, save, busy, query, setQuery }) {
