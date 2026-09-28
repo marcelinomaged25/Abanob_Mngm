@@ -145,6 +145,17 @@ api.MapGet("/visit-reports", async (int? year, string? month, NpgsqlDataSource d
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync()) daily.Add(new { date = reader.GetString(0), count = reader.GetInt64(1) });
     }
+    var visitDetails = new Dictionary<string, List<object>>();
+    await using (var command = new NpgsqlCommand($"select v.visit_date::text,p.record_key,p.name from visit_records v join people p on p.id=v.person_id where v.visit_date >= DATE '{monthStartSql}' and v.visit_date < DATE '{monthEndSql}' order by v.visit_date,p.name", connection))
+    await using (var reader = await command.ExecuteReaderAsync())
+    {
+        while (await reader.ReadAsync())
+        {
+            var date = reader.GetString(0);
+            if (!visitDetails.TryGetValue(date, out var people)) visitDetails[date] = people = new List<object>();
+            people.Add(new { recordKey = reader.GetInt32(1), name = reader.GetString(2) });
+        }
+    }
     var monthly = new List<object>();
     await using (var command = new NpgsqlCommand("select to_char(date_trunc('month',visit_date),'YYYY-MM'),count(distinct person_id) from visit_records where extract(year from visit_date)=$1 group by date_trunc('month',visit_date) order by date_trunc('month',visit_date)", connection))
     {
@@ -160,6 +171,17 @@ api.MapGet("/visit-reports", async (int? year, string? month, NpgsqlDataSource d
     await using (var command = new NpgsqlCommand($"select week_start::text,count(distinct person_id) from call_records where week_start >= DATE '{monthStartSql}' and week_start < DATE '{monthEndSql}' group by week_start order by week_start desc", connection))
     await using (var reader = await command.ExecuteReaderAsync())
         while (await reader.ReadAsync()) callDaily.Add(new { date = reader.GetString(0), count = reader.GetInt64(1) });
+    var callDetails = new Dictionary<string, List<object>>();
+    await using (var command = new NpgsqlCommand($"select c.week_start::text,p.record_key,p.name,c.servant from call_records c join people p on p.id=c.person_id where c.week_start >= DATE '{monthStartSql}' and c.week_start < DATE '{monthEndSql}' order by c.week_start,p.name", connection))
+    await using (var reader = await command.ExecuteReaderAsync())
+    {
+        while (await reader.ReadAsync())
+        {
+            var date = reader.GetString(0);
+            if (!callDetails.TryGetValue(date, out var people)) callDetails[date] = people = new List<object>();
+            people.Add(new { recordKey = reader.GetInt32(1), name = reader.GetString(2), servant = reader.GetString(3) });
+        }
+    }
     var callMonthly = new List<object>();
     await using (var command = new NpgsqlCommand("select to_char(date_trunc('month',week_start),'YYYY-MM'),count(distinct person_id) from call_records where extract(year from week_start)=$1 group by date_trunc('month',week_start) order by date_trunc('month',week_start)", connection))
     {
@@ -179,7 +201,7 @@ api.MapGet("/visit-reports", async (int? year, string? month, NpgsqlDataSource d
         await using var servantReader = await servantCommand.ExecuteReaderAsync();
         while (await servantReader.ReadAsync()) servantStats.Add(new { servant = servantReader.GetString(0), people = servantReader.GetInt64(1), calls = servantReader.GetInt64(2) });
     }
-    return Results.Ok(new { year = selectedYear, month = monthStart.ToString("yyyy-MM"), totalPeople, daily, monthly, yearly, callDaily, callMonthly, callYearly, servantStats, totals = new { daily = dailyTotal, monthly = monthlyTotal, yearly = yearlyTotal, monthlyCalls, yearlyCalls } });
+    return Results.Ok(new { year = selectedYear, month = monthStart.ToString("yyyy-MM"), totalPeople, daily, visitDetails, monthly, yearly, callDaily, callDetails, callMonthly, callYearly, servantStats, totals = new { daily = dailyTotal, monthly = monthlyTotal, yearly = yearlyTotal, monthlyCalls, yearlyCalls } });
 });
 
 api.MapGet("/history/{personId:long}", async (long personId, NpgsqlDataSource db) =>
