@@ -57,7 +57,7 @@ export default function App() {
     return body;
   }, [password]);
 
-  const load = useCallback(async (nextMode = mode, date = selectedDate, auth = password, monthOverride = trendMonth) => {
+  const load = useCallback(async (nextMode = mode, date = selectedDate, auth = password, monthOverride = trendMonth, attendanceTypeOverride = attendanceType) => {
     if (!auth) return;
     setLoading(true); setError("");
     try {
@@ -69,7 +69,7 @@ export default function App() {
       }
       if (nextMode === "reports") { const selectedMonth = monthOverride || reportMonth; const selectedYear = selectedMonth.slice(0, 4); setVisitReports(await request(`/api/visit-reports?year=${selectedYear}&month=${selectedMonth}`, {}, auth)); return; }
       if (nextMode === "attendance") {
-        const result = await request(`/api/attendance?type=${attendanceType}&date=${date || today()}`, {}, auth);
+        const result = await request(`/api/attendance?type=${attendanceTypeOverride}&date=${date || today()}`, {}, auth);
         const directory = await request("/api/state?mode=visit", {}, auth);
         const attendedKeys = new Set((result.attended || []).map(String));
         setState(directory); setAttendanceDate(result.date); setAttendanceChecks(Object.fromEntries((directory.rows || []).filter((row) => attendedKeys.has(String(row.recordKey))).map((row) => [String(row.recordKey), true]))); return;
@@ -214,7 +214,7 @@ export default function App() {
 
     {followUpMode && <FollowUpDashboard mode={mode} state={state} selectedDate={selectedDate} setSelectedDate={(date) => { setSelectedDate(date); sessionStorage.setItem("choir-selected-date", date); }} rotationStart={rotationStart} setRotationStart={setRotationStart} servantsText={servantsText} setServantsText={setServantsText} busy={busy} saveFollowUp={saveFollowUp} load={load} checkedCount={checkedCount} percent={percent} />}
     {mode === "people" && <PeopleManager state={state} rows={rows} query={query} setQuery={setQuery} busy={busy} editingPerson={editingPerson} personDraft={personDraft} setPersonDraft={setPersonDraft} savePerson={savePerson} editPerson={editPerson} archivePerson={archivePerson} cancelEdit={() => { setEditingPerson(null); setPersonDraft(emptyPerson); }} />}
-    {mode === "attendance" && <AttendanceManager state={state} rows={rows} attendanceType={attendanceType} setAttendanceType={(type) => { setAttendanceType(type); load("attendance", attendanceDate); }} attendanceDate={attendanceDate} setAttendanceDate={(date) => { setAttendanceDate(date); sessionStorage.setItem("choir-attendance-date", date); load("attendance", date); }} checks={attendanceChecks} setChecks={setAttendanceChecks} save={saveAttendance} busy={busy} query={query} setQuery={setQuery} />}
+    {mode === "attendance" && <AttendanceManager state={state} rows={rows} attendanceType={attendanceType} setAttendanceType={(type) => { setAttendanceType(type); load("attendance", attendanceDate, password, trendMonth, type); }} attendanceDate={attendanceDate} setAttendanceDate={(date) => { setAttendanceDate(date); sessionStorage.setItem("choir-attendance-date", date); load("attendance", date); }} checks={attendanceChecks} setChecks={setAttendanceChecks} save={saveAttendance} busy={busy} query={query} setQuery={setQuery} />}
     {mode === "qr" && <QrScannerPage request={request} person={scanPerson} setPerson={setScanPerson} scanType={scanType} setScanType={setScanType} scanDate={scanDate} setScanDate={setScanDate} save={saveScannedAttendance} busy={busy} />}
     {mode === "qr-print" && <QrCardsPage rows={state.rows} />}
     {mode === "home" && <HomeDashboard dashboard={dashboard} dashboardDate={dashboardDate} setDashboardDate={(date) => { setDashboardDate(date); sessionStorage.setItem("choir-dashboard-date", date); load("home", date); }} trendMonth={trendMonth} setTrendMonth={(month) => { setTrendMonth(month); sessionStorage.setItem("choir-trend-month", month); load("home", dashboardDate, password, month); }} openReport={openReport} />}
