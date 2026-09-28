@@ -14,6 +14,7 @@ const normalizeArabic = (value) => String(value || "").replace(/[إأآ]/g, "ا"
 const emptyState = { rows: [], groups: [], servants: [], historySummary: [] };
 const emptyVisitReports = { totalPeople: 0, year: new Date().getFullYear(), daily: [], monthly: [], yearly: [], totals: { daily: 0, monthly: 0, yearly: 0 } };
 const emptyPerson = { name: "", group: "", phone1: "", phone2: "", address: "", note: "", role: "boy" };
+const stored = (key, fallback) => sessionStorage.getItem(key) || fallback;
 
 function groupTone(group) {
   const number = Number.parseInt(String(group).replace(/\D/g, ""), 10);
@@ -23,9 +24,9 @@ function groupTone(group) {
 export default function App() {
   const [password, setPassword] = useState(() => sessionStorage.getItem("choir-password") || "");
   const [passwordDraft, setPasswordDraft] = useState("");
-  const [mode, setMode] = useState("home");
+  const [mode, setMode] = useState(() => stored("choir-mode", "home"));
   const [state, setState] = useState(emptyState);
-  const [selectedDate, setSelectedDate] = useState(today());
+  const [selectedDate, setSelectedDate] = useState(() => stored("choir-selected-date", today()));
   const [rotationStart, setRotationStart] = useState("");
   const [servantsText, setServantsText] = useState("");
   const [query, setQuery] = useState("");
@@ -37,14 +38,14 @@ export default function App() {
   const [editingPerson, setEditingPerson] = useState(null);
   const [personDraft, setPersonDraft] = useState(emptyPerson);
   const [attendanceType, setAttendanceType] = useState("choir");
-  const [attendanceDate, setAttendanceDate] = useState(today());
+  const [attendanceDate, setAttendanceDate] = useState(() => stored("choir-attendance-date", today()));
   const [attendanceChecks, setAttendanceChecks] = useState({});
   const [dashboard, setDashboard] = useState({ summary: {}, people: [] });
   const [visitReports, setVisitReports] = useState(emptyVisitReports);
   const [reportMonth, setReportMonth] = useState(today().slice(0, 7));
   const [includeVisitedThisMonth, setIncludeVisitedThisMonth] = useState(false);
-  const [dashboardDate, setDashboardDate] = useState(today());
-  const [trendMonth, setTrendMonth] = useState(today().slice(0, 7));
+  const [dashboardDate, setDashboardDate] = useState(() => stored("choir-dashboard-date", today()));
+  const [trendMonth, setTrendMonth] = useState(() => stored("choir-trend-month", today().slice(0, 7)));
   const [scanPerson, setScanPerson] = useState(null);
   const [scanType, setScanType] = useState("both");
   const [scanDate, setScanDate] = useState(today());
@@ -115,7 +116,7 @@ export default function App() {
   }
 
   function switchMode(nextMode) {
-    setMode(nextMode); setQuery(""); setReport(null);
+    setMode(nextMode); sessionStorage.setItem("choir-mode", nextMode); setQuery(""); setReport(null);
     if (nextMode === "people") { setEditingPerson(null); setPersonDraft(emptyPerson); }
     if (nextMode === "attendance") load(nextMode, attendanceDate); else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate); else if (nextMode === "reports") load(nextMode); else if (nextMode === "qr") { setScanPerson(null); load("people"); } else if (nextMode === "qr-print") load("people"); else load(nextMode, nextMode === "visit" ? selectedDate : undefined);
   }
@@ -174,9 +175,9 @@ export default function App() {
     finally { setBusy(false); }
   }
 
-  async function saveAttendance(checksToSave = attendanceChecks) {
+  async function saveAttendance(checksToSave = attendanceChecks, refresh = true) {
     setBusy(true); setError(""); setNotice("");
-    try { await request("/api/attendance", { method: "POST", body: JSON.stringify({ type: attendanceType, date: attendanceDate, checks: checksToSave }) }); setNotice("تم حفظ الحضور"); await load("attendance", attendanceDate); }
+    try { await request("/api/attendance", { method: "POST", body: JSON.stringify({ type: attendanceType, date: attendanceDate, checks: checksToSave }) }); setNotice("تم حفظ الحضور"); if (refresh) await load("attendance", attendanceDate); }
     catch (saveError) { setError(saveError.message); } finally { setBusy(false); }
   }
 
@@ -211,12 +212,12 @@ export default function App() {
     {mode === "visit" && state.verse && <section className="verse-band"><p>{state.verse}</p></section>}
     {mode === "visit" || mode === "call" || mode === "reports" ? <div className="sub-tabs"><button className={mode === "visit" ? "active" : ""} onClick={() => switchMode("visit")}><Home size={15} /> زيارة البيت</button><button className={mode === "call" ? "active" : ""} onClick={() => switchMode("call")}><Phone size={15} /> الاتصال الأسبوعي</button><button className={mode === "reports" ? "active" : ""} onClick={() => switchMode("reports")}><BarChart3 size={15} /> تقارير الافتقاد</button></div> : null}
 
-    {followUpMode && <FollowUpDashboard mode={mode} state={state} selectedDate={selectedDate} setSelectedDate={setSelectedDate} rotationStart={rotationStart} setRotationStart={setRotationStart} servantsText={servantsText} setServantsText={setServantsText} busy={busy} saveFollowUp={saveFollowUp} load={load} checkedCount={checkedCount} percent={percent} />}
+    {followUpMode && <FollowUpDashboard mode={mode} state={state} selectedDate={selectedDate} setSelectedDate={(date) => { setSelectedDate(date); sessionStorage.setItem("choir-selected-date", date); }} rotationStart={rotationStart} setRotationStart={setRotationStart} servantsText={servantsText} setServantsText={setServantsText} busy={busy} saveFollowUp={saveFollowUp} load={load} checkedCount={checkedCount} percent={percent} />}
     {mode === "people" && <PeopleManager state={state} rows={rows} query={query} setQuery={setQuery} busy={busy} editingPerson={editingPerson} personDraft={personDraft} setPersonDraft={setPersonDraft} savePerson={savePerson} editPerson={editPerson} archivePerson={archivePerson} cancelEdit={() => { setEditingPerson(null); setPersonDraft(emptyPerson); }} />}
-    {mode === "attendance" && <AttendanceManager state={state} rows={rows} attendanceType={attendanceType} setAttendanceType={(type) => { setAttendanceType(type); load("attendance", attendanceDate); }} attendanceDate={attendanceDate} setAttendanceDate={(date) => { setAttendanceDate(date); load("attendance", date); }} checks={attendanceChecks} setChecks={setAttendanceChecks} save={saveAttendance} busy={busy} query={query} setQuery={setQuery} />}
+    {mode === "attendance" && <AttendanceManager state={state} rows={rows} attendanceType={attendanceType} setAttendanceType={(type) => { setAttendanceType(type); load("attendance", attendanceDate); }} attendanceDate={attendanceDate} setAttendanceDate={(date) => { setAttendanceDate(date); sessionStorage.setItem("choir-attendance-date", date); load("attendance", date); }} checks={attendanceChecks} setChecks={setAttendanceChecks} save={saveAttendance} busy={busy} query={query} setQuery={setQuery} />}
     {mode === "qr" && <QrScannerPage request={request} person={scanPerson} setPerson={setScanPerson} scanType={scanType} setScanType={setScanType} scanDate={scanDate} setScanDate={setScanDate} save={saveScannedAttendance} busy={busy} />}
     {mode === "qr-print" && <QrCardsPage rows={state.rows} />}
-    {mode === "home" && <HomeDashboard dashboard={dashboard} dashboardDate={dashboardDate} setDashboardDate={(date) => { setDashboardDate(date); load("home", date); }} trendMonth={trendMonth} setTrendMonth={(month) => { setTrendMonth(month); load("home", dashboardDate, password, month); }} openReport={openReport} />}
+    {mode === "home" && <HomeDashboard dashboard={dashboard} dashboardDate={dashboardDate} setDashboardDate={(date) => { setDashboardDate(date); sessionStorage.setItem("choir-dashboard-date", date); load("home", date); }} trendMonth={trendMonth} setTrendMonth={(month) => { setTrendMonth(month); sessionStorage.setItem("choir-trend-month", month); load("home", dashboardDate, password, month); }} openReport={openReport} />}
     {mode === "stray" && <StraySheepPage people={dashboard.people || []} openReport={openReport} />}
     {(mode === "visit" || mode === "call") && <PeopleTable mode={mode} rows={mode === "visit" ? visitRows : rows} query={query} setQuery={setQuery} busy={busy} saveFollowUp={saveFollowUp} updateCheck={updateCheck} openReport={openReport} loading={loading} includeVisitedThisMonth={includeVisitedThisMonth} setIncludeVisitedThisMonth={setIncludeVisitedThisMonth} />}
     {mode === "reports" && <VisitReportsPage reports={visitReports} exportCsv={exportCsv} month={reportMonth} setMonth={(month) => { setReportMonth(month); load("reports", undefined, password, month); }} />}
@@ -341,7 +342,7 @@ function AttendanceManager({ state, rows, attendanceType, setAttendanceType, att
   const toggle = (recordKey) => {
     const nextChecks = { ...checks, [recordKey]: !checks[recordKey] };
     setChecks(nextChecks);
-    save(nextChecks);
+    save(nextChecks, false);
   };
   return <section className="attendance-page"><div className="attendance-controls"><label className="search-box attendance-search"><Search size={17} /><input type="search" placeholder="ابحث بالاسم" value={query} onChange={(event) => setQuery(event.target.value)} /></label><div className="segmented-control"><button className={attendanceType === "choir" ? "active" : ""} onClick={() => setAttendanceType("choir")}><Church size={16} /> حضور الخورس</button><button className={attendanceType === "mass" ? "active" : ""} onClick={() => setAttendanceType("mass")}><UserCheck size={16} /> حضور القداس</button></div><label>تاريخ الحضور<input type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} /></label><button className="primary-button attendance-save" disabled={busy} onClick={() => save()}><Check size={16} /> حفظ حضور اليوم</button></div><section className="table-section"><div className="section-title-row table-title-row"><div><p className="section-kicker">خورس واحد</p><h2>{attendanceType === "choir" ? "حضور الخورس" : "حضور القداس"}</h2></div><span className="count-badge">{checked} من {rows.length}</span></div><div className="attendance-grid">{visibleRows.map((row, index) => <Fragment key={row.id}>{(() => { const letter = normalizeArabic(row.name).trim().slice(0, 1); const previousLetter = normalizeArabic(visibleRows[index - 1]?.name?.trim() || "").slice(0, 1); const key = String(row.recordKey); return <>{letter !== previousLetter && <div className="attendance-letter">{letter}</div>}<button className={`attendance-person ${checks[key] ? "present" : ""}`} key={row.id} onClick={() => toggle(key)}><span className="attendance-check">{checks[key] ? <Check size={18} /> : null}</span><span className="attendance-name">{row.name}</span><span className="attendance-meta">{row.role === "servant" ? "خادم" : "مخدوم"}</span></button></>})()}</Fragment>)}</div></section></section>;
 }
