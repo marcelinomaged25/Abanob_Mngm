@@ -85,7 +85,7 @@ api.MapGet("/dashboard", async (string? date, string? month, NpgsqlDataSource db
     await stats.ReadAsync();
     var summary = new { people = stats.GetInt64(0), servants = stats.GetInt64(1), visits = stats.GetInt64(2), calls = stats.GetInt64(3), choirAttendance = stats.GetInt64(4), massAttendance = stats.GetInt64(5) };
     await stats.CloseAsync();
-    await using var dailyCommand = new NpgsqlCommand("select count(*) filter(where p.is_active and p.role='boy'), count(*) filter(where p.is_active and p.role='boy' and a.attendance_type='choir'), count(*) filter(where p.is_active and p.role='boy' and a.attendance_type='mass') from people p left join attendance_records a on a.person_id=p.id and a.attendance_date=$1", connection);
+    await using var dailyCommand = new NpgsqlCommand("select count(distinct p.id) filter(where p.is_active and p.role='boy'), count(distinct p.id) filter(where p.is_active and p.role='boy' and a.attendance_type='choir'), count(distinct p.id) filter(where p.is_active and p.role='boy' and a.attendance_type='mass') from people p left join attendance_records a on a.person_id=p.id and a.attendance_date=$1", connection);
     dailyCommand.Parameters.AddWithValue(dashboardDate);
     await using var dailyReader = await dailyCommand.ExecuteReaderAsync();
     await dailyReader.ReadAsync();
