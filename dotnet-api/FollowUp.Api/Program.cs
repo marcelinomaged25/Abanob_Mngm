@@ -41,6 +41,38 @@ app.MapGet("/api/health", async (NpgsqlDataSource db) =>
     return Results.Ok(new { ok = true });
 });
 
+app.MapGet("/api/public/qr/{token}", async (string token, NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var personCommand = new NpgsqlCommand("select id,record_key,name,group_number from people where qr_token=$1 and is_active=true and role='boy'", connection);
+    personCommand.Parameters.AddWithValue(token);
+    await using var personReader = await personCommand.ExecuteReaderAsync();
+    if (!await personReader.ReadAsync()) return Results.NotFound(new { error = "QR code غير صالح أو الاسم غير متاح" });
+    var personId = personReader.GetInt64(0);
+    var person = new { recordKey = personReader.GetInt32(1), name = personReader.GetString(2), group = personReader.IsDBNull(3) ? "" : personReader.GetString(3) };
+    await personReader.CloseAsync();
+
+    var attendance = new List<PublicAttendanceItem>();
+    await using (var attendanceCommand = new NpgsqlCommand("select attendance_type,attendance_date::text,to_char(recorded_at at time zone 'Africa/Cairo','YYYY-MM-DD\"T\"HH24:MI:SS') from attendance_records where person_id=$1 order by attendance_date desc,recorded_at desc", connection))
+    {
+        attendanceCommand.Parameters.AddWithValue(personId);
+        await using var attendanceReader = await attendanceCommand.ExecuteReaderAsync();
+        while (await attendanceReader.ReadAsync()) attendance.Add(new PublicAttendanceItem(attendanceReader.GetString(0), attendanceReader.GetString(1), attendanceReader.GetString(2)));
+    }
+    var sessionTotals = new Dictionary<(string Type, string Month), int>();
+    await using (var sessionsCommand = new NpgsqlCommand("select attendance_type,to_char(date_trunc('month',attendance_date),'YYYY-MM'),count(distinct attendance_date) from attendance_records group by attendance_type,date_trunc('month',attendance_date)", connection))
+    await using (var sessionsReader = await sessionsCommand.ExecuteReaderAsync())
+    {
+        while (await sessionsReader.ReadAsync()) sessionTotals[(sessionsReader.GetString(0), sessionsReader.GetString(1))] = sessionsReader.GetInt64(2) > int.MaxValue ? int.MaxValue : (int)sessionsReader.GetInt64(2);
+    }
+    var monthly = attendance.GroupBy(item => new { Month = item.Date[..7], Type = item.Type })
+        .GroupBy(group => group.Key.Month)
+        .OrderByDescending(group => group.Key)
+        .Select(group => { var choir = group.Where(item => item.Key.Type == "choir").Sum(item => item.Count()); var mass = group.Where(item => item.Key.Type == "mass").Sum(item => item.Count()); var choirSessions = sessionTotals.GetValueOrDefault(("choir", group.Key)); var massSessions = sessionTotals.GetValueOrDefault(("mass", group.Key)); return new { month = group.Key, choir, mass, choirRate = choirSessions == 0 ? 0 : (int)Math.Round(choir * 100d / choirSessions), massRate = massSessions == 0 ? 0 : (int)Math.Round(mass * 100d / massSessions) }; })
+        .ToArray();
+    return Results.Ok(new { person, attendance, monthly });
+});
+
 var api = app.MapGroup("/api");
 api.AddEndpointFilter(async (context, next) =>
 {
@@ -525,3 +557,4 @@ record VisitSave(string Date, Dictionary<string, bool>? Checks);
 record CallSave(string? RotationStart, string[]? Servants, Dictionary<string, bool>? Checks);
 record PersonInput(string Name, string? Group, string? Phone1, string? Phone2, string? Address, string? Note, string? Role);
 record AttendanceSave(string Type, string Date, Dictionary<string, bool>? Checks);
+record PublicAttendanceItem(string Type, string Date, string RecordedAt);

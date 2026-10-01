@@ -15,6 +15,7 @@ const emptyState = { rows: [], groups: [], servants: [], historySummary: [] };
 const emptyVisitReports = { totalPeople: 0, year: new Date().getFullYear(), daily: [], monthly: [], yearly: [], totals: { daily: 0, monthly: 0, yearly: 0 } };
 const emptyPerson = { name: "", group: "", phone1: "", phone2: "", address: "", note: "", role: "boy" };
 const stored = (key, fallback) => sessionStorage.getItem(key) || fallback;
+const publicQrToken = window.location.pathname.match(/^\/qr\/([^/]+)\/?$/)?.[1] || "";
 
 function groupTone(group) {
   const number = Number.parseInt(String(group).replace(/\D/g, ""), 10);
@@ -203,6 +204,7 @@ export default function App() {
     catch (reportError) { setError(reportError.message); }
   }
 
+  if (publicQrToken) return <PublicAttendancePage token={publicQrToken} />;
   if (!password) return <main className="login-screen"><form className="login-panel" onSubmit={login}><div className="login-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /></div><p className="eyebrow">كنيسة السيدة العذراء مريم بارض الشركة</p><h1>إدارة خورس القديس أبانوب</h1><label htmlFor="app-password">كلمة مرور الخدام</label><input id="app-password" type="password" autoComplete="current-password" value={passwordDraft} onChange={(event) => setPasswordDraft(event.target.value)} required autoFocus /><button className="primary-button" disabled={busy}>{busy ? <LoaderCircle size={17} className="spin" /> : null} دخول</button>{error && <p className="login-error">{error}</p>}</form></main>;
 
   const navItem = (nextMode, icon, label) => <button className={`sidebar-item ${mode === nextMode || (nextMode === "visit" && (mode === "call" || mode === "history" || mode === "reports")) ? "active" : ""}`} onClick={() => switchMode(nextMode)}>{icon}<span>{label}</span></button>;
@@ -226,6 +228,35 @@ export default function App() {
     {report && <ReportModal report={report} close={() => setReport(null)} />}
     </section></main>;
 }
+
+function PublicAttendancePage({ token }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    fetch(`${apiUrl}/api/public/qr/${encodeURIComponent(token)}`)
+      .then(async (response) => {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const detail = response.status === 404
+            ? "مسار تقرير الـQR غير منشور على الخادم حاليًا. بعد نشر تحديث الباك إند سيظهر التقرير تلقائيًا."
+            : body.error || `تعذر تحميل التقرير (${response.status})`;
+          throw new Error(detail);
+        }
+        return body;
+      })
+      .then(setData)
+      .catch((loadError) => setError(loadError.message || "تعذر الاتصال بالخادم"));
+  }, [token]);
+  if (error) return <main className="public-report-page"><PublicBrand /><section className="public-report-error"><h1>تعذر فتح التقرير</h1><p>{error}</p></section></main>;
+  if (!data) return <main className="public-report-page"><PublicBrand /><section className="public-report-loading">جاري تحميل تقرير الحضور...</section></main>;
+  const choir = data.attendance.filter((item) => item.type === "choir");
+  const mass = data.attendance.filter((item) => item.type === "mass");
+  return <main className="public-report-page"><PublicBrand /><section className="public-student-heading"><div><p className="section-kicker">تقرير حضور المخدوم</p><h1>{data.person.name}</h1>{data.person.group && <span>المجموعة {data.person.group}</span>}</div><a className="public-call-button" href="tel:01206465486"><Phone size={17} /> اتصل بخادم الخورس</a></section><section className="public-attendance-summary"><PublicMetric label="حضور الخورس" value={choir.length} /><PublicMetric label="حضور القداس" value={mass.length} /><PublicMetric label="إجمالي الحضور" value={data.attendance.length} /></section><section className="public-monthly-report"><div className="public-section-heading"><div><p className="section-kicker">ملخص المتابعة</p><h2>الحضور حسب الشهر</h2></div><span>من بداية التسجيل</span></div><div className="public-month-list">{data.monthly.map((month) => <article key={month.month}><strong>{month.month}</strong><span>خورس <b>{month.choir}</b><small>{month.choirRate}%</small></span><span>قداس <b>{month.mass}</b><small>{month.massRate}%</small></span></article>)}{!data.monthly.length && <p className="empty-row">لا توجد تسجيلات حضور حتى الآن</p>}</div></section><section className="public-history"><div className="public-section-heading"><div><p className="section-kicker">السجل التفصيلي</p><h2>مواعيد الحضور</h2></div><span>التاريخ والساعة</span></div><div className="public-history-list">{data.attendance.map((item) => <article key={`${item.type}-${item.date}-${item.recordedAt}`}><span className={`public-type ${item.type}`}>{item.type === "choir" ? "خورس" : "قداس"}</span><div><strong>{dateLabel(item.date)}</strong><small>{publicTimeLabel(item.recordedAt)}</small></div></article>)}{!data.attendance.length && <p className="empty-row">لا توجد تسجيلات حضور حتى الآن</p>}</div></section></main>;
+}
+
+function PublicBrand() { return <header className="public-brand"><img src="/app-icon.png" alt="القديس أبانوب" /><div><strong>خورس القديس أبانوب</strong><span>تقرير حضور الخورس والقداس</span></div></header>; }
+function PublicMetric({ label, value }) { return <article><span>{label}</span><strong>{value}</strong></article>; }
+function publicTimeLabel(value) { const [date, time] = String(value || "").split("T"); if (!time) return "—"; const [year, month, day] = date.split("-").map(Number); const [hour, minute] = time.split(":").map(Number); return new Intl.DateTimeFormat("ar-EG", { hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(year, month - 1, day, hour, minute)); }
 
 function StraySheepPage({ people, openReport }) {
   const rows = people.filter((person) => person.role !== "servant").map((person) => {

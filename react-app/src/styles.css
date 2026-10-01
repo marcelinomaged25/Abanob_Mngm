@@ -491,6 +491,42 @@ tbody tr:hover td { background: #f5f8ff; }
 .mode-visit .table-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .mode-visit .table-actions .search-box { grid-column: 1 / -1; width: 100%; }
 .mode-visit .table-actions .secondary-button { width: 100%; min-width: 0; }
+
+.public-report-page { min-height: 100vh; padding: 28px 18px 48px; background: #eef5f8; color: var(--ink); direction: rtl; }
+.public-brand, .public-student-heading, .public-attendance-summary, .public-monthly-report, .public-history { width: min(920px, 100%); margin-inline: auto; }
+.public-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.public-brand img { width: 58px; height: 58px; object-fit: contain; }
+.public-brand strong, .public-brand span { display: block; }
+.public-brand strong { font-size: 18px; }
+.public-brand span { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.public-student-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 24px; border: 1px solid #d9cfb4; border-radius: 18px; background: #fffdf7; box-shadow: var(--shadow); }
+.public-student-heading h1 { margin: 4px 0; font-size: clamp(22px, 4vw, 34px); }
+.public-student-heading span { color: var(--muted); font-size: 13px; }
+.public-call-button { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 16px; border-radius: 10px; background: var(--navy); color: white; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.public-attendance-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+.public-attendance-summary article { padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: white; text-align: center; }
+.public-attendance-summary span, .public-attendance-summary strong { display: block; }
+.public-attendance-summary span { color: var(--muted); font-size: 12px; }
+.public-attendance-summary strong { margin-top: 8px; color: var(--ink); font-size: 28px; }
+.public-monthly-report, .public-history { margin-top: 16px; padding: 22px; border: 1px solid #d9cfb4; border-radius: 18px; background: #fffdf7; box-shadow: var(--shadow); }
+.public-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.public-section-heading h2 { margin: 3px 0 0; }
+.public-section-heading > span { color: var(--muted); font-size: 12px; }
+.public-month-list { display: grid; gap: 8px; }
+.public-month-list article { display: grid; grid-template-columns: 1fr auto auto; gap: 18px; align-items: center; padding: 12px 14px; border: 1px solid #e8e0ca; border-radius: 10px; background: white; }
+.public-month-list span { color: var(--muted); font-size: 12px; }
+.public-month-list b { color: var(--ink); font-size: 16px; }
+.public-month-list span small { display: block; margin-top: 3px; color: #15794f; font-size: 10px; font-weight: 800; }
+.public-history-list { display: grid; gap: 8px; }
+.public-history-list article { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #e8e0ca; border-radius: 10px; background: white; }
+.public-history-list article > div { display: grid; gap: 4px; }
+.public-history-list small { color: #b07b00; font-size: 13px; font-weight: 800; }
+.public-type { min-width: 54px; padding: 6px 8px; border-radius: 7px; text-align: center; font-size: 11px; font-weight: 800; }
+.public-type.choir { background: #d9f3e6; color: #15794f; }
+.public-type.mass { background: #e7edff; color: #3f62b4; }
+.public-report-loading, .public-report-error { width: min(600px, 100%); margin: 80px auto; padding: 28px; border: 1px solid #d9cfb4; border-radius: 18px; background: #fffdf7; text-align: center; }
+.public-report-error p { color: #b24b49; }
+@media (max-width: 620px) { .public-report-page { padding: 18px 12px 36px; } .public-student-heading { align-items: stretch; flex-direction: column; padding: 18px; } .public-call-button { justify-content: center; } .public-attendance-summary { gap: 8px; } .public-attendance-summary article { padding: 14px 8px; } .public-attendance-summary strong { font-size: 22px; } .public-monthly-report, .public-history { padding: 16px; } .public-month-list article { grid-template-columns: 1fr auto auto; gap: 8px; padding: 10px; } }
 @media (max-width: 680px) {
   html, body, #root { max-width: 100%; overflow-x: hidden; }
   .app-sidebar { padding: 10px; }
