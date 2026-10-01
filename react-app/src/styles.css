@@ -1,6 +1,7 @@
 :root {
   color-scheme: light;
   --ink: #172137;
+  --navy: #0b2147;
   --muted: #718096;
   --line: #d7dde7;
   --canvas: #f7f8f6;
@@ -506,6 +507,13 @@ tbody tr:hover td { background: #f5f8ff; }
 .public-home-search { display: flex; align-items: center; gap: 12px; width: min(560px, 100%); min-height: 64px; padding: 0 20px; border: 1px solid #c9d8e7; border-radius: 16px; background: rgba(255,255,255,.96); color: #59718e; box-shadow: 0 14px 32px rgba(29, 57, 83, .11); }
 .public-home-search:focus-within { border-color: #2c5de5; box-shadow: 0 0 0 4px rgba(44, 93, 229, .1), 0 14px 32px rgba(29, 57, 83, .11); }
 .public-home-search input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--navy); font: inherit; font-size: 18px; }
+.public-scan-button { display: inline-grid; width: 42px; height: 42px; flex: 0 0 42px; place-items: center; border: 0; border-radius: 10px; background: var(--navy); color: white; cursor: pointer; }
+.public-scan-button:hover { background: #183b76; }
+.public-scanner-panel { width: min(560px, 100%); margin-top: 14px; padding: 16px; border: 1px solid #c9d8e7; border-radius: 16px; background: white; box-shadow: 0 14px 32px rgba(29, 57, 83, .12); }
+.public-scanner-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; color: var(--navy); }
+.public-scanner-heading button { display: inline-grid; width: 34px; height: 34px; place-items: center; border: 1px solid #d7dde7; border-radius: 8px; background: white; color: var(--muted); cursor: pointer; }
+.public-qr-reader { min-height: 280px; overflow: hidden; border-radius: 12px; background: #071a38; }
+.public-qr-reader video { width: 100% !important; border-radius: 12px; }
 .public-home-results { display: grid; width: min(560px, 100%); gap: 8px; margin-top: 12px; text-align: right; }
 .public-home-results a { display: flex; align-items: center; justify-content: space-between; min-height: 52px; padding: 0 16px; border: 1px solid #d9cfb4; border-radius: 12px; background: #fffdf7; color: var(--navy); font-weight: 800; text-decoration: none; box-shadow: 0 6px 16px rgba(29, 57, 83, .07); }
 .public-home-results a:hover { border-color: #e4b324; transform: translateY(-1px); }

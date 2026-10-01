@@ -239,6 +239,7 @@ function PublicParentHome() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showScanner, setShowScanner] = useState(false);
   useEffect(() => {
     const search = query.trim();
     if (search.length < 2) { setResults([]); setError(""); return undefined; }
@@ -254,7 +255,25 @@ function PublicParentHome() {
     }, 250);
     return () => window.clearTimeout(timer);
   }, [query]);
-  return <main className="public-parent-home"><div className="public-home-glow" /><header className="public-home-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>خورس القديس أبانوب</strong><span>متابعة حضور الأبناء</span></div></header><section className="public-home-content"><img className="public-home-saint" src="/saint-abanoub.png" alt="القديس أبانوب" /><p className="section-kicker">أهلًا بكم</p><h1>تابع حضور ابنك</h1><p className="public-home-copy">اكتب اسم الابن للوصول إلى تقرير حضور الخورس والقداس.</p><label className="public-home-search"><Search size={22} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث باسم الابن" aria-label="البحث باسم الابن" autoComplete="off" /></label>{loading && <p className="public-home-status">جاري البحث...</p>}{error && <p className="public-home-error">{error}</p>}{!loading && query.trim().length >= 2 && !results.length && !error && <p className="public-home-status">لا يوجد ابن بهذا الاسم</p>}{results.length > 0 && <div className="public-home-results">{results.map((person) => <a key={person.token} href={`/qr/${person.token}`}><span>{person.name}</span><ChevronLeft size={19} /></a>)}</div>}</section><a className="public-admin-link" href="/admin"><UserCheck size={16} /> دخول الخدام</a></main>;
+  return <main className="public-parent-home"><div className="public-home-glow" /><header className="public-home-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>خورس القديس أبانوب</strong><span>متابعة حضور الأبناء</span></div></header><section className="public-home-content"><img className="public-home-saint" src="/saint-abanoub.png" alt="القديس أبانوب" /><p className="section-kicker">أهلًا بكم</p><h1>تابع حضور ابنك</h1><p className="public-home-copy">اكتب اسم الابن للوصول إلى تقرير حضور الخورس والقداس.</p><div className="public-home-search"><Search size={22} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث باسم الابن" aria-label="البحث باسم الابن" autoComplete="off" /><button type="button" className="public-scan-button" onClick={() => setShowScanner(true)} title="مسح QR" aria-label="مسح QR"><QrCode size={23} /></button></div>{showScanner && <PublicParentScanner onClose={() => setShowScanner(false)} />}{loading && <p className="public-home-status">جاري البحث...</p>}{error && <p className="public-home-error">{error}</p>}{!loading && query.trim().length >= 2 && !results.length && !error && <p className="public-home-status">لا يوجد ابن بهذا الاسم</p>}{results.length > 0 && <div className="public-home-results">{results.map((person) => <a key={person.token} href={`/qr/${person.token}`}><span>{person.name}</span><ChevronLeft size={19} /></a>)}</div>}</section><a className="public-admin-link" href="/admin"><UserCheck size={16} /> دخول الخدام</a></main>;
+}
+
+function PublicParentScanner({ onClose }) {
+  const [scannerError, setScannerError] = useState("");
+  useEffect(() => {
+    const scanner = new Html5Qrcode("public-qr-reader");
+    let stopped = false;
+    const stop = async () => { if (!stopped && scanner.isScanning) { stopped = true; await scanner.stop().catch(() => {}); } };
+    scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 230, height: 230 } }, async (decoded) => {
+      const value = String(decoded || "").trim();
+      const token = value.includes("/qr/") ? value.split("/qr/").pop().split(/[?#]/)[0] : value;
+      if (!token) { setScannerError("تعذر قراءة QR"); return; }
+      await stop();
+      window.location.href = `/qr/${encodeURIComponent(token)}`;
+    }, () => {}).catch(() => setScannerError("اسمح للمتصفح باستخدام الكاميرا"));
+    return () => { void stop(); };
+  }, []);
+  return <div className="public-scanner-panel"><div className="public-scanner-heading"><strong>امسح QR الخاص بالابن</strong><button type="button" onClick={onClose} aria-label="إغلاق الكاميرا"><X size={19} /></button></div><div id="public-qr-reader" className="public-qr-reader" />{scannerError && <p className="public-home-error">{scannerError}</p>}</div>;
 }
 
 function PublicAttendancePage({ token }) {
