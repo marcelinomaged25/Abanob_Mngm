@@ -23,7 +23,9 @@ function groupTone(group) {
 }
 
 export default function App() {
+  const [username, setUsername] = useState(() => sessionStorage.getItem("choir-username") || "");
   const [password, setPassword] = useState(() => sessionStorage.getItem("choir-password") || "");
+  const [usernameDraft, setUsernameDraft] = useState("");
   const [passwordDraft, setPasswordDraft] = useState("");
   const [mode, setMode] = useState(() => stored("choir-mode", "home"));
   const [state, setState] = useState(emptyState);
@@ -51,12 +53,12 @@ export default function App() {
   const [scanType, setScanType] = useState("both");
   const [scanDate, setScanDate] = useState(today());
 
-  const request = useCallback(async (path, options = {}, auth = password) => {
-    const response = await fetch(`${apiUrl}${path}`, { ...options, headers: { ...(options.body ? { "Content-Type": "application/json" } : {}), ...(auth ? { "X-App-Password": auth } : {}), ...options.headers } });
+  const request = useCallback(async (path, options = {}, auth = password, user = username) => {
+    const response = await fetch(`${apiUrl}${path}`, { ...options, headers: { ...(options.body ? { "Content-Type": "application/json" } : {}), ...(auth ? { "X-App-Password": auth } : {}), ...(user ? { "X-App-Username": user } : {}), ...options.headers } });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(body.error || `تعذر إكمال الطلب (${response.status})`);
     return body;
-  }, [password]);
+  }, [password, username]);
 
   const load = useCallback(async (nextMode = mode, date = selectedDate, auth = password, monthOverride = trendMonth, attendanceTypeOverride = attendanceType) => {
     if (!auth) return;
@@ -84,11 +86,11 @@ export default function App() {
       setServantsText((result.servants || []).join("\n"));
     } catch (loadError) {
       setError(loadError.message);
-      if (loadError.message.includes("401")) { sessionStorage.removeItem("choir-password"); setPassword(""); }
+      if (loadError.message.includes("401")) { sessionStorage.removeItem("choir-password"); sessionStorage.removeItem("choir-username"); setPassword(""); setUsername(""); }
     } finally { setLoading(false); }
   }, [attendanceType, mode, password, reportMonth, request, selectedDate]);
 
-  useEffect(() => { if (password) { load(mode, mode === "attendance" ? attendanceDate : selectedDate, password); } }, [password]);
+  useEffect(() => { if (password && username) { load(mode, mode === "attendance" ? attendanceDate : selectedDate, password); } }, [password, username]);
 
   const rows = useMemo(() => {
     const term = normalizeArabic(query).trim().toLocaleLowerCase("ar");
@@ -101,18 +103,19 @@ export default function App() {
 
   async function login(event) {
     event.preventDefault();
+    const candidateUsername = usernameDraft.trim();
     const candidate = passwordDraft.trim();
-    if (!candidate) return;
-    setBusy(true); setError(""); sessionStorage.setItem("choir-password", candidate); setPassword(candidate);
+    if (!candidateUsername || !candidate) return;
+    setBusy(true); setError(""); sessionStorage.setItem("choir-username", candidateUsername); sessionStorage.setItem("choir-password", candidate); setUsername(candidateUsername); setPassword(candidate);
     try {
-      await request("/api/session", {}, candidate);
-      const result = await request(`/api/dashboard?date=${today()}&month=${today().slice(0, 7)}`, {}, candidate);
+      await request("/api/session", {}, candidate, candidateUsername);
+      const result = await request(`/api/dashboard?date=${today()}&month=${today().slice(0, 7)}`, {}, candidate, candidateUsername);
       setDashboard(result);
       setDashboardDate(result.selectedDate);
       setTrendMonth(result.trendMonth || today().slice(0, 7));
-      const followUp = await request(`/api/state?mode=visit&date=${today()}`, {}, candidate);
+      const followUp = await request(`/api/state?mode=visit&date=${today()}`, {}, candidate, candidateUsername);
       setState(followUp); setSelectedDate(followUp.selectedDate); setRotationStart(followUp.rotationStart || ""); setServantsText((followUp.servants || []).join("\n"));
-    } catch (loginError) { sessionStorage.removeItem("choir-password"); setPassword(""); setError(loginError.message); }
+    } catch (loginError) { sessionStorage.removeItem("choir-password"); sessionStorage.removeItem("choir-username"); setPassword(""); setUsername(""); setError(loginError.message); }
     finally { setBusy(false); }
   }
 
@@ -205,11 +208,11 @@ export default function App() {
   }
 
   if (publicQrToken) return <PublicAttendancePage token={publicQrToken} />;
-  if (!password) return <main className="login-screen"><form className="login-panel" onSubmit={login}><div className="login-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /></div><p className="eyebrow">كنيسة السيدة العذراء مريم بارض الشركة</p><h1>إدارة خورس القديس أبانوب</h1><label htmlFor="app-password">كلمة مرور الخدام</label><input id="app-password" type="password" autoComplete="current-password" value={passwordDraft} onChange={(event) => setPasswordDraft(event.target.value)} required autoFocus /><button className="primary-button" disabled={busy}>{busy ? <LoaderCircle size={17} className="spin" /> : null} دخول</button>{error && <p className="login-error">{error}</p>}</form></main>;
+  if (!password || !username) return <main className="login-screen"><form className="login-panel" onSubmit={login}><div className="login-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /></div><p className="eyebrow">كنيسة السيدة العذراء مريم بارض الشركة</p><h1>إدارة خورس القديس أبانوب</h1><label htmlFor="app-username">اسم المستخدم</label><input id="app-username" type="text" autoComplete="username" value={usernameDraft} onChange={(event) => setUsernameDraft(event.target.value)} required autoFocus placeholder="admin" /><label htmlFor="app-password">كلمة المرور</label><input id="app-password" type="password" autoComplete="current-password" value={passwordDraft} onChange={(event) => setPasswordDraft(event.target.value)} required /><button className="primary-button" disabled={busy}>{busy ? <LoaderCircle size={17} className="spin" /> : null} دخول</button>{error && <p className="login-error">{error}</p>}</form></main>;
 
   const navItem = (nextMode, icon, label) => <button className={`sidebar-item ${mode === nextMode || (nextMode === "visit" && (mode === "call" || mode === "history" || mode === "reports")) ? "active" : ""}`} onClick={() => switchMode(nextMode)}>{icon}<span>{label}</span></button>;
   return <main className={`app-shell mode-${mode}`}>
-    <aside className="app-sidebar"><div className="sidebar-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>كنيستي</strong><span>إدارة الخدمة</span></div></div><p className="sidebar-label">أقسام لوحة الإدارة</p><nav className="sidebar-nav">{navItem("home", <LayoutDashboard size={17} />, "نظرة عامة")}{navItem("attendance", <UserCheck size={17} />, "الحضور والغياب")}{navItem("visit", <Home size={17} />, "الافتقاد")}{navItem("stray", <CircleAlert size={17} />, "الخروف الضال")}{navItem("history", <Users size={17} />, "أفراد الخورس")}{navItem("people", <Pencil size={17} />, "إدارة الخورس")}{navItem("qr", <QrCode size={17} />, "مسح QR")}{navItem("qr-print", <QrCode size={17} />, "طباعة QR")}</nav><div className="sidebar-footer"><span>خورس القديس أبانوب</span><button className="icon-button" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={() => { sessionStorage.removeItem("choir-password"); setPassword(""); setPasswordDraft(""); }}>×</button></div></aside>
+    <aside className="app-sidebar"><div className="sidebar-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>كنيستي</strong><span>إدارة الخدمة</span></div></div><p className="sidebar-label">أقسام لوحة الإدارة</p><nav className="sidebar-nav">{navItem("home", <LayoutDashboard size={17} />, "نظرة عامة")}{navItem("attendance", <UserCheck size={17} />, "الحضور والغياب")}{navItem("visit", <Home size={17} />, "الافتقاد")}{navItem("stray", <CircleAlert size={17} />, "الخروف الضال")}{navItem("history", <Users size={17} />, "أفراد الخورس")}{navItem("people", <Pencil size={17} />, "إدارة الخورس")}{navItem("qr", <QrCode size={17} />, "مسح QR")}{navItem("qr-print", <QrCode size={17} />, "طباعة QR")}</nav><div className="sidebar-footer"><span>خورس القديس أبانوب</span><button className="icon-button" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={() => { sessionStorage.removeItem("choir-password"); sessionStorage.removeItem("choir-username"); setPassword(""); setUsername(""); setPasswordDraft(""); setUsernameDraft(""); }}>×</button></div></aside>
     <section className="app-content"><header className="topbar"><div className="brand-lockup"><div><p className="eyebrow">كنيسة السيدة العذراء مريم بارض الشركة</p><h1>إدارة خورس القديس أبانوب</h1></div></div><div className="top-actions">{mode === "reports" && <button className="copy-phone" title="تصدير التقرير" onClick={exportCsv}><Copy size={14} /></button>}<span className="save-state">{loading ? "جاري التحميل" : busy ? "جاري الحفظ" : notice || "جاهز"}</span></div></header>
     {mode === "visit" && state.verse && <section className="verse-band"><p>{state.verse}</p></section>}
     {mode === "visit" || mode === "call" || mode === "reports" ? <div className="sub-tabs"><button className={mode === "visit" ? "active" : ""} onClick={() => switchMode("visit")}><Home size={15} /> زيارة البيت</button><button className={mode === "call" ? "active" : ""} onClick={() => switchMode("call")}><Phone size={15} /> الاتصال الأسبوعي</button><button className={mode === "reports" ? "active" : ""} onClick={() => switchMode("reports")}><BarChart3 size={15} /> تقارير الافتقاد</button></div> : null}

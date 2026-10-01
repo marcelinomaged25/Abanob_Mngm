@@ -10,5 +10,7 @@ services:
         sync: false
       - key: APP_PASSWORD
         sync: false
+      - key: APP_USERNAME
+        value: admin
       - key: FRONTEND_ORIGIN
         sync: false

@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls(Environment.GetEnvironmentVariable("ASPNETCORE_URLS") ?? "http://localhost:5080");
 var connectionString = ConnectionString(Environment.GetEnvironmentVariable("DATABASE_URL") ?? builder.Configuration.GetConnectionString("Database") ?? "");
 var appPassword = Environment.GetEnvironmentVariable("APP_PASSWORD") ?? "";
+var appUsername = Environment.GetEnvironmentVariable("APP_USERNAME") ?? "admin";
 var frontendOrigin = Environment.GetEnvironmentVariable("FRONTEND_ORIGIN") ?? "http://localhost:5173";
 if (string.IsNullOrWhiteSpace(connectionString)) throw new InvalidOperationException("Set DATABASE_URL before starting the API.");
 if (string.IsNullOrWhiteSpace(appPassword)) throw new InvalidOperationException("Set APP_PASSWORD before starting the API.");
@@ -76,7 +77,9 @@ app.MapGet("/api/public/qr/{token}", async (string token, NpgsqlDataSource db) =
 var api = app.MapGroup("/api");
 api.AddEndpointFilter(async (context, next) =>
 {
+    var suppliedUsername = context.HttpContext.Request.Headers["X-App-Username"].ToString();
     var supplied = context.HttpContext.Request.Headers["X-App-Password"].ToString();
+    if (!string.Equals(suppliedUsername, appUsername, StringComparison.Ordinal)) return Results.Unauthorized();
     var suppliedHash = SHA256.HashData(Encoding.UTF8.GetBytes(supplied));
     var expectedHash = SHA256.HashData(Encoding.UTF8.GetBytes(appPassword));
     if (!CryptographicOperations.FixedTimeEquals(suppliedHash, expectedHash)) return Results.Unauthorized();
