@@ -74,6 +74,19 @@ app.MapGet("/api/public/qr/{token}", async (string token, NpgsqlDataSource db) =
     return Results.Ok(new { person, attendance, monthly });
 });
 
+app.MapGet("/api/public/people", async (string? query, NpgsqlDataSource db) =>
+{
+    var search = query?.Trim() ?? "";
+    if (search.Length < 2) return Results.Ok(Array.Empty<object>());
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("select name,qr_token from people where is_active=true and role='boy' and name ilike $1 order by name limit 20", connection);
+    command.Parameters.AddWithValue($"%{search}%");
+    await using var reader = await command.ExecuteReaderAsync();
+    var people = new List<object>();
+    while (await reader.ReadAsync()) people.Add(new { name = reader.GetString(0), token = reader.GetString(1) });
+    return Results.Ok(people);
+});
+
 var api = app.MapGroup("/api");
 api.AddEndpointFilter(async (context, next) =>
 {

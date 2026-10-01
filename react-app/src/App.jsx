@@ -16,6 +16,7 @@ const emptyVisitReports = { totalPeople: 0, year: new Date().getFullYear(), dail
 const emptyPerson = { name: "", group: "", phone1: "", phone2: "", address: "", note: "", role: "boy" };
 const stored = (key, fallback) => sessionStorage.getItem(key) || fallback;
 const publicQrToken = window.location.pathname.match(/^\/qr\/([^/]+)\/?$/)?.[1] || "";
+const isAdminPage = window.location.pathname === "/admin" || window.location.pathname.startsWith("/admin/");
 
 function groupTone(group) {
   const number = Number.parseInt(String(group).replace(/\D/g, ""), 10);
@@ -208,7 +209,8 @@ export default function App() {
   }
 
   if (publicQrToken) return <PublicAttendancePage token={publicQrToken} />;
-  if (!password || !username) return <main className="login-screen"><form className="login-panel" onSubmit={login}><div className="login-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /></div><p className="eyebrow">كنيسة السيدة العذراء مريم بارض الشركة</p><h1>إدارة خورس القديس أبانوب</h1><label htmlFor="app-username">اسم المستخدم</label><input id="app-username" type="text" autoComplete="username" value={usernameDraft} onChange={(event) => setUsernameDraft(event.target.value)} required autoFocus placeholder="admin" /><label htmlFor="app-password">كلمة المرور</label><input id="app-password" type="password" autoComplete="current-password" value={passwordDraft} onChange={(event) => setPasswordDraft(event.target.value)} required /><button className="primary-button" disabled={busy}>{busy ? <LoaderCircle size={17} className="spin" /> : null} دخول</button>{error && <p className="login-error">{error}</p>}</form></main>;
+  if (!isAdminPage) return <PublicParentHome />;
+  if (!password || !username) return <main className="login-screen"><form className="login-panel" onSubmit={login}><div className="login-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /></div><p className="eyebrow">كنيسة السيدة العذراء مريم بارض الشركة</p><h1>إدارة خورس القديس أبانوب</h1><label htmlFor="app-username">اسم المستخدم</label><input id="app-username" type="text" autoComplete="username" value={usernameDraft} onChange={(event) => setUsernameDraft(event.target.value)} required autoFocus placeholder="admin" /><label htmlFor="app-password">كلمة المرور</label><input id="app-password" type="password" autoComplete="current-password" value={passwordDraft} onChange={(event) => setPasswordDraft(event.target.value)} required /><button className="primary-button" disabled={busy}>{busy ? <LoaderCircle size={17} className="spin" /> : null} دخول</button>{error && <p className="login-error">{error}</p>}<a className="login-back-link" href="/">العودة إلى بحث الأهالي</a></form></main>;
 
   const navItem = (nextMode, icon, label) => <button className={`sidebar-item ${mode === nextMode || (nextMode === "visit" && (mode === "call" || mode === "history" || mode === "reports")) ? "active" : ""}`} onClick={() => switchMode(nextMode)}>{icon}<span>{label}</span></button>;
   return <main className={`app-shell mode-${mode}`}>
@@ -230,6 +232,29 @@ export default function App() {
     {(error || notice) && <div className={`toast visible ${error ? "error" : ""}`} role="status">{error || notice}</div>}
     {report && <ReportModal report={report} close={() => setReport(null)} />}
     </section></main>;
+}
+
+function PublicParentHome() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    const search = query.trim();
+    if (search.length < 2) { setResults([]); setError(""); return undefined; }
+    const timer = window.setTimeout(async () => {
+      setLoading(true); setError("");
+      try {
+        const response = await fetch(`${apiUrl}/api/public/people?query=${encodeURIComponent(search)}`);
+        const body = await response.json().catch(() => []);
+        if (!response.ok) throw new Error(body.error || "تعذر البحث الآن");
+        setResults(body);
+      } catch (searchError) { setResults([]); setError(searchError.message); }
+      finally { setLoading(false); }
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+  return <main className="public-parent-home"><div className="public-home-glow" /><header className="public-home-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>خورس القديس أبانوب</strong><span>متابعة حضور الأبناء</span></div></header><section className="public-home-content"><img className="public-home-saint" src="/saint-abanoub.png" alt="القديس أبانوب" /><p className="section-kicker">أهلًا بكم</p><h1>تابع حضور ابنك</h1><p className="public-home-copy">اكتب اسم الابن للوصول إلى تقرير حضور الخورس والقداس.</p><label className="public-home-search"><Search size={22} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث باسم الابن" aria-label="البحث باسم الابن" autoComplete="off" /></label>{loading && <p className="public-home-status">جاري البحث...</p>}{error && <p className="public-home-error">{error}</p>}{!loading && query.trim().length >= 2 && !results.length && !error && <p className="public-home-status">لا يوجد ابن بهذا الاسم</p>}{results.length > 0 && <div className="public-home-results">{results.map((person) => <a key={person.token} href={`/qr/${person.token}`}><span>{person.name}</span><ChevronLeft size={19} /></a>)}</div>}</section><a className="public-admin-link" href="/admin"><UserCheck size={16} /> دخول الخدام</a></main>;
 }
 
 function PublicAttendancePage({ token }) {
