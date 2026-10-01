@@ -502,7 +502,8 @@ tbody tr:hover td { background: #f5f8ff; }
 .public-student-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 24px; border: 1px solid #d9cfb4; border-radius: 18px; background: #fffdf7; box-shadow: var(--shadow); }
 .public-student-heading h1 { margin: 4px 0; font-size: clamp(22px, 4vw, 34px); }
 .public-student-heading span { color: var(--muted); font-size: 13px; }
-.public-call-button { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 16px; border-radius: 10px; background: var(--navy); color: white; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.public-call-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 18px; border: 1px solid var(--navy); border-radius: 10px; background: var(--navy); color: white; font-weight: 800; text-decoration: none; white-space: nowrap; box-shadow: 0 8px 18px rgba(9, 30, 66, .14); transition: transform .18s ease, background .18s ease; }
+.public-call-button:hover { background: #142d5a; transform: translateY(-1px); }
 .public-attendance-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
 .public-attendance-summary article { padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: white; text-align: center; }
 .public-attendance-summary span, .public-attendance-summary strong { display: block; }
