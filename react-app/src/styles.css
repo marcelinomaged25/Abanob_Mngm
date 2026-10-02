@@ -1019,5 +1019,5 @@ body { background: #eef5f8; }
   .sidebar-footer-actions .logout-button { min-height: 40px; padding-inline: 7px; font-size: 10px; }
 }
 
-/* Use the same Coptic frame as the parents search page on admin login. */
-.login-screen { background: #102e66 url("/hero-frame.svg") center / 100% 100% no-repeat; }
+/* Keep the login screen on the same calm Coptic pattern used by the dashboard. */
+.login-screen { background: #062c59 url("/dashboard-pattern.png") center / cover no-repeat; }
