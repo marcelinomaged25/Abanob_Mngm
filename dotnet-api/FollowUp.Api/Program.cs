@@ -204,6 +204,29 @@ api.MapGet("/visit-reports", async (int? year, string? month, NpgsqlDataSource d
             people.Add(new { recordKey = reader.GetInt32(1), name = reader.GetString(2) });
         }
     }
+    var visitMonthlyDetails = new Dictionary<string, List<object>>();
+    await using (var command = new NpgsqlCommand("select to_char(date_trunc('month',v.visit_date),'YYYY-MM'),p.record_key,p.name from visit_records v join people p on p.id=v.person_id where extract(year from v.visit_date)=$1 group by date_trunc('month',v.visit_date),p.record_key,p.name order by date_trunc('month',v.visit_date),p.name", connection))
+    {
+        command.Parameters.AddWithValue(selectedYear);
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var monthKey = reader.GetString(0);
+            if (!visitMonthlyDetails.TryGetValue(monthKey, out var people)) visitMonthlyDetails[monthKey] = people = new List<object>();
+            people.Add(new { recordKey = reader.GetInt32(1), name = reader.GetString(2) });
+        }
+    }
+    var visitYearlyDetails = new Dictionary<string, List<object>>();
+    await using (var command = new NpgsqlCommand("select extract(year from v.visit_date)::int,p.record_key,p.name from visit_records v join people p on p.id=v.person_id group by extract(year from v.visit_date),p.record_key,p.name order by extract(year from v.visit_date),p.name", connection))
+    await using (var reader = await command.ExecuteReaderAsync())
+    {
+        while (await reader.ReadAsync())
+        {
+            var yearKey = reader.GetInt32(0).ToString();
+            if (!visitYearlyDetails.TryGetValue(yearKey, out var people)) visitYearlyDetails[yearKey] = people = new List<object>();
+            people.Add(new { recordKey = reader.GetInt32(1), name = reader.GetString(2) });
+        }
+    }
     var monthly = new List<object>();
     await using (var command = new NpgsqlCommand("select to_char(date_trunc('month',visit_date),'YYYY-MM'),count(distinct person_id) from visit_records where extract(year from visit_date)=$1 group by date_trunc('month',visit_date) order by date_trunc('month',visit_date)", connection))
     {
@@ -230,6 +253,29 @@ api.MapGet("/visit-reports", async (int? year, string? month, NpgsqlDataSource d
             people.Add(new { recordKey = reader.GetInt32(1), name = reader.GetString(2), servant = reader.GetString(3) });
         }
     }
+    var callMonthlyDetails = new Dictionary<string, List<object>>();
+    await using (var command = new NpgsqlCommand("select to_char(date_trunc('month',c.week_start),'YYYY-MM'),p.record_key,p.name,max(c.servant) from call_records c join people p on p.id=c.person_id where extract(year from c.week_start)=$1 group by date_trunc('month',c.week_start),p.record_key,p.name order by date_trunc('month',c.week_start),p.name", connection))
+    {
+        command.Parameters.AddWithValue(selectedYear);
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var monthKey = reader.GetString(0);
+            if (!callMonthlyDetails.TryGetValue(monthKey, out var people)) callMonthlyDetails[monthKey] = people = new List<object>();
+            people.Add(new { recordKey = reader.GetInt32(1), name = reader.GetString(2), servant = reader.IsDBNull(3) ? "" : reader.GetString(3) });
+        }
+    }
+    var callYearlyDetails = new Dictionary<string, List<object>>();
+    await using (var command = new NpgsqlCommand("select extract(year from c.week_start)::int,p.record_key,p.name,max(c.servant) from call_records c join people p on p.id=c.person_id group by extract(year from c.week_start),p.record_key,p.name order by extract(year from c.week_start),p.name", connection))
+    await using (var reader = await command.ExecuteReaderAsync())
+    {
+        while (await reader.ReadAsync())
+        {
+            var yearKey = reader.GetInt32(0).ToString();
+            if (!callYearlyDetails.TryGetValue(yearKey, out var people)) callYearlyDetails[yearKey] = people = new List<object>();
+            people.Add(new { recordKey = reader.GetInt32(1), name = reader.GetString(2), servant = reader.IsDBNull(3) ? "" : reader.GetString(3) });
+        }
+    }
     var callMonthly = new List<object>();
     await using (var command = new NpgsqlCommand("select to_char(date_trunc('month',week_start),'YYYY-MM'),count(distinct person_id) from call_records where extract(year from week_start)=$1 group by date_trunc('month',week_start) order by date_trunc('month',week_start)", connection))
     {
@@ -249,7 +295,7 @@ api.MapGet("/visit-reports", async (int? year, string? month, NpgsqlDataSource d
         await using var servantReader = await servantCommand.ExecuteReaderAsync();
         while (await servantReader.ReadAsync()) servantStats.Add(new { servant = servantReader.GetString(0), people = servantReader.GetInt64(1), calls = servantReader.GetInt64(2) });
     }
-    return Results.Ok(new { year = selectedYear, month = monthStart.ToString("yyyy-MM"), totalPeople, daily, visitDetails, monthly, yearly, callDaily, callDetails, callMonthly, callYearly, servantStats, totals = new { daily = dailyTotal, monthly = monthlyTotal, yearly = yearlyTotal, monthlyCalls, yearlyCalls } });
+    return Results.Ok(new { year = selectedYear, month = monthStart.ToString("yyyy-MM"), totalPeople, daily, visitDetails, visitMonthlyDetails, visitYearlyDetails, monthly, yearly, callDaily, callDetails, callMonthlyDetails, callYearlyDetails, callMonthly, callYearly, servantStats, totals = new { daily = dailyTotal, monthly = monthlyTotal, yearly = yearlyTotal, monthlyCalls, yearlyCalls } });
 });
 
 api.MapGet("/history/{personId:long}", async (long personId, NpgsqlDataSource db) =>
