@@ -359,6 +359,7 @@ tbody tr:hover td { background: #f5f8ff; }
 .trend-bar { display: block; width: min(74px, 75%); min-height: 8px; border-radius: 40px 40px 0 0; background: #78c5c1; }
 .trend-bar.positive { background: linear-gradient(180deg, #27a66f, #138052); box-shadow: 0 5px 12px rgba(19,128,82,.2); }
 .trend-bar.negative { background: linear-gradient(180deg, #e47b78, #bd4d50); box-shadow: 0 5px 12px rgba(189,77,80,.18); }
+.trend-bar.empty { background: #d8dedf; box-shadow: none; }
 .trend-column small { margin-top: 8px; color: #69758b; font-size: 10px; white-space: nowrap; }
 .trend-legend { display: flex; justify-content: space-between; gap: 10px; margin-top: 14px; color: var(--muted); font-size: 10px; }
 .trend-legend span:first-child { display: inline-flex; align-items: center; gap: 6px; }
