@@ -383,7 +383,7 @@ function DailyAttendanceChart({ people, total }) {
 function WeeklyTrendChart({ trend, total, month, setMonth }) {
   const [scope, setScope] = useState("both");
   const countFor = (item) => scope === "choir" ? item.choir : scope === "mass" ? item.mass : item.choir + item.mass;
-  const observed = trend.filter((item) => item.date <= today());
+  const observed = trend.filter((item) => countFor(item) > 0);
   const values = trend.map(countFor);
   const latest = observed.at(-1);
   const reference = observed.at(-2);
