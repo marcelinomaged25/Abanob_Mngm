@@ -301,11 +301,11 @@ api.MapGet("/visit-reports", async (int? year, string? month, NpgsqlDataSource d
 api.MapGet("/history/{personId:long}", async (long personId, NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();
-    await using var personCommand = new NpgsqlCommand("select id, record_key, name, phone1, group_number, address from people where id=$1", connection);
+    await using var personCommand = new NpgsqlCommand("select id, record_key, name, note, phone1, group_number, address from people where id=$1", connection);
     personCommand.Parameters.AddWithValue(personId);
     await using var reader = await personCommand.ExecuteReaderAsync();
     if (!await reader.ReadAsync()) return Results.NotFound(new { error = "الاسم غير موجود" });
-    var person = new { id = reader.GetInt64(0), recordKey = reader.GetInt32(1), name = reader.GetString(2), phone1 = reader.GetString(3), group = reader.IsDBNull(4) ? "" : reader.GetString(4), address = reader.GetString(5) };
+    var person = new { id = reader.GetInt64(0), recordKey = reader.GetInt32(1), name = reader.GetString(2), note = reader.IsDBNull(3) ? "" : reader.GetString(3), phone1 = reader.GetString(4), group = reader.IsDBNull(5) ? "" : reader.GetString(5), address = reader.GetString(6) };
     await reader.CloseAsync();
     await using var eventsCommand = new NpgsqlCommand("select event_date::text, bool_or(kind='visit'), bool_or(kind='call'), bool_or(kind='choir'), bool_or(kind='mass'), max(servant) filter(where kind='call') from (select visit_date event_date, 'visit' kind, '' servant from visit_records where person_id=$1 union all select week_start, 'call', servant from call_records where person_id=$1 union all select attendance_date, attendance_type, '' from attendance_records where person_id=$1) events group by event_date order by event_date", connection);
     eventsCommand.Parameters.AddWithValue(personId);

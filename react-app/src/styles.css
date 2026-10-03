@@ -357,6 +357,8 @@ tbody tr:hover td { background: #f5f8ff; }
 .trend-value { margin-bottom: 5px; color: #56647d; font-size: 10px; }
 .trend-bar-wrap { display: flex; align-items: end; justify-content: center; width: 100%; height: 160px; }
 .trend-bar { display: block; width: min(74px, 75%); min-height: 8px; border-radius: 40px 40px 0 0; background: #78c5c1; }
+.trend-bar.positive { background: linear-gradient(180deg, #27a66f, #138052); box-shadow: 0 5px 12px rgba(19,128,82,.2); }
+.trend-bar.negative { background: linear-gradient(180deg, #e47b78, #bd4d50); box-shadow: 0 5px 12px rgba(189,77,80,.18); }
 .trend-column small { margin-top: 8px; color: #69758b; font-size: 10px; white-space: nowrap; }
 .trend-legend { display: flex; justify-content: space-between; gap: 10px; margin-top: 14px; color: var(--muted); font-size: 10px; }
 .trend-legend span:first-child { display: inline-flex; align-items: center; gap: 6px; }
@@ -991,6 +993,9 @@ body { background: #eef5f8; }
 .dark-mode .attendance-bar-item > div:first-child,
 .dark-mode .trend-value,
 .dark-mode .trend-column small { color: #c8d6ea; }
+.public-note { margin-top: 12px; padding: 10px 13px; border: 1px solid #d9cfb4; border-radius: 10px; background: #fff8df; color: #172137; }
+.public-note strong { display: block; margin-bottom: 4px; color: #a87508; font-size: 12px; }
+.public-note p { margin: 0; font-size: 12px; line-height: 1.7; }
 .dark-mode .attendance-bar-track,
 .dark-mode .coverage-track { background: #203b5d; }
 .dark-mode .chart-total { border-top-color: #334966; color: #a9b8cf; }
