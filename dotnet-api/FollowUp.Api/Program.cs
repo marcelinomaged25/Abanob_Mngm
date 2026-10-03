@@ -307,11 +307,11 @@ api.MapGet("/history/{personId:long}", async (long personId, NpgsqlDataSource db
     if (!await reader.ReadAsync()) return Results.NotFound(new { error = "الاسم غير موجود" });
     var person = new { id = reader.GetInt64(0), recordKey = reader.GetInt32(1), name = reader.GetString(2), note = reader.IsDBNull(3) ? "" : reader.GetString(3), phone1 = reader.GetString(4), group = reader.IsDBNull(5) ? "" : reader.GetString(5), address = reader.GetString(6) };
     await reader.CloseAsync();
-    await using var eventsCommand = new NpgsqlCommand("select event_date::text, bool_or(kind='visit'), bool_or(kind='call'), bool_or(kind='choir'), bool_or(kind='mass'), max(servant) filter(where kind='call') from (select visit_date event_date, 'visit' kind, '' servant from visit_records where person_id=$1 union all select week_start, 'call', servant from call_records where person_id=$1 union all select attendance_date, attendance_type, '' from attendance_records where person_id=$1) events group by event_date order by event_date", connection);
+    await using var eventsCommand = new NpgsqlCommand("select event_date::text, bool_or(kind='visit'), bool_or(kind='call'), bool_or(kind='choir'), bool_or(kind='mass'), max(servant) filter(where kind='call'), string_agg(nullif(comment,''), ' / ' order by comment) filter(where comment is not null) from (select visit_date event_date, 'visit' kind, '' servant, null::text comment from visit_records where person_id=$1 union all select week_start, 'call', servant, null::text from call_records where person_id=$1 union all select a.attendance_date, a.attendance_type, '', c.comment from attendance_records a left join attendance_comments c on c.person_id=a.person_id and c.attendance_type=a.attendance_type and c.attendance_date=a.attendance_date where a.person_id=$1) events group by event_date order by event_date", connection);
     eventsCommand.Parameters.AddWithValue(personId);
     await using var eventsReader = await eventsCommand.ExecuteReaderAsync();
     var events = new List<object>();
-    while (await eventsReader.ReadAsync()) events.Add(new { date = eventsReader.GetString(0), visited = eventsReader.GetBoolean(1), called = eventsReader.GetBoolean(2), choir = eventsReader.GetBoolean(3), mass = eventsReader.GetBoolean(4), caller = eventsReader.IsDBNull(5) ? "" : eventsReader.GetString(5) });
+    while (await eventsReader.ReadAsync()) events.Add(new { date = eventsReader.GetString(0), visited = eventsReader.GetBoolean(1), called = eventsReader.GetBoolean(2), choir = eventsReader.GetBoolean(3), mass = eventsReader.GetBoolean(4), caller = eventsReader.IsDBNull(5) ? "" : eventsReader.GetString(5), comment = eventsReader.IsDBNull(6) ? "" : eventsReader.GetString(6) });
     return Results.Ok(new { person, events });
 });
 
@@ -341,6 +341,16 @@ api.MapPost("/attendance", async (AttendanceSave payload, NpgsqlDataSource db) =
     { insert.Parameters.AddWithValue(attendanceType); insert.Parameters.AddWithValue(attendanceDate); insert.Parameters.AddWithValue(JsonSerializer.Serialize(payload.Checks ?? new Dictionary<string, bool>())); await insert.ExecuteNonQueryAsync(); }
     await transaction.CommitAsync();
     return Results.Ok(new { type = attendanceType, date = attendanceDate.ToString("yyyy-MM-dd") });
+});
+
+api.MapPost("/attendance-comment", async (AttendanceCommentSave payload, NpgsqlDataSource db) =>
+{
+    if (payload.Type is not ("choir" or "mass") || string.IsNullOrWhiteSpace(payload.Comment)) return Results.BadRequest(new { error = "اكتب تعليقًا صحيحًا" });
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("insert into attendance_comments(person_id,attendance_type,attendance_date,comment) select id,$1,$2,$3 from people where record_key=$4 and is_active=true on conflict(person_id,attendance_type,attendance_date) do update set comment=excluded.comment,recorded_at=now()", connection);
+    command.Parameters.AddWithValue(payload.Type); command.Parameters.AddWithValue(ParseDate(payload.Date, CairoToday())); command.Parameters.AddWithValue(payload.Comment.Trim()); command.Parameters.AddWithValue(payload.RecordKey);
+    await command.ExecuteNonQueryAsync();
+    return Results.Ok();
 });
 
 api.MapPost("/people", async (PersonInput payload, NpgsqlDataSource db) =>
@@ -619,4 +629,5 @@ record VisitSave(string Date, Dictionary<string, bool>? Checks);
 record CallSave(string? RotationStart, string[]? Servants, Dictionary<string, bool>? Checks);
 record PersonInput(string Name, string? Group, string? Phone1, string? Phone2, string? Address, string? Note, string? Role);
 record AttendanceSave(string Type, string Date, Dictionary<string, bool>? Checks);
+record AttendanceCommentSave(string Type, string Date, int RecordKey, string Comment);
 record PublicAttendanceItem(string Type, string Date, string RecordedAt);
