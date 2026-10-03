@@ -352,6 +352,14 @@ api.MapPost("/attendance-comment", async (AttendanceCommentSave payload, NpgsqlD
     await command.ExecuteNonQueryAsync();
     return Results.Ok();
 });
+api.MapDelete("/attendance-comment", async (string type, string date, int recordKey, NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("delete from attendance_comments c using people p where c.person_id=p.id and c.attendance_type=$1 and c.attendance_date=$2 and p.record_key=$3", connection);
+    command.Parameters.AddWithValue(type); command.Parameters.AddWithValue(ParseDate(date, CairoToday())); command.Parameters.AddWithValue(recordKey);
+    await command.ExecuteNonQueryAsync();
+    return Results.NoContent();
+});
 
 api.MapPost("/people", async (PersonInput payload, NpgsqlDataSource db) =>
 {
