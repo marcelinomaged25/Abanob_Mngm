@@ -1057,3 +1057,12 @@ body { background: #eef5f8; }
   .trend-scope-switch button { flex: 1; }
   .dashboard-people-list { grid-template-columns: 1fr; }
 }
+.attendance-comment-panel { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(170px, 220px) minmax(220px, 1.4fr) auto; gap: 12px; align-items: end; margin-bottom: 14px; padding: 15px 17px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); box-shadow: var(--shadow); }
+.attendance-comment-panel > div:first-child { display: grid; gap: 3px; }
+.attendance-comment-panel strong { color: var(--ink); font-size: 13px; }
+.attendance-comment-panel small { color: var(--muted); font-size: 11px; }
+.attendance-comment-panel select, .attendance-comment-panel textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font: inherit; }
+.attendance-comment-panel select { min-height: 40px; padding: 8px; }
+.attendance-comment-panel textarea { min-height: 40px; padding: 8px; resize: vertical; }
+.attendance-comment-panel .form-actions { display: flex; gap: 6px; }
+@media (max-width: 760px) { .attendance-comment-panel { grid-template-columns: 1fr 1fr; } .attendance-comment-panel textarea { grid-column: 1 / -1; } .attendance-comment-panel .form-actions { grid-column: 1 / -1; } }
