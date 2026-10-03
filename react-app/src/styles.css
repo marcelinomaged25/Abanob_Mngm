@@ -1040,6 +1040,10 @@ body { background: #eef5f8; }
 .dark-mode .dashboard-people-list article { border-color: #334966; background: #173352; }
 .dark-mode .dashboard-people-list strong { color: #edf3ff; }
 .dark-mode .dashboard-people-list span { color: #a9b8cf; }
+.trend-controls { gap: 8px; }
+.trend-scope-switch { min-height: 44px; align-items: stretch; }
+.trend-scope-switch button { min-width: 74px; min-height: 36px; padding: 8px 13px; font-size: 12px; }
+.trend-change { display: inline-grid; min-width: 62px; min-height: 44px; place-items: center; padding: 7px 10px; }
 @media (max-width: 680px) {
   .trend-heading { gap: 12px; }
   .trend-controls { width: 100%; align-items: stretch; flex-wrap: wrap; }
