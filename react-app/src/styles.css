@@ -1021,3 +1021,30 @@ body { background: #eef5f8; }
 
 /* Keep the login screen on the same calm Coptic pattern used by the dashboard. */
 .login-screen { background: #062c59 url("/dashboard-pattern.png") center / cover no-repeat; }
+
+.metric-button { width: 100%; border: 1px solid #d9d1bb; font: inherit; text-align: right; cursor: pointer; }
+.metric-button:hover { border-color: #c6aa5c; transform: translateY(-1px); }
+.trend-scope-switch { display: inline-flex; gap: 3px; padding: 3px; border: 1px solid #d9d1bb; border-radius: 9px; background: #fffdf7; }
+.trend-scope-switch button { border: 0; border-radius: 7px; padding: 7px 9px; background: transparent; color: var(--muted); font-size: 10px; font-weight: 800; cursor: pointer; }
+.trend-scope-switch button.active { background: #dcae2d; color: #172137; }
+.dashboard-people-dialog { max-width: 560px; }
+.dashboard-people-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-height: 52vh; margin-top: 18px; overflow: auto; }
+.dashboard-people-list article { display: grid; gap: 3px; padding: 10px 12px; border: 1px solid #ded5bd; border-radius: 9px; background: #fffdf7; }
+.dashboard-people-list strong { color: var(--ink); font-size: 12px; }
+.dashboard-people-list span { color: var(--muted); font-size: 10px; }
+.dark-mode .metric-button { border-color: #334966; background: #132a49; color: #edf3ff; }
+.dark-mode .metric-button:hover { border-color: #54749a; background: #19385e; }
+.dark-mode .trend-scope-switch { border-color: #3b5677; background: #102845; }
+.dark-mode .trend-scope-switch button { color: #c8d6ea; }
+.dark-mode .trend-scope-switch button.active { background: #dcae2d; color: #122f5e; }
+.dark-mode .dashboard-people-list article { border-color: #334966; background: #173352; }
+.dark-mode .dashboard-people-list strong { color: #edf3ff; }
+.dark-mode .dashboard-people-list span { color: #a9b8cf; }
+@media (max-width: 680px) {
+  .trend-heading { gap: 12px; }
+  .trend-controls { width: 100%; align-items: stretch; flex-wrap: wrap; }
+  .trend-controls label { flex: 1 1 100%; }
+  .trend-scope-switch { flex: 1 1 auto; }
+  .trend-scope-switch button { flex: 1; }
+  .dashboard-people-list { grid-template-columns: 1fr; }
+}
