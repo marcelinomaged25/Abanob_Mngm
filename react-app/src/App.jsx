@@ -14,6 +14,7 @@ const normalizeArabic = (value) => String(value || "").replace(/[إأآ]/g, "ا"
 const emptyState = { rows: [], groups: [], servants: [], historySummary: [] };
 const emptyVisitReports = { totalPeople: 0, year: new Date().getFullYear(), daily: [], monthly: [], yearly: [], totals: { daily: 0, monthly: 0, yearly: 0 } };
 const emptyPerson = { name: "", group: "", phone1: "", phone2: "", address: "", note: "", role: "boy" };
+let attendanceChecksForComments = {};
 const stored = (key, fallback) => sessionStorage.getItem(key) || fallback;
 const publicQrToken = window.location.pathname.match(/^\/qr\/([^/]+)\/?$/)?.[1] || "";
 const isAdminPage = window.location.pathname === "/admin" || window.location.pathname.startsWith("/admin/");
@@ -443,6 +444,7 @@ function QrScannerPage({ request, person, setPerson, scanType, setScanType, scan
 }
 
 function AttendanceManager({ state, rows, attendanceType, setAttendanceType, attendanceDate, setAttendanceDate, checks, setChecks, save, onComment, onDeleteComment, busy, query, setQuery }) {
+  attendanceChecksForComments = checks;
   const [commentKey, setCommentKey] = useState("");
   const [commentText, setCommentText] = useState("");
   const checked = rows.filter((row) => checks[String(row.recordKey)]).length;
@@ -458,9 +460,10 @@ function AttendanceManager({ state, rows, attendanceType, setAttendanceType, att
 }
 
 function AttendanceCommentPanel({ rows, date, type, save, remove, busy }) {
+  const presentRows = rows.filter((row) => attendanceChecksForComments[String(row.recordKey)]);
   const [personKey, setPersonKey] = useState("");
   const [text, setText] = useState("");
-  return <section className="attendance-comment-panel"><div><p className="section-kicker">تعليق على الحضور</p><strong>أضف تعليقًا لولد في هذا اليوم</strong><small>{dateLabel(date)} · {type === "choir" ? "حضور الخورس" : "حضور القداس"}</small></div><select value={personKey} onChange={(event) => setPersonKey(event.target.value)}><option value="">اختر اسم الولد</option>{rows.map((row) => <option key={row.recordKey} value={row.recordKey}>{row.name}</option>)}</select><textarea rows="2" value={text} onChange={(event) => setText(event.target.value)} placeholder="اكتب التعليق هنا" /><div className="form-actions"><button type="button" className="primary-button" disabled={!personKey || !text.trim() || busy} onClick={async () => { await save(personKey, text); setText(""); }}>حفظ التعليق</button><button type="button" className="cancel-button" disabled={!personKey || busy} onClick={async () => { await remove(personKey); setText(""); }}>مسح التعليق</button></div></section>;
+  return <section className="attendance-comment-panel"><div><p className="section-kicker">تعليق على الحضور</p><strong>أضف تعليقًا لولد في هذا اليوم</strong><small>{dateLabel(date)} · {type === "choir" ? "حضور الخورس" : "حضور القداس"}</small></div><select value={personKey} onChange={(event) => setPersonKey(event.target.value)}><option value="">اختر اسم الولد</option>{presentRows.map((row) => <option key={row.recordKey} value={row.recordKey}>{row.name}</option>)}</select><textarea rows="2" value={text} onChange={(event) => setText(event.target.value)} placeholder="اكتب التعليق هنا" /><div className="form-actions"><button type="button" className="primary-button" disabled={!personKey || !text.trim() || busy} onClick={async () => { await save(personKey, text); setText(""); }}>حفظ التعليق</button><button type="button" className="cancel-button" disabled={!personKey || busy} onClick={async () => { await remove(personKey); setText(""); }}>مسح التعليق</button></div></section>;
 }
 
 function MembersDirectoryByRole({ rows, query, setQuery, openReport, loading }) {
