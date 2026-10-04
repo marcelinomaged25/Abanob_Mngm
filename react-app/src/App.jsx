@@ -309,7 +309,7 @@ function PublicAttendancePage({ token }) {
 
 function PublicBrand() { return <header className="public-brand"><img src="/app-icon.png" alt="القديس أبانوب" /><div><strong>خورس القديس أبانوب</strong><span>تقرير حضور الخورس والقداس</span></div></header>; }
 function PublicMetric({ label, value }) { return <article><span>{label}</span><strong>{value}</strong></article>; }
-function publicTimeLabel(value) { const [date, time] = String(value || "").split("T"); if (!time) return "—"; const [year, month, day] = date.split("-").map(Number); const [hour, minute] = time.split(":").map(Number); return new Intl.DateTimeFormat("ar-EG", { hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(year, month - 1, day, hour, minute)); }
+function publicTimeLabel(value) { const [stamp, comment = ""] = String(value || "").split("|"); const [date, time] = stamp.split("T"); if (!time) return comment ? `ملاحظة: ${comment}` : "—"; const [year, month, day] = date.split("-").map(Number); const [hour, minute] = time.split(":").map(Number); const formatted = new Intl.DateTimeFormat("ar-EG", { hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(year, month - 1, day, hour, minute)); return comment ? `${formatted} · ملاحظة: ${comment}` : formatted; }
 
 function StraySheepPage({ people, openReport }) {
   const rows = people.filter((person) => person.role !== "servant").map((person) => {

@@ -54,11 +54,11 @@ app.MapGet("/api/public/qr/{token}", async (string token, NpgsqlDataSource db) =
     await personReader.CloseAsync();
 
     var attendance = new List<PublicAttendanceItem>();
-    await using (var attendanceCommand = new NpgsqlCommand("select attendance_type,attendance_date::text,to_char(recorded_at at time zone 'Africa/Cairo','YYYY-MM-DD\"T\"HH24:MI:SS') from attendance_records where person_id=$1 order by attendance_date desc,recorded_at desc", connection))
+    await using (var attendanceCommand = new NpgsqlCommand("select a.attendance_type,a.attendance_date::text,to_char(a.recorded_at at time zone 'Africa/Cairo','YYYY-MM-DD\"T\"HH24:MI:SS'),coalesce(c.comment,'') from attendance_records a left join attendance_comments c on c.person_id=a.person_id and c.attendance_type=a.attendance_type and c.attendance_date=a.attendance_date where a.person_id=$1 order by a.attendance_date desc,a.recorded_at desc", connection))
     {
         attendanceCommand.Parameters.AddWithValue(personId);
         await using var attendanceReader = await attendanceCommand.ExecuteReaderAsync();
-        while (await attendanceReader.ReadAsync()) attendance.Add(new PublicAttendanceItem(attendanceReader.GetString(0), attendanceReader.GetString(1), attendanceReader.GetString(2)));
+        while (await attendanceReader.ReadAsync()) attendance.Add(new PublicAttendanceItem(attendanceReader.GetString(0), attendanceReader.GetString(1), $"{attendanceReader.GetString(2)}|{attendanceReader.GetString(3)}", attendanceReader.GetString(3)));
     }
     var sessionTotals = new Dictionary<(string Type, string Month), int>();
     await using (var sessionsCommand = new NpgsqlCommand("select attendance_type,to_char(date_trunc('month',attendance_date),'YYYY-MM'),count(distinct attendance_date) from attendance_records group by attendance_type,date_trunc('month',attendance_date)", connection))
@@ -638,4 +638,4 @@ record CallSave(string? RotationStart, string[]? Servants, Dictionary<string, bo
 record PersonInput(string Name, string? Group, string? Phone1, string? Phone2, string? Address, string? Note, string? Role);
 record AttendanceSave(string Type, string Date, Dictionary<string, bool>? Checks);
 record AttendanceCommentSave(string Type, string Date, int RecordKey, string Comment);
-record PublicAttendanceItem(string Type, string Date, string RecordedAt);
+record PublicAttendanceItem(string Type, string Date, string RecordedAt, string Comment);
