@@ -1066,4 +1066,5 @@ body { background: #eef5f8; }
 .attendance-comment-panel select { min-height: 40px; padding: 8px; }
 .attendance-comment-panel textarea { min-height: 40px; padding: 8px; resize: vertical; }
 .attendance-comment-panel .form-actions { display: flex; gap: 6px; }
+.public-attendance-comment { display: block; margin-top: 4px; color: #a87508; font-size: 11px; font-style: normal; line-height: 1.6; }
 @media (max-width: 760px) { .attendance-comment-panel { grid-template-columns: 1fr 1fr; } .attendance-comment-panel textarea { grid-column: 1 / -1; } .attendance-comment-panel .form-actions { grid-column: 1 / -1; } }
