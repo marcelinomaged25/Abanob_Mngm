@@ -16,7 +16,7 @@
 }
 
 * { box-sizing: border-box; }
-.public-followup-request { display: grid; gap: 14px; padding: 22px; border: 1px solid #d9d1bb; border-radius: 14px; background: var(--paper); }
+.public-followup-request { display: grid; order: 10; width: min(920px, 100%); gap: 14px; margin: 18px auto 0; padding: 22px; border: 1px solid #d9d1bb; border-radius: 14px; background: var(--paper); }
 .public-followup-request form { display: grid; grid-template-columns: 180px 1fr auto; gap: 10px; align-items: end; }
 .public-followup-request select, .public-followup-request textarea { width: 100%; padding: 10px; border: 1px solid #d7dde7; border-radius: 9px; background: white; color: var(--ink); }
 .public-followup-request textarea { min-height: 42px; resize: vertical; }
@@ -577,7 +577,7 @@ body { background: #eef5f8; }
 .public-admin-link:hover { border-color: #2c5de5; background: white; }
 .login-back-link { display: block; margin-top: 14px; color: #64748b; font-size: 13px; text-align: center; text-decoration: none; }
 .login-back-link:hover { color: var(--navy); text-decoration: underline; }
-.public-report-page { min-height: 100vh; padding: 28px 18px 48px; background: #eef5f8; color: var(--ink); direction: rtl; }
+.public-report-page { display: flex; flex-direction: column; min-height: 100vh; padding: 28px 18px 48px; background: #eef5f8; color: var(--ink); direction: rtl; }
 .public-brand, .public-student-heading, .public-attendance-summary, .public-monthly-report, .public-history { width: min(920px, 100%); margin-inline: auto; }
 .public-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
 .public-brand img { width: 58px; height: 58px; object-fit: contain; }
