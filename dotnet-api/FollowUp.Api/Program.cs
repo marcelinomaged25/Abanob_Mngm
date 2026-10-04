@@ -182,15 +182,9 @@ api.MapGet("/assistant", async (string? question, NpgsqlDataSource db) =>
     var insights = await BuildAssistantInsights(connection, CairoToday());
     var text = (question ?? "").Trim();
     var normalized = NormalizeArabic(text);
-    var asksForChoir = normalized.Contains("خورس");
-    var asksForMass = normalized.Contains("قداس");
-    var wantsAbsence = normalized.Contains("غياب") || normalized.Contains("متابعه") || normalized.Contains("متابعة") || normalized.Contains("اسبوع") || normalized.Contains("أسبوع") || asksForChoir || asksForMass;
+    var wantsAbsence = normalized.Contains("غياب") || normalized.Contains("متابعه") || normalized.Contains("متابعة") || normalized.Contains("اسبوع") || normalized.Contains("أسبوع");
     if (string.IsNullOrWhiteSpace(text) || wantsAbsence)
-    {
-        var people = insights.RepeatedAbsences.Where(person => !asksForChoir || person.ChoirMissed > 0).Where(person => !asksForMass || person.MassMissed > 0).ToList();
-        var subject = asksForChoir && !asksForMass ? "الخورس" : asksForMass && !asksForChoir ? "القداس" : "الخورس والقداس";
-        return Results.Ok(new { answer = people.Count == 0 ? $"لا توجد حالات غياب متكرر عن {subject} تحتاج متابعة حاليًا." : $"وجدت {people.Count} حالة تحتاج متابعة بسبب الغياب عن {subject}.", people, kind = "absence" });
-    }
+        return Results.Ok(new { answer = insights.RepeatedAbsences.Count == 0 ? "لا توجد حالات غياب متكرر تحتاج متابعة حاليًا." : $"وجدت {insights.RepeatedAbsences.Count} حالة تحتاج متابعة هذا الأسبوع.", people = insights.RepeatedAbsences, kind = "absence" });
 
     await using var command = new NpgsqlCommand("select id,record_key,name,group_number from people where is_active=true and role='boy' and name ilike $1 order by name limit 20", connection);
     command.Parameters.AddWithValue($"%{text}%");
@@ -565,7 +559,7 @@ static async Task<AssistantInsights> BuildAssistantInsights(NpgsqlConnection con
         """;
     await using var command = new NpgsqlCommand(sql, connection);
     await using var reader = await command.ExecuteReaderAsync();
-    var result = new List<AssistantPerson>();
+    var result = new List<object>();
     while (await reader.ReadAsync())
     {
         var choirCount = reader.GetInt32(4);
@@ -575,7 +569,7 @@ static async Task<AssistantInsights> BuildAssistantInsights(NpgsqlConnection con
         var choirMissed = Math.Max(0, choirSessions - choirCount);
         var massMissed = Math.Max(0, massSessions - massCount);
         if (choirMissed + massMissed < 2) continue;
-        result.Add(new AssistantPerson(reader.GetInt64(0), reader.GetInt32(1), reader.GetString(2), reader.GetString(3), choirMissed, massMissed, choirMissed + massMissed, reader.GetString(8), reader.GetString(9)));
+        result.Add(new { id = reader.GetInt64(0), recordKey = reader.GetInt32(1), name = reader.GetString(2), group = reader.GetString(3), choirMissed, massMissed, missed = choirMissed + massMissed, lastChoir = reader.GetString(8), lastMass = reader.GetString(9) });
     }
     return new AssistantInsights(result);
 }
@@ -752,5 +746,4 @@ record AttendanceSave(string Type, string Date, Dictionary<string, bool>? Checks
 record AttendanceCommentSave(string Type, string Date, int RecordKey, string Comment);
 record FollowUpNoteSave(long PersonId, string? Servant, string Type, string Date, string Note);
 record PublicAttendanceItem(string Type, string Date, string RecordedAt, string Comment);
-record AssistantInsights(List<AssistantPerson> RepeatedAbsences);
-record AssistantPerson(long Id, int RecordKey, string Name, string Group, int ChoirMissed, int MassMissed, int Missed, string LastChoir, string LastMass);
+record AssistantInsights(List<object> RepeatedAbsences);
