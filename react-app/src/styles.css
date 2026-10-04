@@ -1078,4 +1078,13 @@ body { background: #eef5f8; }
 .followup-note-form input, .followup-note-form select, .followup-note-form textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 9px; background: var(--paper); color: var(--ink); font: inherit; }
 .followup-note-form .form-wide { grid-column: 1 / -1; }
 @media (max-width: 720px) { .followup-note-form { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) {
+  .followup-note-form { grid-template-columns: 1fr; gap: 9px; padding: 13px; }
+  .followup-note-form .form-wide { grid-column: auto; }
+  .followup-note-form .primary-button { width: 100%; justify-content: center; }
+  .followup-note-form + .table-section { overflow: hidden; }
+  .followup-note-form + .table-section .table-wrap { overflow-x: auto; }
+  .followup-note-form + .table-section table { min-width: 620px; font-size: 11px; }
+  .followup-note-form + .table-section th, .followup-note-form + .table-section td { padding: 9px 8px; }
+}
 @media (max-width: 760px) { .attendance-comment-panel { grid-template-columns: 1fr 1fr; } .attendance-comment-panel textarea { grid-column: 1 / -1; } .attendance-comment-panel .form-actions { grid-column: 1 / -1; } }
