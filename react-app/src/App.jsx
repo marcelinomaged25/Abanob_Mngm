@@ -160,7 +160,8 @@ export default function App() {
     setState((current) => ({ ...current, rows: current.rows.map((row) => row.recordKey === recordKey ? { ...row, [field]: checked } : row) }));
   }
 
-  async function saveFollowUp(assign = false) {
+  async function saveFollowUp(assign = false, groupFilter = "") {
+    if (typeof assign === "string") { groupFilter = assign; assign = false; }
     setBusy(true); setNotice(""); setError("");
     try {
       let result;
@@ -168,7 +169,7 @@ export default function App() {
         const checks = Object.fromEntries(state.rows.map((row) => [row.recordKey, row.visited === true]));
         result = await request("/api/visits", { method: "POST", body: JSON.stringify({ date: selectedDate, checks }) });
       } else {
-        const checks = Object.fromEntries(state.rows.map((row) => [row.recordKey, row.called === true]));
+        const checks = Object.fromEntries(state.rows.filter((row) => !groupFilter || row.group === groupFilter).map((row) => [row.recordKey, row.called === true]));
         const servants = servantsText.split(/\r?\n/).map((name) => name.trim()).filter(Boolean);
         result = await request("/api/calls", { method: "POST", body: JSON.stringify({ rotationStart, servants, checks }) });
       }
@@ -493,7 +494,7 @@ function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateChec
     if (b === "غير موزع") return -1;
     return Number(a) - Number(b);
   });
-  return <section className="table-section call-groups-section"><div className="section-title-row table-title-row"><div><p className="section-kicker">بيانات الافتقاد</p><h2>الاتصال الأسبوعي حسب الجروب</h2></div><div className="table-actions"><label className="search-box"><Search size={17} /><input type="search" placeholder="ابحث بالاسم أو الجروب أو الخادم" value={query} onChange={(event) => setQuery(event.target.value)} /></label><button className="secondary-button" disabled={busy} onClick={() => saveFollowUp()}><Check size={16} /> احفظ الاتصالات</button></div></div><div className="call-groups-list">{groups.map(([group, members]) => <section className="call-group" id={`call-group-${group}`} key={group}><header className={`call-group-heading group-tone-${group}`}><div><span>الجروب</span><strong>{group}</strong></div><div><span>مسؤول الاتصال</span><b>{members[0]?.servant || "غير موزع"}</b></div><small>{members.length} أفراد · تم الاتصال بـ {members.filter((row) => row.called).length}</small></header><div className="call-group-members">{members.map((row) => <label className="call-member" key={row.id}><span className="call-member-info"><strong>{row.name}</strong><span className="phone-copy-row"><small dir="ltr">{row.phone1 || "بدون رقم"}</small>{row.phone1 && <button type="button" className="copy-phone" title="نسخ الرقم" aria-label={`نسخ رقم ${row.name}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); navigator.clipboard?.writeText(row.phone1); }}><Copy size={13} /></button>}</span></span><input className="status-check" type="checkbox" checked={row.called} onChange={(event) => updateCheck(row.recordKey, "called", event.target.checked)} aria-label={`تم الاتصال بـ ${row.name}`} /></label>)}</div></section>)}{!groups.length && <p className="empty-row">{loading ? "جاري تحميل البيانات" : "لا توجد نتائج"}</p>}</div></section>;
+  return <section className="table-section call-groups-section"><div className="section-title-row table-title-row"><div><p className="section-kicker">بيانات الافتقاد</p><h2>الاتصال الأسبوعي حسب الجروب</h2></div><div className="table-actions"><label className="search-box"><Search size={17} /><input type="search" placeholder="ابحث بالاسم أو الجروب أو الخادم" value={query} onChange={(event) => setQuery(event.target.value)} /></label><button className="secondary-button" disabled={busy} onClick={() => saveFollowUp()}><Check size={16} /> احفظ الكل</button></div></div><div className="call-groups-list">{groups.map(([group, members]) => <section className="call-group" id={`call-group-${group}`} key={group}><header className={`call-group-heading group-tone-${group}`}><div><span>الجروب</span><strong>{group}</strong></div><div><span>مسؤول الاتصال</span><b>{members[0]?.servant || "غير موزع"}</b></div><small>{members.length} أفراد · تم الاتصال بـ {members.filter((row) => row.called).length}</small><button type="button" className="group-save-button" disabled={busy} onClick={() => saveFollowUp(group)}><Check size={14} /> حفظ المجموعة</button></header><div className="call-group-members">{members.map((row) => <label className="call-member" key={row.id}><span className="call-member-info"><strong>{row.name}</strong><span className="phone-copy-row"><small dir="ltr">{row.phone1 || "بدون رقم"}</small>{row.phone1 && <a className="call-phone" href={`tel:${phoneHref(row.phone1)}`} onClick={(event) => event.stopPropagation()}><Phone size={13} /> اتصل</a>}</span></span><input className="status-check" type="checkbox" checked={row.called} onChange={(event) => updateCheck(row.recordKey, "called", event.target.checked)} aria-label={`تم الاتصال بـ ${row.name}`} /></label>)}</div></section>)}{!groups.length && <p className="empty-row">{loading ? "جاري تحميل البيانات" : "لا توجد نتائج"}</p>}</div></section>;
 }
 
 function PeopleTable({ mode, rows, query, setQuery, busy, saveFollowUp, updateCheck, openReport, loading, includeVisitedThisMonth, setIncludeVisitedThisMonth }) {

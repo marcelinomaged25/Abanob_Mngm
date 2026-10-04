@@ -1070,4 +1070,6 @@ body { background: #eef5f8; }
 .public-attendance-comment { display: block; margin-top: 4px; color: #a87508; font-size: 11px; font-style: normal; line-height: 1.6; }
 .call-phone { display: inline-flex; align-items: center; gap: 3px; color: #176b56; font-size: 11px; font-weight: 800; text-decoration: none; }
 .call-phone:hover { color: #0b4a3b; text-decoration: underline; }
+.group-save-button { display: inline-flex; align-items: center; gap: 5px; margin-inline-start: auto; border: 1px solid #dcae2d; border-radius: 8px; padding: 6px 10px; background: #dcae2d; color: #122f5e; cursor: pointer; font: inherit; font-size: 11px; font-weight: 800; }
+.group-save-button:disabled { opacity: .55; cursor: wait; }
 @media (max-width: 760px) { .attendance-comment-panel { grid-template-columns: 1fr 1fr; } .attendance-comment-panel textarea { grid-column: 1 / -1; } .attendance-comment-panel .form-actions { grid-column: 1 / -1; } }
