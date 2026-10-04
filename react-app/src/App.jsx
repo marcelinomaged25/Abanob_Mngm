@@ -16,6 +16,7 @@ const emptyVisitReports = { totalPeople: 0, year: new Date().getFullYear(), dail
 const emptyPerson = { name: "", group: "", phone1: "", phone2: "", address: "", note: "", role: "boy" };
 let attendanceChecksForComments = {};
 let dashboardHistoryPeople = [];
+let phoneDirectory = {};
 const stored = (key, fallback) => sessionStorage.getItem(key) || fallback;
 const publicQrToken = window.location.pathname.match(/^\/qr\/([^/]+)\/?$/)?.[1] || "";
 const isAdminPage = window.location.pathname === "/admin" || window.location.pathname.startsWith("/admin/");
@@ -345,7 +346,9 @@ function VisitReportsPage({ reports, exportCsv, month, setMonth }) {
 function phoneHref(value) { const digits = String(value || "").replace(/\D/g, ""); if (!digits) return ""; if (digits.startsWith("20")) return `+${digits}`; if (digits.startsWith("0")) return `+20${digits.slice(1)}`; return `+20${digits}`; }
 function CopyPhone({ value, name }) {
   if (!value) return <span>—</span>;
-  return <span className="phone-copy-cell"><span dir="ltr">{value}</span><a className="call-phone" href={`tel:${phoneHref(value)}`} title={`الاتصال بـ ${name}`} aria-label={`الاتصال بـ ${name}`}><Phone size={13} /> اتصل</a></span>;
+  const secondary = phoneDirectory[name]?.phone2 || "";
+  const numbers = [[value, "رقم 1"], [secondary, "رقم 2"]].filter(([number]) => number);
+  return <span className="phone-copy-cell phone-actions">{numbers.map(([number, label]) => <a className="call-phone" key={label} href={`tel:${phoneHref(number)}`} title={`${label} - الاتصال بـ ${name}`} aria-label={`${label} - الاتصال بـ ${name}`}><Phone size={13} /> {label}</a>)}</span>;
 }
 
 function HomeDashboard({ dashboard, dashboardDate, setDashboardDate, trendMonth, setTrendMonth, openReport }) {
@@ -494,6 +497,7 @@ function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateChec
 }
 
 function PeopleTable({ mode, rows, query, setQuery, busy, saveFollowUp, updateCheck, openReport, loading, includeVisitedThisMonth, setIncludeVisitedThisMonth }) {
+  phoneDirectory = Object.fromEntries(rows.map((row) => [row.name, row]));
   if (mode === "call") return <CallGroupsTable rows={rows} query={query} setQuery={setQuery} busy={busy} saveFollowUp={saveFollowUp} updateCheck={updateCheck} loading={loading} />;
   return <section className="table-section"><div className="section-title-row table-title-row"><div><p className="section-kicker">بيانات الافتقاد</p><h2>{mode === "visit" ? "زيارة البيت" : mode === "call" ? "الاتصال الأسبوعي" : "آخر متابعة لكل ولد"}</h2></div><div className="table-actions"><label className="search-box"><Search size={17} /><input type="search" placeholder="ابحث بالاسم أو الجروب أو الخادم" value={query} onChange={(event) => setQuery(event.target.value)} /></label>{mode === "visit" && <button className="secondary-button month-filter-button" onClick={() => setIncludeVisitedThisMonth(!includeVisitedThisMonth)}>{includeVisitedThisMonth ? "إخفاء من تمت زيارتهم هذا الشهر" : "إظهار من تمت زيارتهم هذا الشهر"}</button>}{mode !== "history" && <button className="secondary-button" disabled={busy} onClick={() => saveFollowUp()}><Check size={16} /> احفظ {mode === "visit" ? "الزيارات" : "الاتصالات"}</button>}</div></div><div className="table-wrap"><table><thead><tr>{mode === "visit" ? <><th>الجروب</th><th>الاسم</th><th>رقم 1</th><th>العنوان</th><th>تمت الزيارة</th><th>آخر زيارة</th></> : mode === "call" ? <><th>الجروب</th><th>الاسم</th><th>رقم 1</th><th>مسؤول الاتصال</th><th>تم الاتصال</th></> : <><th>الجروب</th><th>الاسم</th><th>رقم 1</th><th>آخر زيارة</th><th>آخر اتصال</th><th>آخر خادم اتصل</th></>}</tr></thead><tbody>{rows.map((row) => <tr className={`group-tone-${groupTone(row.group)}`} key={row.id}><td><span className="group-pill">{row.group}</span></td><td className="name-cell">{mode === "history" ? <button className="person-link" onClick={() => openReport(row)}>{row.name}</button> : row.name}</td><td className="phone-cell">{mode === "visit" ? <CopyPhone value={row.phone1} name={row.name} /> : row.phone1 || "—"}</td>{mode === "visit" ? <><td className="address-cell">{row.address || "—"}</td><td className="check-cell"><input className="status-check" type="checkbox" checked={row.visited} onChange={(event) => updateCheck(row.recordKey, "visited", event.target.checked)} aria-label={`تمت زيارة ${row.name}`} /></td><td className="history-date">{dateLabel(row.lastVisitedDate)}</td></> : mode === "call" ? <><td><span className={`servant-cell ${row.servant ? "" : "muted"}`}>{row.servant || "غير موزع"}</span></td><td className="check-cell"><input className="status-check" type="checkbox" checked={row.called} onChange={(event) => updateCheck(row.recordKey, "called", event.target.checked)} aria-label={`تم الاتصال بـ ${row.name}`} /></td></> : <><td className="history-date">{dateLabel(row.lastVisitedDate)}</td><td className="history-date">{dateLabel(row.lastCalledWeek)}</td><td><span className="servant-cell">{row.lastCaller || "غير مسجل"}</span></td></>}</tr>)}</tbody></table>{!rows.length && <p className="empty-row">{loading ? "جاري تحميل البيانات" : "لا توجد نتائج"}</p>}</div></section>;
 }
