@@ -360,6 +360,30 @@ api.MapDelete("/attendance-comment", async (string type, string date, int record
     await command.ExecuteNonQueryAsync();
     return Results.NoContent();
 });
+api.MapGet("/followup-notes", async (NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("select n.id,n.note_date::text,n.note_type,n.servant,n.note,p.id,p.name,p.group_number from followup_notes n join people p on p.id=n.person_id where p.is_active=true order by n.note_date desc,n.id desc", connection);
+    await using var reader = await command.ExecuteReaderAsync();
+    var notes = new List<object>();
+    while (await reader.ReadAsync()) notes.Add(new { id = reader.GetInt64(0), date = reader.GetString(1), type = reader.GetString(2), servant = reader.GetString(3), note = reader.GetString(4), personId = reader.GetInt64(5), name = reader.GetString(6), group = reader.IsDBNull(7) ? "" : reader.GetString(7) });
+    return Results.Ok(notes);
+});
+api.MapPost("/followup-notes", async (FollowUpNoteSave payload, NpgsqlDataSource db) =>
+{
+    if (string.IsNullOrWhiteSpace(payload.Note) || payload.Type is not ("visit" or "call")) return Results.BadRequest(new { error = "اكتب الملاحظة واختر نوع الافتقاد" });
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("insert into followup_notes(person_id,servant,note_type,note_date,note) select id,$1,$2,$3,$4 from people where id=$5 and is_active=true returning id", connection);
+    command.Parameters.AddWithValue(payload.Servant?.Trim() ?? ""); command.Parameters.AddWithValue(payload.Type); command.Parameters.AddWithValue(ParseDate(payload.Date, CairoToday())); command.Parameters.AddWithValue(payload.Note.Trim()); command.Parameters.AddWithValue(payload.PersonId);
+    var id = await command.ExecuteScalarAsync();
+    return id is null ? Results.NotFound(new { error = "الولد غير موجود" }) : Results.Ok(new { id });
+});
+api.MapDelete("/followup-notes/{id:long}", async (long id, NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("delete from followup_notes where id=$1", connection); command.Parameters.AddWithValue(id);
+    return await command.ExecuteNonQueryAsync() == 0 ? Results.NotFound() : Results.NoContent();
+});
 
 api.MapPost("/people", async (PersonInput payload, NpgsqlDataSource db) =>
 {
@@ -646,4 +670,5 @@ record CallSave(string? RotationStart, string[]? Servants, Dictionary<string, bo
 record PersonInput(string Name, string? Group, string? Phone1, string? Phone2, string? Address, string? Note, string? Role);
 record AttendanceSave(string Type, string Date, Dictionary<string, bool>? Checks);
 record AttendanceCommentSave(string Type, string Date, int RecordKey, string Comment);
+record FollowUpNoteSave(long PersonId, string? Servant, string Type, string Date, string Note);
 record PublicAttendanceItem(string Type, string Date, string RecordedAt, string Comment);
