@@ -17,6 +17,7 @@ const emptyPerson = { name: "", group: "", phone1: "", phone2: "", address: "", 
 let attendanceChecksForComments = {};
 let dashboardHistoryPeople = [];
 let phoneDirectory = {};
+let publicAttendanceRates = { choir: 0, mass: 0 };
 const stored = (key, fallback) => sessionStorage.getItem(key) || fallback;
 const publicQrToken = window.location.pathname.match(/^\/qr\/([^/]+)\/?$/)?.[1] || "";
 const isAdminPage = window.location.pathname === "/admin" || window.location.pathname.startsWith("/admin/");
@@ -310,11 +311,12 @@ function PublicAttendancePage({ token }) {
   if (!data) return <main className="public-report-page"><PublicBrand /><section className="public-report-loading">جاري تحميل تقرير الحضور...</section></main>;
   const choir = data.attendance.filter((item) => item.type === "choir");
   const mass = data.attendance.filter((item) => item.type === "mass");
+  publicAttendanceRates = { choir: data.person.choirRate || 0, mass: data.person.massRate || 0 };
   return <main className="public-report-page"><PublicBrand /><section className="public-student-heading"><div><p className="section-kicker">تقرير حضور المخدوم</p><h1>{data.person.name}</h1></div><a className="public-call-button" href="tel:+201206465486" aria-label="الاتصال بخادم الخورس"><Phone size={18} /> اتصل بخادم الخورس</a></section><section className="public-attendance-summary"><PublicMetric label="حضور الخورس" value={choir.length} /><PublicMetric label="حضور القداس" value={mass.length} /><PublicMetric label="إجمالي الحضور" value={data.attendance.length} /></section><section className="public-monthly-report"><div className="public-section-heading"><div><p className="section-kicker">ملخص المتابعة</p><h2>الحضور حسب الشهر</h2></div><span>من بداية التسجيل</span></div><div className="public-month-list">{data.monthly.map((month) => <article key={month.month}><strong>{month.month}</strong><span>خورس <b>{month.choir}</b><small>{month.choirRate}%</small></span><span>قداس <b>{month.mass}</b><small>{month.massRate}%</small></span></article>)}{!data.monthly.length && <p className="empty-row">لا توجد تسجيلات حضور حتى الآن</p>}</div></section><section className="public-history"><div className="public-section-heading"><div><p className="section-kicker">السجل التفصيلي</p><h2>مواعيد الحضور</h2></div><span>التاريخ والساعة</span></div><div className="public-history-list">{data.attendance.map((item) => <article key={`${item.type}-${item.date}-${item.recordedAt}`}><span className={`public-type ${item.type}`}>{item.type === "choir" ? "خورس" : "قداس"}</span><div><strong>{dateLabel(item.date)}</strong><small>{publicTimeLabel(item.recordedAt)}</small></div></article>)}{!data.attendance.length && <p className="empty-row">لا توجد تسجيلات حضور حتى الآن</p>}</div></section></main>;
 }
 
 function PublicBrand() { return <header className="public-brand"><img src="/app-icon.png" alt="القديس أبانوب" /><div><strong>خورس القديس أبانوب</strong><span>تقرير حضور الخورس والقداس</span></div></header>; }
-function PublicMetric({ label, value }) { return <article><span>{label}</span><strong>{value}</strong></article>; }
+function PublicMetric({ label, value }) { const rate = label === "حضور الخورس" ? publicAttendanceRates.choir : label === "حضور القداس" ? publicAttendanceRates.mass : null; return <article><span>{label}</span><strong>{value}</strong>{rate !== null && <small className="public-rate">{rate}% من الجمعات</small>}</article>; }
 function publicTimeLabel(value) { const [stamp, comment = ""] = String(value || "").split("|"); const [date, time] = stamp.split("T"); if (!time) return comment ? <span className="public-attendance-comment">ملاحظة: {comment}</span> : "—"; const [year, month, day] = date.split("-").map(Number); const [hour, minute] = time.split(":").map(Number); const formatted = new Intl.DateTimeFormat("ar-EG", { hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(year, month - 1, day, hour, minute)); return comment ? <><span>{formatted}</span><em className="public-attendance-comment">ملاحظة: {comment}</em></> : formatted; }
 
 function StraySheepPage({ people, openReport }) {

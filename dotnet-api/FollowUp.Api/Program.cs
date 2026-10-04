@@ -64,14 +64,25 @@ app.MapGet("/api/public/qr/{token}", async (string token, NpgsqlDataSource db) =
     await using (var sessionsCommand = new NpgsqlCommand("select attendance_type,to_char(date_trunc('month',attendance_date),'YYYY-MM'),count(distinct attendance_date) from attendance_records group by attendance_type,date_trunc('month',attendance_date)", connection))
     await using (var sessionsReader = await sessionsCommand.ExecuteReaderAsync())
     {
-        while (await sessionsReader.ReadAsync()) sessionTotals[(sessionsReader.GetString(0), sessionsReader.GetString(1))] = sessionsReader.GetInt64(2) > int.MaxValue ? int.MaxValue : (int)sessionsReader.GetInt64(2);
+    while (await sessionsReader.ReadAsync()) sessionTotals[(sessionsReader.GetString(0), sessionsReader.GetString(1))] = sessionsReader.GetInt64(2) > int.MaxValue ? int.MaxValue : (int)sessionsReader.GetInt64(2);
     }
+    var firstAttendance = attendance.Count == 0 ? (DateOnly?)null : DateOnly.Parse(attendance.Min(item => item.Date)!);
+    var fridaySessions = 0;
+    if (firstAttendance is not null)
+    {
+        await using var fridayCommand = new NpgsqlCommand("select count(*) from generate_series(date_trunc('week',$1::date)::date + 4, current_date, interval '7 days') d", connection);
+        fridayCommand.Parameters.AddWithValue(firstAttendance.Value);
+        fridaySessions = Convert.ToInt32(await fridayCommand.ExecuteScalarAsync());
+    }
+    var choirCount = attendance.Count(item => item.Type == "choir");
+    var massCount = attendance.Count(item => item.Type == "mass");
+    var ratedPerson = new { person.recordKey, person.name, person.group, choirRate = fridaySessions == 0 ? 0 : (int)Math.Round(choirCount * 100d / fridaySessions), massRate = fridaySessions == 0 ? 0 : (int)Math.Round(massCount * 100d / fridaySessions), fridaySessions };
     var monthly = attendance.GroupBy(item => new { Month = item.Date[..7], Type = item.Type })
         .GroupBy(group => group.Key.Month)
         .OrderByDescending(group => group.Key)
         .Select(group => { var choir = group.Where(item => item.Key.Type == "choir").Sum(item => item.Count()); var mass = group.Where(item => item.Key.Type == "mass").Sum(item => item.Count()); var choirSessions = sessionTotals.GetValueOrDefault(("choir", group.Key)); var massSessions = sessionTotals.GetValueOrDefault(("mass", group.Key)); return new { month = group.Key, choir, mass, choirRate = choirSessions == 0 ? 0 : (int)Math.Round(choir * 100d / choirSessions), massRate = massSessions == 0 ? 0 : (int)Math.Round(mass * 100d / massSessions) }; })
         .ToArray();
-    return Results.Ok(new { person, attendance, monthly });
+    return Results.Ok(new { person = ratedPerson, attendance, monthly });
 });
 
 app.MapGet("/api/public/people", async (string? query, NpgsqlDataSource db) =>
