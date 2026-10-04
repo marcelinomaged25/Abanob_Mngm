@@ -171,7 +171,6 @@ api.MapGet("/dashboard", async (string? date, string? month, NpgsqlDataSource db
     await using var trendReader = await trendCommand.ExecuteReaderAsync();
     var weeklyTrend = new List<object>();
     while (await trendReader.ReadAsync()) weeklyTrend.Add(new { date = trendReader.GetString(0), choir = trendReader.GetInt64(1), mass = trendReader.GetInt64(2) });
-    await trendReader.CloseAsync();
     var assistantInsights = await BuildAssistantInsights(connection, dashboardDate);
     return Results.Ok(new { selectedDate = dashboardDate.ToString("yyyy-MM-dd"), trendMonth = trendMonth.ToString("yyyy-MM"), summary, dailySummary, people, dailyPeople, calendar, weeklyTrend, assistantInsights });
 });
