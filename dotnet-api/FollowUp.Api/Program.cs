@@ -82,7 +82,24 @@ app.MapGet("/api/public/qr/{token}", async (string token, NpgsqlDataSource db) =
         .OrderByDescending(group => group.Key)
         .Select(group => { var choir = group.Where(item => item.Key.Type == "choir").Sum(item => item.Count()); var mass = group.Where(item => item.Key.Type == "mass").Sum(item => item.Count()); var choirSessions = sessionTotals.GetValueOrDefault(("choir", group.Key)); var massSessions = sessionTotals.GetValueOrDefault(("mass", group.Key)); return new { month = group.Key, choir, mass, choirRate = choirSessions == 0 ? 0 : (int)Math.Round(choir * 100d / choirSessions), massRate = massSessions == 0 ? 0 : (int)Math.Round(mass * 100d / massSessions) }; })
         .ToArray();
-    return Results.Ok(new { person = ratedPerson, attendance, monthly });
+    var requests = new List<object>();
+    await using (var requestCommand = new NpgsqlCommand("select id,request_type,status,created_at::text,message from followup_requests where person_id=$1 order by created_at desc limit 10", connection))
+    {
+        requestCommand.Parameters.AddWithValue(personId);
+        await using var requestReader = await requestCommand.ExecuteReaderAsync();
+        while (await requestReader.ReadAsync()) requests.Add(new { id = requestReader.GetInt64(0), type = requestReader.GetString(1), status = requestReader.GetString(2), createdAt = requestReader.GetString(3), message = requestReader.GetString(4) });
+    }
+    return Results.Ok(new { person = ratedPerson, attendance, monthly, followUpRequests = requests });
+});
+
+app.MapPost("/api/public/qr/{token}/followup-request", async (string token, FollowUpRequestSave payload, NpgsqlDataSource db) =>
+{
+    if (payload.Type is not ("call" or "visit")) return Results.BadRequest(new { error = "اختر نوع المتابعة" });
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("insert into followup_requests(person_id,request_type,message) select id,$1,$2 from people where qr_token=$3 and is_active=true and role='boy' and not exists (select 1 from followup_requests r where r.person_id=people.id and r.status in ('new','in_progress') and r.created_at > now() - interval '7 days') returning id", connection);
+    command.Parameters.AddWithValue(payload.Type); command.Parameters.AddWithValue(payload.Message?.Trim() ?? ""); command.Parameters.AddWithValue(token);
+    var id = await command.ExecuteScalarAsync();
+    return id is null ? Results.Conflict(new { error = "يوجد طلب متابعة قائم بالفعل خلال هذا الأسبوع" }) : Results.Ok(new { id });
 });
 
 app.MapGet("/api/public/people", async (string? query, NpgsqlDataSource db) =>
@@ -395,6 +412,22 @@ api.MapDelete("/followup-notes/{id:long}", async (long id, NpgsqlDataSource db) 
     await using var command = new NpgsqlCommand("delete from followup_notes where id=$1", connection); command.Parameters.AddWithValue(id);
     return await command.ExecuteNonQueryAsync() == 0 ? Results.NotFound() : Results.NoContent();
 });
+api.MapGet("/followup-requests", async (NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("select r.id,r.request_type,r.status,r.message,r.created_at::text,p.id,p.name,p.group_number from followup_requests r join people p on p.id=r.person_id where p.is_active=true order by r.created_at desc", connection);
+    await using var reader = await command.ExecuteReaderAsync();
+    var requests = new List<object>();
+    while (await reader.ReadAsync()) requests.Add(new { id = reader.GetInt64(0), type = reader.GetString(1), status = reader.GetString(2), message = reader.GetString(3), createdAt = reader.GetString(4), personId = reader.GetInt64(5), name = reader.GetString(6), group = reader.IsDBNull(7) ? "" : reader.GetString(7) });
+    return Results.Ok(requests);
+});
+api.MapPatch("/followup-requests/{id:long}", async (long id, FollowUpRequestStatus payload, NpgsqlDataSource db) =>
+{
+    if (payload.Status is not ("new" or "in_progress" or "done")) return Results.BadRequest(new { error = "حالة الطلب غير صحيحة" });
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("update followup_requests set status=$1,updated_at=now() where id=$2", connection); command.Parameters.AddWithValue(payload.Status); command.Parameters.AddWithValue(id);
+    return await command.ExecuteNonQueryAsync() == 0 ? Results.NotFound() : Results.Ok(new { id, status = payload.Status });
+});
 
 api.MapPost("/people", async (PersonInput payload, NpgsqlDataSource db) =>
 {
@@ -682,4 +715,6 @@ record PersonInput(string Name, string? Group, string? Phone1, string? Phone2, s
 record AttendanceSave(string Type, string Date, Dictionary<string, bool>? Checks);
 record AttendanceCommentSave(string Type, string Date, int RecordKey, string Comment);
 record FollowUpNoteSave(long PersonId, string? Servant, string Type, string Date, string Note);
+record FollowUpRequestSave(string Type, string? Message);
+record FollowUpRequestStatus(string Status);
 record PublicAttendanceItem(string Type, string Date, string RecordedAt, string Comment);

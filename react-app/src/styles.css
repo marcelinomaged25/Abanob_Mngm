@@ -16,6 +16,12 @@
 }
 
 * { box-sizing: border-box; }
+.public-followup-request { display: grid; gap: 14px; padding: 22px; border: 1px solid #d9d1bb; border-radius: 14px; background: var(--paper); }
+.public-followup-request form { display: grid; grid-template-columns: 180px 1fr auto; gap: 10px; align-items: end; }
+.public-followup-request select, .public-followup-request textarea { width: 100%; padding: 10px; border: 1px solid #d7dde7; border-radius: 9px; background: white; color: var(--ink); }
+.public-followup-request textarea { min-height: 42px; resize: vertical; }
+.public-followup-request p { grid-column: 1 / -1; margin: 0; color: var(--teal); font-weight: 700; }
+@media (max-width: 680px) { .public-followup-request form { grid-template-columns: 1fr; } }
 [hidden] { display: none !important; }
 body { margin: 0; background: #f7f8fb; color: var(--ink); font-family: "Segoe UI", Tahoma, Arial, sans-serif; }
 button, input, textarea { font: inherit; }
