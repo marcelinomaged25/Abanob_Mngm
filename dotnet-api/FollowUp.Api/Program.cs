@@ -171,26 +171,7 @@ api.MapGet("/dashboard", async (string? date, string? month, NpgsqlDataSource db
     await using var trendReader = await trendCommand.ExecuteReaderAsync();
     var weeklyTrend = new List<object>();
     while (await trendReader.ReadAsync()) weeklyTrend.Add(new { date = trendReader.GetString(0), choir = trendReader.GetInt64(1), mass = trendReader.GetInt64(2) });
-    var assistantInsights = await BuildAssistantInsights(connection, dashboardDate);
-    return Results.Ok(new { selectedDate = dashboardDate.ToString("yyyy-MM-dd"), trendMonth = trendMonth.ToString("yyyy-MM"), summary, dailySummary, people, dailyPeople, calendar, weeklyTrend, assistantInsights });
-});
-
-api.MapGet("/assistant", async (string? question, NpgsqlDataSource db) =>
-{
-    await using var connection = await db.OpenConnectionAsync();
-    var insights = await BuildAssistantInsights(connection, CairoToday());
-    var text = (question ?? "").Trim();
-    var normalized = NormalizeArabic(text);
-    var wantsAbsence = normalized.Contains("غياب") || normalized.Contains("متابعه") || normalized.Contains("متابعة") || normalized.Contains("اسبوع") || normalized.Contains("أسبوع");
-    if (string.IsNullOrWhiteSpace(text) || wantsAbsence)
-        return Results.Ok(new { answer = insights.RepeatedAbsences.Count == 0 ? "لا توجد حالات غياب متكرر تحتاج متابعة حاليًا." : $"وجدت {insights.RepeatedAbsences.Count} حالة تحتاج متابعة هذا الأسبوع.", people = insights.RepeatedAbsences, kind = "absence" });
-
-    await using var command = new NpgsqlCommand("select id,record_key,name,group_number from people where is_active=true and role='boy' and name ilike $1 order by name limit 20", connection);
-    command.Parameters.AddWithValue($"%{text}%");
-    await using var reader = await command.ExecuteReaderAsync();
-    var matches = new List<object>();
-    while (await reader.ReadAsync()) matches.Add(new { id = reader.GetInt64(0), recordKey = reader.GetInt32(1), name = reader.GetString(2), group = reader.IsDBNull(3) ? "" : reader.GetString(3) });
-    return Results.Ok(new { answer = matches.Count == 0 ? "لم أجد اسمًا مطابقًا في البيانات الحالية." : $"وجدت {matches.Count} اسم مطابق للبحث.", people = matches, kind = "search" });
+    return Results.Ok(new { selectedDate = dashboardDate.ToString("yyyy-MM-dd"), trendMonth = trendMonth.ToString("yyyy-MM"), summary, dailySummary, people, dailyPeople, calendar, weeklyTrend });
 });
 
 api.MapGet("/visit-reports", async (int? year, string? month, NpgsqlDataSource db) =>
@@ -531,48 +512,6 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
 
 app.Run();
 
-static async Task<AssistantInsights> BuildAssistantInsights(NpgsqlConnection connection, DateOnly today)
-{
-    const string sql = """
-        with sessions as (
-            select attendance_type, count(distinct attendance_date)::int as total
-            from attendance_records
-            group by attendance_type
-        ), attendance as (
-            select person_id,
-                count(distinct attendance_date) filter (where attendance_type='choir')::int as choir_count,
-                count(distinct attendance_date) filter (where attendance_type='mass')::int as mass_count,
-                max(attendance_date) filter (where attendance_type='choir')::text as last_choir,
-                max(attendance_date) filter (where attendance_type='mass')::text as last_mass
-            from attendance_records
-            group by person_id
-        )
-        select p.id,p.record_key,p.name,coalesce(p.group_number,''),
-            coalesce(a.choir_count,0),coalesce(a.mass_count,0),
-            coalesce((select total from sessions where attendance_type='choir'),0),
-            coalesce((select total from sessions where attendance_type='mass'),0),
-            coalesce(a.last_choir,''),coalesce(a.last_mass,'')
-        from people p left join attendance a on a.person_id=p.id
-        where p.is_active=true and p.role='boy'
-        order by (coalesce(a.choir_count,0)+coalesce(a.mass_count,0)),p.name
-        """;
-    await using var command = new NpgsqlCommand(sql, connection);
-    await using var reader = await command.ExecuteReaderAsync();
-    var result = new List<object>();
-    while (await reader.ReadAsync())
-    {
-        var choirCount = reader.GetInt32(4);
-        var massCount = reader.GetInt32(5);
-        var choirSessions = reader.GetInt32(6);
-        var massSessions = reader.GetInt32(7);
-        var choirMissed = Math.Max(0, choirSessions - choirCount);
-        var massMissed = Math.Max(0, massSessions - massCount);
-        if (choirMissed + massMissed < 2) continue;
-        result.Add(new { id = reader.GetInt64(0), recordKey = reader.GetInt32(1), name = reader.GetString(2), group = reader.GetString(3), choirMissed, massMissed, missed = choirMissed + massMissed, lastChoir = reader.GetString(8), lastMass = reader.GetString(9) });
-    }
-    return new AssistantInsights(result);
-}
-
 static async Task<object> BuildState(NpgsqlDataSource db, string mode, string? selectedDate, string? selectedWeek)
 {
     await using var connection = await db.OpenConnectionAsync();
@@ -668,7 +607,6 @@ static bool ValidPerson(PersonInput payload, out string error)
 }
 
 static string CsvCell(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
-static string NormalizeArabic(string value) => value.Replace('إ', 'ا').Replace('أ', 'ا').Replace('آ', 'ا').Replace('ى', 'ي').Trim().ToLowerInvariant();
 static string NormalizeRole(string? role) => role is "servant" ? "servant" : "boy";
 static string NormalizeEgyptianPhone(string? value)
 {
@@ -745,4 +683,3 @@ record AttendanceSave(string Type, string Date, Dictionary<string, bool>? Checks
 record AttendanceCommentSave(string Type, string Date, int RecordKey, string Comment);
 record FollowUpNoteSave(long PersonId, string? Servant, string Type, string Date, string Note);
 record PublicAttendanceItem(string Type, string Date, string RecordedAt, string Comment);
-record AssistantInsights(List<object> RepeatedAbsences);
