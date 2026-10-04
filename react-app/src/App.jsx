@@ -342,9 +342,10 @@ function VisitReportsPage({ reports, exportCsv, month, setMonth }) {
   return <section className="visit-reports-page"><section className="reports-hero"><div><p className="section-kicker">تقارير الافتقاد</p><h2>الزيارات والاتصالات</h2><p>اختار الفترة وشوف التقدم في جراف واضح.</p></div><div className="reports-hero-actions"><label className="report-month-picker">الشهر<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label><div className="report-period-switch"><button className={period === "day" ? "active" : ""} onClick={() => setPeriod("day")}>يومي</button><button className={period === "month" ? "active" : ""} onClick={() => setPeriod("month")}>شهري</button><button className={period === "year" ? "active" : ""} onClick={() => setPeriod("year")}>سنوي</button></div><button className="secondary-button" onClick={exportCsv}><Copy size={15} /> تصدير</button><BarChart3 size={30} /></div></section>{chart("الزيارات", "زيارة", reports.daily, reports.monthly, reports.yearly, "لا توجد زيارات في الفترة المختارة")}{chart("الاتصالات", "اتصال", reports.callDaily, reports.callMonthly, reports.callYearly, "لا توجد اتصالات في الفترة المختارة")}</section>;
 }
 
+function phoneHref(value) { const digits = String(value || "").replace(/\D/g, ""); if (!digits) return ""; if (digits.startsWith("20")) return `+${digits}`; if (digits.startsWith("0")) return `+20${digits.slice(1)}`; return `+20${digits}`; }
 function CopyPhone({ value, name }) {
   if (!value) return <span>—</span>;
-  return <span className="phone-copy-cell"><span dir="ltr">{value}</span><button type="button" className="copy-phone" title="نسخ الرقم" aria-label={`نسخ رقم ${name}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); navigator.clipboard?.writeText(value); }}><Copy size={13} /></button></span>;
+  return <span className="phone-copy-cell"><span dir="ltr">{value}</span><a className="call-phone" href={`tel:${phoneHref(value)}`} title={`الاتصال بـ ${name}`} aria-label={`الاتصال بـ ${name}`}><Phone size={13} /> اتصل</a></span>;
 }
 
 function HomeDashboard({ dashboard, dashboardDate, setDashboardDate, trendMonth, setTrendMonth, openReport }) {

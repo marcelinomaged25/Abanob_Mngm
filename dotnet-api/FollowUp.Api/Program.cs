@@ -366,7 +366,7 @@ api.MapPost("/people", async (PersonInput payload, NpgsqlDataSource db) =>
     if (!ValidPerson(payload, out var error)) return Results.BadRequest(new { error });
     await using var connection = await db.OpenConnectionAsync();
     await using var command = new NpgsqlCommand("insert into people(record_key,name,note,phone1,phone2,group_number,address,role,qr_token) values((select coalesce(max(record_key),0)+1 from people),$1,$2,$3,$4,$5,$6,$7,$8) returning id", connection);
-    command.Parameters.AddWithValue(payload.Name.Trim()); command.Parameters.AddWithValue(payload.Note?.Trim() ?? ""); command.Parameters.AddWithValue(payload.Phone1?.Trim() ?? ""); command.Parameters.AddWithValue(payload.Phone2?.Trim() ?? ""); command.Parameters.AddWithValue(string.IsNullOrWhiteSpace(payload.Group) ? (object)DBNull.Value : payload.Group.Trim()); command.Parameters.AddWithValue(payload.Address?.Trim() ?? ""); command.Parameters.AddWithValue(NormalizeRole(payload.Role)); command.Parameters.AddWithValue(Convert.ToHexString(RandomNumberGenerator.GetBytes(18)).ToLowerInvariant());
+    command.Parameters.AddWithValue(payload.Name.Trim()); command.Parameters.AddWithValue(payload.Note?.Trim() ?? ""); command.Parameters.AddWithValue(NormalizeEgyptianPhone(payload.Phone1)); command.Parameters.AddWithValue(NormalizeEgyptianPhone(payload.Phone2)); command.Parameters.AddWithValue(string.IsNullOrWhiteSpace(payload.Group) ? (object)DBNull.Value : payload.Group.Trim()); command.Parameters.AddWithValue(payload.Address?.Trim() ?? ""); command.Parameters.AddWithValue(NormalizeRole(payload.Role)); command.Parameters.AddWithValue(Convert.ToHexString(RandomNumberGenerator.GetBytes(18)).ToLowerInvariant());
     var id = (long)(await command.ExecuteScalarAsync())!;
     return Results.Created($"/api/people/{id}", new { id });
 });
@@ -376,7 +376,7 @@ api.MapPut("/people/{personId:long}", async (long personId, PersonInput payload,
     if (!ValidPerson(payload, out var error)) return Results.BadRequest(new { error });
     await using var connection = await db.OpenConnectionAsync();
     await using var command = new NpgsqlCommand("update people set name=$1,note=$2,phone1=$3,phone2=$4,group_number=$5,address=$6,role=$7,updated_at=now() where id=$8 and is_active=true", connection);
-    command.Parameters.AddWithValue(payload.Name.Trim()); command.Parameters.AddWithValue(payload.Note?.Trim() ?? ""); command.Parameters.AddWithValue(payload.Phone1?.Trim() ?? ""); command.Parameters.AddWithValue(payload.Phone2?.Trim() ?? ""); command.Parameters.AddWithValue(string.IsNullOrWhiteSpace(payload.Group) ? (object)DBNull.Value : payload.Group.Trim()); command.Parameters.AddWithValue(payload.Address?.Trim() ?? ""); command.Parameters.AddWithValue(NormalizeRole(payload.Role)); command.Parameters.AddWithValue(personId);
+    command.Parameters.AddWithValue(payload.Name.Trim()); command.Parameters.AddWithValue(payload.Note?.Trim() ?? ""); command.Parameters.AddWithValue(NormalizeEgyptianPhone(payload.Phone1)); command.Parameters.AddWithValue(NormalizeEgyptianPhone(payload.Phone2)); command.Parameters.AddWithValue(string.IsNullOrWhiteSpace(payload.Group) ? (object)DBNull.Value : payload.Group.Trim()); command.Parameters.AddWithValue(payload.Address?.Trim() ?? ""); command.Parameters.AddWithValue(NormalizeRole(payload.Role)); command.Parameters.AddWithValue(personId);
     if (await command.ExecuteNonQueryAsync() == 0) return Results.NotFound(new { error = "الاسم غير موجود" });
     return Results.NoContent();
 });
@@ -573,6 +573,14 @@ static bool ValidPerson(PersonInput payload, out string error)
 
 static string CsvCell(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
 static string NormalizeRole(string? role) => role is "servant" ? "servant" : "boy";
+static string NormalizeEgyptianPhone(string? value)
+{
+    var digits = new string((value ?? "").Where(char.IsDigit).ToArray());
+    if (digits.Length == 0) return "";
+    if (digits.StartsWith("20")) return $"+{digits}";
+    if (digits.StartsWith("0")) return $"+20{digits[1..]}";
+    return $"+20{digits}";
+}
 
 static Dictionary<string, string> Assignments(IEnumerable<string> groups, string[] servants, DateOnly week, DateOnly rotation)
 {

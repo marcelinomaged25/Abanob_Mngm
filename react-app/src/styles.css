@@ -1068,4 +1068,6 @@ body { background: #eef5f8; }
 .attendance-comment-panel .form-actions { display: flex; gap: 6px; width: max-content; }
 .attendance-comment-panel .form-actions button { min-width: 112px; white-space: nowrap; }
 .public-attendance-comment { display: block; margin-top: 4px; color: #a87508; font-size: 11px; font-style: normal; line-height: 1.6; }
+.call-phone { display: inline-flex; align-items: center; gap: 3px; color: #176b56; font-size: 11px; font-weight: 800; text-decoration: none; }
+.call-phone:hover { color: #0b4a3b; text-decoration: underline; }
 @media (max-width: 760px) { .attendance-comment-panel { grid-template-columns: 1fr 1fr; } .attendance-comment-panel textarea { grid-column: 1 / -1; } .attendance-comment-panel .form-actions { grid-column: 1 / -1; } }
