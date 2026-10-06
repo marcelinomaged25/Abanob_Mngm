@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#062d5c"/>
-  <circle cx="256" cy="256" r="214" fill="#062d5c" stroke="#f4bd24" stroke-width="16"/>
-  <image href="/app-icon.png" x="54" y="54" width="404" height="404" preserveAspectRatio="xMidYMid meet"/>
-</svg>
