@@ -65,6 +65,12 @@ export default function App() {
     localStorage.setItem("choir-dark-mode", String(darkMode));
   }, [darkMode]);
 
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timeout = window.setTimeout(() => setNotice(""), 2200);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
+
   const request = useCallback(async (path, options = {}, auth = password, user = username) => {
     const response = await fetch(`${apiUrl}${path}`, { ...options, headers: { ...(options.body ? { "Content-Type": "application/json" } : {}), ...(auth ? { "X-App-Password": auth } : {}), ...(user ? { "X-App-Username": user } : {}), ...options.headers } });
     const body = await response.json().catch(() => ({}));

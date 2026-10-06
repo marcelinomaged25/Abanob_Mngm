@@ -920,6 +920,28 @@ body { background: #eef5f8; }
   .scanner-close-button { width: min(100%, 280px); margin-top: 8px; }
 }
 
+/* Keep parent follow-up requests readable without a horizontal table on phones. */
+@media (max-width: 680px) {
+  .mode-requests .reports-hero { padding: 15px 13px; }
+  .mode-requests .reports-hero h2 { font-size: 19px; }
+  .mode-requests .table-section { min-width: 0; padding: 9px; }
+  .mode-requests .table-wrap { overflow: hidden; }
+  .mode-requests .table-wrap table { width: 100%; min-width: 0; table-layout: fixed; font-size: 10px; }
+  .mode-requests .table-wrap th,
+  .mode-requests .table-wrap td { min-width: 0; padding: 9px 4px; overflow-wrap: anywhere; word-break: break-word; }
+  .mode-requests .table-wrap th:nth-child(1),
+  .mode-requests .table-wrap td:nth-child(1) { width: 19%; }
+  .mode-requests .table-wrap th:nth-child(2),
+  .mode-requests .table-wrap td:nth-child(2) { width: 23%; }
+  .mode-requests .table-wrap th:nth-child(3),
+  .mode-requests .table-wrap td:nth-child(3) { width: 15%; }
+  .mode-requests .table-wrap th:nth-child(4),
+  .mode-requests .table-wrap td:nth-child(4) { width: 27%; }
+  .mode-requests .table-wrap th:nth-child(5),
+  .mode-requests .table-wrap td:nth-child(5) { width: 16%; }
+  .mode-requests .table-wrap select { width: 100%; min-width: 0; padding: 5px 2px; font-size: 10px; }
+}
+
 /* Login branding and sidebar actions. */
 .login-panel { text-align: center; }
 .login-panel > .eyebrow,
