@@ -423,8 +423,8 @@ tbody tr:hover td { background: #f5f8ff; }
 .people-layout .people-table th:nth-child(2), .people-layout .people-table td:nth-child(2) { display: none; }
 
 /* The current product name is the choir, not the church label. */
-.sidebar-brand strong { font-size: 0; }
-.sidebar-brand strong::after { content: "خورس القديس أبانوب"; font-size: 15px; }
+.sidebar-brand strong { font-size: 15px; }
+.sidebar-brand strong::after { display: none; content: none; }
 
 /* Final visual system: warm choir dashboard with the same language on every page. */
 body { background: #eef5f8; }
@@ -895,13 +895,28 @@ body { background: #eef5f8; }
 .dark-mode .sub-tabs button { background: var(--paper); }
 
 @media (max-width: 680px) {
-  .app-sidebar { min-height: auto; }
+  .app-shell { width: 100%; overflow-x: hidden; }
+  .app-sidebar { width: 100%; min-height: auto; box-sizing: border-box; overflow: hidden; padding: 10px 10px 12px; }
+  .sidebar-brand { width: 100%; min-width: 0; gap: 8px; padding: 0 2px 10px; }
+  .sidebar-brand > div { min-width: 0; }
+  .sidebar-brand strong { display: block; overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+  .sidebar-brand span { font-size: 9px; }
+  .sidebar-nav { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); width: 100%; gap: 4px; overflow: hidden; }
+  .sidebar-item { min-width: 0; min-height: 40px; width: 100%; padding: 8px 2px; }
+  .sidebar-item svg, .sidebar-item .sheep-icon { flex: 0 0 auto; width: 17px; height: 17px; }
   .sidebar-footer { display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin-top: 10px; padding: 10px 4px 0; }
   .sidebar-footer-row { margin-top: 0; }
   .theme-toggle { min-height: 40px; }
   .sidebar-footer-row .icon-button { flex: 0 0 34px; width: 34px; height: 34px; }
-  .sub-tabs { width: 100%; margin: 0 0 14px; gap: 4px; }
-  .sub-tabs button { flex: 1; justify-content: center; min-width: 0; padding-inline: 7px; font-size: 10px; }
+  .sidebar-footer-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; gap: 8px; }
+  .sidebar-footer-actions .theme-toggle, .sidebar-footer-actions .logout-button { width: 100%; min-width: 0; }
+  .app-content { width: 100%; box-sizing: border-box; overflow-x: hidden; padding: 16px 12px 34px; }
+  .topbar { width: 100%; box-sizing: border-box; margin: -16px -12px 18px; padding: 12px; }
+  .topbar .brand-lockup, .topbar .brand-lockup > div { width: 100%; min-width: 0; }
+  .topbar .eyebrow { max-width: 100%; overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+  .topbar h1 { max-width: 100%; overflow-wrap: anywhere; font-size: 22px; }
+  .sub-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); width: 100%; margin: 0 0 14px; gap: 4px; }
+  .sub-tabs button { min-width: 0; min-height: 48px; justify-content: center; padding: 7px 3px; font-size: 10px; line-height: 1.25; text-align: center; white-space: normal; }
   .scanner-close-button { width: min(100%, 280px); margin-top: 8px; }
 }
 
