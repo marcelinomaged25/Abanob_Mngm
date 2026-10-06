@@ -528,9 +528,10 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
         assign.Parameters.AddWithValue(week); assign.Parameters.AddWithValue(group); assign.Parameters.AddWithValue(servant);
         await assign.ExecuteNonQueryAsync();
     }
-    await using (var deleteCalls = new NpgsqlCommand("delete from call_records where week_start=$1 and person_id in (select id from people where is_active=true)", connection, transaction))
+    await using (var deleteCalls = new NpgsqlCommand("delete from call_records where week_start=$1 and person_id in (select p.id from people p join jsonb_each_text($2::jsonb) checks on checks.key::integer=p.record_key where p.is_active=true)", connection, transaction))
     {
         deleteCalls.Parameters.AddWithValue(week);
+        deleteCalls.Parameters.AddWithValue(JsonSerializer.Serialize(payload.Checks ?? new Dictionary<string, bool>()));
         await deleteCalls.ExecuteNonQueryAsync();
     }
     await using (var saveCalls = new NpgsqlCommand("insert into call_records(person_id,week_start,servant) select p.id,$1,coalesce(a.servant,'') from people p join jsonb_each_text($2::jsonb) checks on checks.key::integer=p.record_key left join call_assignments a on a.week_start=$1 and a.group_number=p.group_number where checks.value='true' and p.is_active=true", connection, transaction))
