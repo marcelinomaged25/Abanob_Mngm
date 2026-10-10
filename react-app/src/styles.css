@@ -283,6 +283,9 @@ tbody tr:hover td { background: #f5f8ff; }
 .qr-loading { display: grid; place-items: center; width: 132px; height: 132px; color: var(--muted); font-size: 11px; }
 .qr-scan-page { display: grid; place-items: center; }
 .qr-scan-panel { width: min(560px, 100%); padding: 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); box-shadow: var(--shadow); text-align: center; }
+.qr-scan-type { justify-content: center; margin: 16px auto 0; }
+.qr-scan-hint { margin: 12px auto 0; max-width: 420px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.qr-scan-status { margin-top: 12px; color: #078b59; font-weight: 800; }
 .qr-scan-date { display: grid; gap: 6px; width: min(280px, 100%); margin: 16px auto 0; color: #46536a; font-weight: 700; text-align: right; }
 .qr-scan-date input { width: 100%; min-height: 42px; padding: 10px 12px; border: 1px solid #cbd3df; border-radius: 9px; background: #fbfcfe; color: var(--ink); direction: ltr; text-align: left; }
 .qr-reader { width: min(100%, 420px); margin: 18px auto; overflow: hidden; border: 1px solid #d9cfb4; border-radius: 12px; background: #172137; }
@@ -290,6 +293,8 @@ tbody tr:hover td { background: #f5f8ff; }
 .scanned-person { display: grid; gap: 10px; margin-top: 16px; padding: 16px; border: 1px solid #c7dfd6; border-radius: 12px; background: #f0faf5; }
 .scanned-person strong { font-size: 20px; }
 .scanned-person small { color: var(--muted); direction: ltr; }
+.qr-recent strong { font-size: 16px; }
+.qr-recent small { direction: rtl; }
 .scanned-person .segmented-control { justify-content: center; margin: 0 auto; }
 .mode-visit .overview-panel .metric:first-child { display: none; }
 .mode-visit .table-section:not(.call-groups-section) table th:first-child, .mode-visit .table-section:not(.call-groups-section) table td:first-child { display: none; }

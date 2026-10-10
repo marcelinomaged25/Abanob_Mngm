@@ -361,12 +361,13 @@ api.MapPost("/attendance", async (AttendanceSave payload, NpgsqlDataSource db) =
     var attendanceType = payload.Type is "choir" or "mass" ? payload.Type : "";
     if (attendanceType.Length == 0) return Results.BadRequest(new { error = "اختر نوع الحضور" });
     var attendanceDate = ParseDate(payload.Date, CairoToday());
+    var checksJson = JsonSerializer.Serialize(payload.Checks ?? new Dictionary<string, bool>());
     await using var connection = await db.OpenConnectionAsync();
     await using var transaction = await connection.BeginTransactionAsync();
-    await using (var delete = new NpgsqlCommand("delete from attendance_records where attendance_type=$1 and attendance_date=$2", connection, transaction))
-    { delete.Parameters.AddWithValue(attendanceType); delete.Parameters.AddWithValue(attendanceDate); await delete.ExecuteNonQueryAsync(); }
     await using (var insert = new NpgsqlCommand("insert into attendance_records(person_id,attendance_type,attendance_date) select p.id,$1,$2 from jsonb_each_text($3::jsonb) checks join people p on p.record_key=checks.key::integer where checks.value='true' and p.is_active=true on conflict do nothing", connection, transaction))
-    { insert.Parameters.AddWithValue(attendanceType); insert.Parameters.AddWithValue(attendanceDate); insert.Parameters.AddWithValue(JsonSerializer.Serialize(payload.Checks ?? new Dictionary<string, bool>())); await insert.ExecuteNonQueryAsync(); }
+    { insert.Parameters.AddWithValue(attendanceType); insert.Parameters.AddWithValue(attendanceDate); insert.Parameters.AddWithValue(checksJson); await insert.ExecuteNonQueryAsync(); }
+    await using (var delete = new NpgsqlCommand("delete from attendance_records a using people p, jsonb_each_text($3::jsonb) checks where a.person_id=p.id and p.record_key=checks.key::integer and checks.value='false' and a.attendance_type=$1 and a.attendance_date=$2", connection, transaction))
+    { delete.Parameters.AddWithValue(attendanceType); delete.Parameters.AddWithValue(attendanceDate); delete.Parameters.AddWithValue(checksJson); await delete.ExecuteNonQueryAsync(); }
     await transaction.CommitAsync();
     return Results.Ok(new { type = attendanceType, date = attendanceDate.ToString("yyyy-MM-dd") });
 });

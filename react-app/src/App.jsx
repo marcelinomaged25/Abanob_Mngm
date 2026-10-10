@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, CalendarDays, Check, ChevronLeft, ChevronRight, Church, CircleAlert, Copy, Home, LayoutDashboard, LoaderCircle, LogOut, Moon, Pencil, Phone, Plus, QrCode, Search, Sun, Trash2, UserCheck, Users, X } from "lucide-react";
 import QRCode from "qrcode";
 import { Html5Qrcode } from "html5-qrcode";
@@ -56,8 +56,7 @@ export default function App() {
   const [includeVisitedThisMonth, setIncludeVisitedThisMonth] = useState(false);
   const [dashboardDate, setDashboardDate] = useState(() => stored("choir-dashboard-date", today()));
   const [trendMonth, setTrendMonth] = useState(() => stored("choir-trend-month", today().slice(0, 7)));
-  const [scanPerson, setScanPerson] = useState(null);
-  const [scanType, setScanType] = useState("both");
+  const [scanType, setScanType] = useState(() => stored("choir-scan-type", "choir"));
   const [scanDate, setScanDate] = useState(today());
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("choir-dark-mode") === "true");
 
@@ -142,21 +141,13 @@ export default function App() {
   function switchMode(nextMode) {
     setMode(nextMode); sessionStorage.setItem("choir-mode", nextMode); setQuery(""); setReport(null);
     if (nextMode === "people") { setEditingPerson(null); setPersonDraft(emptyPerson); }
-    if (nextMode === "attendance") load(nextMode, attendanceDate); else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate); else if (nextMode === "reports") load(nextMode); else if (nextMode === "qr") { setScanPerson(null); load("people"); } else if (nextMode === "qr-print") load("people"); else load(nextMode, nextMode === "visit" ? selectedDate : undefined);
+    if (nextMode === "attendance") load(nextMode, attendanceDate); else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate); else if (nextMode === "reports") load(nextMode); else if (nextMode === "qr") { /* scanner saves attendance incrementally */ } else if (nextMode === "qr-print") load("people"); else load(nextMode, nextMode === "visit" ? selectedDate : undefined);
   }
 
-  async function saveScannedAttendance() {
-    if (!scanPerson) return;
-    setBusy(true); setError("");
+  async function markAttendance(recordKey, present, type = attendanceType, date = attendanceDate) {
     try {
-      const types = scanType === "both" ? ["choir", "mass"] : [scanType];
-      for (const type of types) await request("/api/attendance", { method: "POST", body: JSON.stringify({ type, date: scanDate, checks: { [scanPerson.recordKey]: true } }) });
-      setAttendanceDate(scanDate);
-      setDashboardDate(scanDate);
-      setTrendMonth(scanDate.slice(0, 7));
-      await load("home", scanDate, password, scanDate.slice(0, 7));
-      setNotice(`تم تسجيل حضور ${scanPerson.name}`); setScanPerson(null);
-    } catch (saveError) { setError(saveError.message); } finally { setBusy(false); }
+      await request("/api/attendance", { method: "POST", body: JSON.stringify({ type, date, checks: { [recordKey]: present } }) });
+    } catch (saveError) { setError(saveError.message); }
   }
 
   async function exportCsv() {
@@ -241,8 +232,8 @@ export default function App() {
 
     {followUpMode && <FollowUpDashboard mode={mode} state={state} selectedDate={selectedDate} setSelectedDate={(date) => { setSelectedDate(date); sessionStorage.setItem("choir-selected-date", date); }} rotationStart={rotationStart} setRotationStart={setRotationStart} servantsText={servantsText} setServantsText={setServantsText} busy={busy} saveFollowUp={saveFollowUp} load={load} checkedCount={checkedCount} percent={percent} />}
     {mode === "people" && <PeopleManager state={state} rows={rows} query={query} setQuery={setQuery} busy={busy} editingPerson={editingPerson} personDraft={personDraft} setPersonDraft={setPersonDraft} savePerson={savePerson} editPerson={editPerson} archivePerson={archivePerson} cancelEdit={() => { setEditingPerson(null); setPersonDraft(emptyPerson); }} />}
-    {mode === "attendance" && <AttendanceManager state={state} rows={rows} attendanceType={attendanceType} setAttendanceType={(type) => { setAttendanceType(type); load("attendance", attendanceDate, password, trendMonth, type); }} attendanceDate={attendanceDate} setAttendanceDate={(date) => { setAttendanceDate(date); sessionStorage.setItem("choir-attendance-date", date); load("attendance", date); }} checks={attendanceChecks} setChecks={setAttendanceChecks} save={saveAttendance} onComment={async (recordKey, comment) => { await request("/api/attendance-comment", { method: "POST", body: JSON.stringify({ type: attendanceType, date: attendanceDate, recordKey: Number(recordKey), comment }) }, password); setNotice("تم حفظ تعليق الحضور"); }} onDeleteComment={async (recordKey) => { await request(`/api/attendance-comment?type=${attendanceType}&date=${attendanceDate}&recordKey=${Number(recordKey)}`, { method: "DELETE" }, password); setNotice("تم مسح التعليق"); }} busy={busy} query={query} setQuery={setQuery} />}
-    {mode === "qr" && <QrScannerPage request={request} person={scanPerson} setPerson={setScanPerson} scanType={scanType} setScanType={setScanType} scanDate={scanDate} setScanDate={setScanDate} save={saveScannedAttendance} busy={busy} />}
+    {mode === "attendance" && <AttendanceManager state={state} rows={rows} attendanceType={attendanceType} setAttendanceType={(type) => { setAttendanceType(type); load("attendance", attendanceDate, password, trendMonth, type); }} attendanceDate={attendanceDate} setAttendanceDate={(date) => { setAttendanceDate(date); sessionStorage.setItem("choir-attendance-date", date); load("attendance", date); }} checks={attendanceChecks} setChecks={setAttendanceChecks} save={saveAttendance} markAttendance={markAttendance} onComment={async (recordKey, comment) => { await request("/api/attendance-comment", { method: "POST", body: JSON.stringify({ type: attendanceType, date: attendanceDate, recordKey: Number(recordKey), comment }) }, password); setNotice("تم حفظ تعليق الحضور"); }} onDeleteComment={async (recordKey) => { await request(`/api/attendance-comment?type=${attendanceType}&date=${attendanceDate}&recordKey=${Number(recordKey)}`, { method: "DELETE" }, password); setNotice("تم مسح التعليق"); }} busy={busy} query={query} setQuery={setQuery} />}
+    {mode === "qr" && <QrScannerPage request={request} scanType={scanType} setScanType={(type) => { setScanType(type); sessionStorage.setItem("choir-scan-type", type); }} scanDate={scanDate} setScanDate={setScanDate} />}
     {mode === "qr-print" && <QrCardsPage rows={state.rows} />}
     {mode === "home" && <HomeDashboard dashboard={dashboard} dashboardDate={dashboardDate} setDashboardDate={(date) => { setDashboardDate(date); sessionStorage.setItem("choir-dashboard-date", date); load("home", date); }} trendMonth={trendMonth} setTrendMonth={(month) => { setTrendMonth(month); sessionStorage.setItem("choir-trend-month", month); load("home", dashboardDate, password, month); }} openReport={openReport} />}
     {mode === "stray" && <StraySheepPage people={dashboard.people || []} openReport={openReport} />}
@@ -478,13 +469,50 @@ function QrCardsPage({ rows }) {
   const printCards = (target = null) => { setPrintTarget(target); window.setTimeout(() => { window.print(); setPrintTarget(null); }, 80); };
   return <section className="qr-page"><div className="section-title-row table-title-row"><div><p className="section-kicker">بطاقات الحضور</p><h2>QR لكل مخدوم</h2><span className="date-label">اطبع الكل أو اختار كارت واحد واحفظه PDF</span></div><div className="qr-page-actions"><label className="search-box qr-search"><Search size={17} /><input type="search" placeholder="ابحث بالاسم أو الرقم" value={query} onChange={(event) => setQuery(event.target.value)} /></label><button className="primary-button qr-print-button" onClick={() => printCards()}><Copy size={15} /> طباعة الكل / PDF</button></div></div><div className="qr-print-grid">{filteredPeople.map((person) => <QrCard person={person} printTarget={printTarget} onPrint={printCards} key={person.id} />)}{!filteredPeople.length && <p className="empty-row">لا يوجد شخص بهذا البحث</p>}</div></section>;
 }
-function QrScannerPage({ request, person, setPerson, scanType, setScanType, scanDate, setScanDate, save, busy }) {
+function QrScannerPage({ request, scanType, setScanType, scanDate, setScanDate }) {
   const [scannerError, setScannerError] = useState("");
-  useEffect(() => { if (person) return undefined; const scanner = new Html5Qrcode("qr-reader"); const stopScanner = () => scanner.isScanning ? scanner.stop().catch(() => {}) : Promise.resolve(); scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 230, height: 230 } }, async (decoded) => { try { await stopScanner(); const value = String(decoded || "").trim(); const token = value.includes("/qr/") ? value.split("/qr/").pop().split(/[?#]/)[0] : value; if (!token) throw new Error("تعذر قراءة QR"); const result = await request(`/api/qr/${encodeURIComponent(token)}`); setPerson(result?.person || result); } catch (error) { setScannerError(error?.message || "تعذر قراءة QR"); } }, () => {}).catch((error) => setScannerError(error?.message || "اسمح للمتصفح باستخدام الكاميرا")); return () => { void stopScanner(); }; }, [person, request, setPerson]);
-  return <section className="qr-scan-page"><div className="qr-scan-panel"><p className="section-kicker">تسجيل حضور سريع</p><h2>امسح QR الخاص بالمخدوم</h2><label className="qr-scan-date">تاريخ الحضور<input type="date" value={scanDate} onChange={(event) => setScanDate(event.target.value)} /></label><div id="qr-reader" className="qr-reader" />{scannerError && <p className="login-error">{scannerError}</p>}{person && <div className="scanned-person"><strong>{person?.name || "مخدوم غير معروف"}</strong><small>{person?.phone1 || "بدون رقم"}</small><div className="segmented-control"><button className={scanType === "choir" ? "active" : ""} onClick={() => setScanType("choir")}>خورس</button><button className={scanType === "mass" ? "active" : ""} onClick={() => setScanType("mass")}>قداس</button><button className={scanType === "both" ? "active" : ""} onClick={() => setScanType("both")}>الاتنين</button></div><button className="primary-button" disabled={busy} onClick={save}>تأكيد تسجيل الحضور</button></div>}</div></section>;
+  const [status, setStatus] = useState("");
+  const [recent, setRecent] = useState([]);
+  const settingsRef = useRef({ scanType, scanDate });
+  settingsRef.current = { scanType, scanDate };
+  useEffect(() => {
+    const scanner = new Html5Qrcode("qr-reader");
+    const inflight = new Set();
+    const lastSaved = new Map();
+    const stopScanner = () => scanner.isScanning ? scanner.stop().catch(() => {}) : Promise.resolve();
+    scanner.start({ facingMode: "environment" }, { fps: 8, qrbox: { width: 230, height: 230 } }, async (decoded) => {
+      const value = String(decoded || "").trim();
+      const token = value.includes("/qr/") ? value.split("/qr/").pop().split(/[?#]/)[0] : value;
+      if (!token || inflight.has(token)) return;
+      const previous = lastSaved.get(token) || 0;
+      if (Date.now() - previous < 4000) return;
+      inflight.add(token);
+      try {
+        const result = await request(`/api/qr/${encodeURIComponent(token)}`);
+        const person = result?.person || result;
+        if (!person?.recordKey) throw new Error("تعذر قراءة QR");
+        const { scanType: type, scanDate: date } = settingsRef.current;
+        const types = type === "both" ? ["choir", "mass"] : [type];
+        for (const attendanceType of types) {
+          await request("/api/attendance", { method: "POST", body: JSON.stringify({ type: attendanceType, date, checks: { [person.recordKey]: true } }) });
+        }
+        lastSaved.set(token, Date.now());
+        const label = type === "choir" ? "خورس" : type === "mass" ? "قداس" : "خورس وقداس";
+        setStatus(`تم تسجيل حضور ${person.name} في ${label}`);
+        setScannerError("");
+        setRecent((current) => [{ key: `${person.recordKey}-${Date.now()}`, name: person.name, label }, ...current].slice(0, 8));
+      } catch (error) {
+        setScannerError(error?.message || "تعذر قراءة QR");
+      } finally {
+        inflight.delete(token);
+      }
+    }, () => {}).catch((error) => setScannerError(error?.message || "اسمح للمتصفح باستخدام الكاميرا"));
+    return () => { void stopScanner(); };
+  }, [request]);
+  return <section className="qr-scan-page"><div className="qr-scan-panel"><p className="section-kicker">تسجيل حضور سريع</p><h2>اختار النوع ثم امسح QR</h2><div className="segmented-control qr-scan-type"><button className={scanType === "choir" ? "active" : ""} onClick={() => setScanType("choir")}>خورس</button><button className={scanType === "mass" ? "active" : ""} onClick={() => setScanType("mass")}>قداس</button><button className={scanType === "both" ? "active" : ""} onClick={() => setScanType("both")}>الاتنين</button></div><label className="qr-scan-date">تاريخ الحضور<input type="date" value={scanDate} onChange={(event) => setScanDate(event.target.value)} /></label><p className="qr-scan-hint">أي كود هتمسحه هيتسجل فورًا في {scanType === "choir" ? "الخورس" : scanType === "mass" ? "القداس" : "الخورس والقداس"}، والكاميرا تفضل شغالة عشان تكمل باقي الأسماء.</p><div id="qr-reader" className="qr-reader" />{status && <p className="qr-scan-status">{status}</p>}{scannerError && <p className="login-error">{scannerError}</p>}{recent.length > 0 && <div className="scanned-person qr-recent"><strong>آخر التسجيلات</strong>{recent.map((item) => <small key={item.key}>{item.name} · {item.label}</small>)}</div>}</div></section>;
 }
 
-function AttendanceManager({ state, rows, attendanceType, setAttendanceType, attendanceDate, setAttendanceDate, checks, setChecks, save, onComment, onDeleteComment, busy, query, setQuery }) {
+function AttendanceManager({ state, rows, attendanceType, setAttendanceType, attendanceDate, setAttendanceDate, checks, setChecks, save, markAttendance, onComment, onDeleteComment, busy, query, setQuery }) {
   attendanceChecksForComments = checks;
   const [commentKey, setCommentKey] = useState("");
   const [commentText, setCommentText] = useState("");
@@ -493,9 +521,9 @@ function AttendanceManager({ state, rows, attendanceType, setAttendanceType, att
   const visibleQuery = normalizeArabic(query).trim().toLocaleLowerCase("ar");
   const visibleRows = sortedRows.filter((row) => normalizeArabic([row.name, row.phone1, row.phone2].filter(Boolean).join(" ")).toLocaleLowerCase("ar").includes(visibleQuery));
   const toggle = (recordKey) => {
-    const nextChecks = { ...checks, [recordKey]: !checks[recordKey] };
-    setChecks(nextChecks);
-    save(nextChecks, false);
+    const nextValue = !checks[recordKey];
+    setChecks({ ...checks, [recordKey]: nextValue });
+    markAttendance(recordKey, nextValue, attendanceType, attendanceDate);
   };
   return <section className="attendance-page"><AttendanceCommentPanel rows={sortedRows} date={attendanceDate} type={attendanceType} save={onComment} remove={onDeleteComment} busy={busy} /><div className="attendance-controls"><label className="search-box attendance-search"><Search size={17} /><input type="search" placeholder="ابحث بالاسم" value={query} onChange={(event) => setQuery(event.target.value)} /></label><div className="segmented-control"><button className={attendanceType === "choir" ? "active" : ""} onClick={() => setAttendanceType("choir")}><Church size={16} /> حضور الخورس</button><button className={attendanceType === "mass" ? "active" : ""} onClick={() => setAttendanceType("mass")}><UserCheck size={16} /> حضور القداس</button></div><label>تاريخ الحضور<input type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} /></label><button className="primary-button attendance-save" disabled={busy} onClick={() => save()}><Check size={16} /> حفظ حضور اليوم</button></div><section className="table-section"><div className="section-title-row table-title-row"><div><p className="section-kicker">خورس واحد</p><h2>{attendanceType === "choir" ? "حضور الخورس" : "حضور القداس"}</h2></div><span className="count-badge">{checked} من {rows.length}</span></div><div className="attendance-grid">{visibleRows.map((row, index) => <Fragment key={row.id}>{(() => { const letter = normalizeArabic(row.name).trim().slice(0, 1); const previousLetter = normalizeArabic(visibleRows[index - 1]?.name?.trim() || "").slice(0, 1); const key = String(row.recordKey); return <>{letter !== previousLetter && <div className="attendance-letter">{letter}</div>}<button className={`attendance-person ${checks[key] ? "present" : ""}`} key={row.id} onClick={() => toggle(key)}><span className="attendance-check">{checks[key] ? <Check size={18} /> : null}</span><span className="attendance-name">{row.name}</span><span className="attendance-meta">{row.role === "servant" ? "خادم" : "مخدوم"}</span></button></>})()}</Fragment>)}</div></section></section>;
 }
