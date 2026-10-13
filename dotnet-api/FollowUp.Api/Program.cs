@@ -491,7 +491,7 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
     // Allow editing the servant list before the first rotation date; keep the
     // saved start date as the week that receives the new distribution.
     var week = today < rotationStart ? rotationStart : WeekStart(today, rotationStart);
-    // Keep call groups dynamic: one nearly equal group per servant.
+    // Keep the group records available even when a group temporarily has no active members.
     await using (var regroupGroups = new NpgsqlCommand(@"
         insert into groups(number, display_order)
         select x::text, x from generate_series(1, $1) x
@@ -500,31 +500,15 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
         regroupGroups.Parameters.AddWithValue(servants.Length);
         await regroupGroups.ExecuteNonQueryAsync();
     }
-    await using (var regroupPeople = new NpgsqlCommand(@"
-        with ranked as (
-          select id, ((row_number() over(order by record_key) - 1) % $1 + 1)::text as next_group
-          from people where is_active = true and role = 'boy'
-        )
-        update people p set group_number = ranked.next_group, updated_at = now()
-        from ranked where p.id = ranked.id;", connection, transaction))
-    {
-        regroupPeople.Parameters.AddWithValue(servants.Length);
-        await regroupPeople.ExecuteNonQueryAsync();
-    }
     var groups = new List<string>();
-    await using (var groupCommand = new NpgsqlCommand("select g.number from groups g where exists (select 1 from people p where p.group_number=g.number and p.is_active=true and p.role='boy') order by g.display_order", connection, transaction))
+    await using (var groupCommand = new NpgsqlCommand("select number from groups order by display_order", connection, transaction))
     await using (var reader = await groupCommand.ExecuteReaderAsync())
         while (await reader.ReadAsync()) groups.Add(reader.GetString(0));
     var assignment = Assignments(groups, servants, week, rotationStart);
     await SetSetting(connection, transaction, "servants", servants);
     await SetSetting(connection, transaction, "rotationStart", rotationStart.ToString("yyyy-MM-dd"));
-    await using (var deleteAssignments = new NpgsqlCommand("delete from call_assignments where week_start=$1", connection, transaction))
-    {
-        deleteAssignments.Parameters.AddWithValue(week);
-        await deleteAssignments.ExecuteNonQueryAsync();
-    }
     foreach (var (group, servant) in assignment)
-    await using (var assign = new NpgsqlCommand("insert into call_assignments(week_start,group_number,servant) values($1,$2,$3)", connection, transaction))
+    await using (var assign = new NpgsqlCommand("insert into call_assignments(week_start,group_number,servant) values($1,$2,$3) on conflict (week_start,group_number) do nothing", connection, transaction))
     {
         assign.Parameters.AddWithValue(week); assign.Parameters.AddWithValue(group); assign.Parameters.AddWithValue(servant);
         await assign.ExecuteNonQueryAsync();
@@ -594,7 +578,11 @@ static async Task<object> BuildState(NpgsqlDataSource db, string mode, string? s
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync()) savedAssignments[reader.GetString(0)] = reader.GetString(1);
     }
-    var autoAssignments = Assignments(groups.Select(group => group.Number), servants, week, rotation);
+    var assignmentGroups = new List<string>();
+    await using (var command = new NpgsqlCommand("select number from groups order by display_order", connection))
+    await using (var reader = await command.ExecuteReaderAsync())
+        while (await reader.ReadAsync()) assignmentGroups.Add(reader.GetString(0));
+    var autoAssignments = Assignments(assignmentGroups, servants, week, rotation);
     var lastVisit = new Dictionary<long, string>();
     await using (var command = new NpgsqlCommand("select person_id,max(visit_date)::text from visit_records group by person_id", connection))
     await using (var reader = await command.ExecuteReaderAsync())
