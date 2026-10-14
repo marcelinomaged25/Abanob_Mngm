@@ -921,13 +921,9 @@ body { background: #eef5f8; }
 .sub-tabs button { border-color: #ded5bd; background: #f4eedb; color: #64748b; }
 .sub-tabs button:hover { background: #e9dfc2; color: #122f5e; }
 .sub-tabs button.active { border-color: #dcae2d; background: #dcae2d; color: #122f5e; }
-.dark-mode .sub-tabs { border-color: #3b5677; background: #102845; }
-.dark-mode .sub-tabs button { border-color: #3b5677; background: #102845; color: #dbe7f8; }
-.dark-mode .sub-tabs button:hover { background: #1a3960; }
 .dark-mode .sub-tabs button.active { border-color: #dcae2d; background: #dcae2d; color: #122f5e; }
 .scanner-close-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; margin: 2px auto 0; padding: 0 15px; border: 1px solid #d9cfb4; border-radius: 9px; background: #f4eedb; color: #122f5e; font-size: 12px; font-weight: 800; cursor: pointer; }
 .scanner-close-button:hover { background: #e9dfc2; }
-.dark-mode .scanner-close-button { border-color: #3b5677; background: #19385e; color: #edf3ff; }
 .dark-mode .scanner-close-button:hover { background: #244c78; }
 .sheep-icon { width: 18px; height: 18px; color: currentColor; }
 .sheep-hero-icon { width: 34px; height: 34px; color: #f4c44a; }
@@ -1383,23 +1379,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .public-note p { margin: 0; font-size: 12px; line-height: 1.7; }
 .dark-mode .attendance-bar-track,
 .dark-mode .coverage-track { background: #203b5d; }
-.dark-mode .chart-total { border-top-color: #334966; color: #a9b8cf; }
-.dark-mode .chart-total strong { color: #edf3ff; }
 .dark-mode .dashboard-table-search,
-.dark-mode .trend-controls input { border-color: #3b5677; background: #0f2440; color: #edf3ff; }
-.dark-mode .dashboard-filter-tabs button { border-color: #3b5677; color: #c8d6ea; }
-.dark-mode .dashboard-filter-tabs button:hover { background: #19385e; }
 .dark-mode .dashboard-filter-tabs button.active { border-color: #dcae2d; background: #dcae2d; color: #122f5e; }
 .dark-mode .weekly-trend,
 .dark-mode .dashboard-calendar,
-.dark-mode .dashboard-attendance-table { background: #132a49; border-color: #334966; color: #edf3ff; }
-.dark-mode .trend-chart { border-bottom-color: #334966; }
-.dark-mode .calendar-day { border-color: #2d4664; background: #102845; }
-.dark-mode .calendar-day.today { border-color: #6f8fc8; background: #19385e; }
 .dark-mode .calendar-day b,
-.dark-mode .calendar-nav { color: #edf3ff; }
-.dark-mode .calendar-nav button { border-color: #3b5677; background: #19385e; color: #dbe7f8; }
-.dark-mode .absent-person { border-color: #334966; background: #173352; color: #edf3ff; }
 .dark-mode .absent-person:hover { border-color: #54749a; background: #1d4169; }
 .dark-mode .absent-person small { color: #a9b8cf; }
 
