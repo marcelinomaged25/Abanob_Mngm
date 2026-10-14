@@ -243,7 +243,19 @@ tbody tr:hover td { background: #f5f8ff; }
 .servant-stats > div { display: grid; gap: 5px; padding: 15px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
 .servant-stats strong { color: var(--blue-dark); font-size: 24px; }
 .servant-stats span { color: var(--muted); font-size: 12px; }
+.servant-dashboard { display: grid; gap: 16px; margin-bottom: 18px; }
+.servant-chart-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.servant-chart-grid article { padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
+.servant-chart-grid h3 { margin: 0 0 14px; color: var(--blue-dark); font-size: 15px; }
+.servant-bar { display: grid; grid-template-columns: minmax(80px, 1fr) 2fr auto; align-items: center; gap: 8px; margin: 10px 0; font-size: 12px; }
+.servant-bar > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.servant-bar > i { display: block; height: 9px; overflow: hidden; border-radius: 999px; background: #e8edf5; }
+.servant-bar > i b { display: block; height: 100%; border-radius: inherit; background: #1c9d89; }
+.servant-bar > i b.visit { background: #d79b24; }
+.servant-bar > i b.attendance { background: #5578d9; }
+.servant-bar strong { min-width: 20px; color: var(--blue-dark); text-align: end; }
 @media (max-width: 720px) { .servant-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .servant-chart-grid { grid-template-columns: 1fr; } }
 .stray-page { display: grid; gap: 18px; }
 .stray-hero { display: flex; align-items: center; justify-content: space-between; padding: 22px 26px; border-radius: 18px; background: #0b1a3a; color: white; box-shadow: 0 12px 26px rgba(11, 26, 58, .18); }
 .stray-hero .section-kicker { color: #f2c94c; }

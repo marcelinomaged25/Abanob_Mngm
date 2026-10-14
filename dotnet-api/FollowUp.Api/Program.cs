@@ -191,6 +191,38 @@ api.MapGet("/dashboard", async (string? date, string? month, NpgsqlDataSource db
     return Results.Ok(new { selectedDate = dashboardDate.ToString("yyyy-MM-dd"), trendMonth = trendMonth.ToString("yyyy-MM"), summary, dailySummary, people, dailyPeople, calendar, weeklyTrend });
 });
 
+api.MapGet("/servant-stats", async (int? year, NpgsqlDataSource db) =>
+{
+    var selectedYear = year ?? CairoToday().Year;
+    await using var connection = await db.OpenConnectionAsync();
+    var stats = new List<object>();
+    await using (var command = new NpgsqlCommand(@"select p.id,p.name,
+        count(distinct a.attendance_date) filter(where a.attendance_type='choir'),
+        count(distinct a.attendance_date) filter(where a.attendance_type='mass'),
+        count(distinct v.visit_date),count(distinct c.week_start)
+        from people p left join attendance_records a on a.person_id=p.id
+        left join visit_records v on v.person_id=p.id
+        left join call_records c on c.person_id=p.id
+        where p.is_active=true and p.role='servant'
+        group by p.id,p.name order by count(distinct c.week_start) desc,count(distinct v.visit_date) desc,p.name", connection))
+    {
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync()) stats.Add(new { id = reader.GetInt64(0), name = reader.GetString(1), choir = reader.GetInt64(2), mass = reader.GetInt64(3), visits = reader.GetInt64(4), calls = reader.GetInt64(5) });
+    }
+    var monthly = new List<object>();
+    await using (var command = new NpgsqlCommand(@"select to_char(month,'YYYY-MM'),sum(choir),sum(mass),sum(visits),sum(calls) from (
+        select date_trunc('month',attendance_date)::date month,count(*) filter(where attendance_type='choir') choir,count(*) filter(where attendance_type='mass') mass,0 visits,0 calls from attendance_records a join people p on p.id=a.person_id where p.role='servant' and extract(year from attendance_date)=$1 group by 1
+        union all select date_trunc('month',visit_date)::date,0,0,count(*),0 from visit_records v join people p on p.id=v.person_id where p.role='servant' and extract(year from visit_date)=$1 group by 1
+        union all select date_trunc('month',week_start)::date,0,0,0,count(*) from call_records c join people p on p.id=c.person_id where p.role='servant' and extract(year from week_start)=$1 group by 1
+    ) data group by month order by month", connection))
+    {
+        command.Parameters.AddWithValue(selectedYear);
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync()) monthly.Add(new { month = reader.GetString(0), choir = reader.GetInt64(1), mass = reader.GetInt64(2), visits = reader.GetInt64(3), calls = reader.GetInt64(4) });
+    }
+    return Results.Ok(new { year = selectedYear, stats, monthly });
+});
+
 api.MapGet("/visit-reports", async (int? year, string? month, NpgsqlDataSource db) =>
 {
     var today = CairoToday();
