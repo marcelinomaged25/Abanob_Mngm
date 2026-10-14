@@ -437,6 +437,17 @@ api.MapPost("/people", async (PersonInput payload, NpgsqlDataSource db) =>
     await using var command = new NpgsqlCommand("insert into people(record_key,name,note,phone1,phone2,group_number,address,role,qr_token) values((select coalesce(max(record_key),0)+1 from people),$1,$2,$3,$4,$5,$6,$7,$8) returning id", connection);
     command.Parameters.AddWithValue(payload.Name.Trim()); command.Parameters.AddWithValue(payload.Note?.Trim() ?? ""); command.Parameters.AddWithValue(NormalizeEgyptianPhone(payload.Phone1)); command.Parameters.AddWithValue(NormalizeEgyptianPhone(payload.Phone2)); command.Parameters.AddWithValue(string.IsNullOrWhiteSpace(payload.Group) ? (object)DBNull.Value : payload.Group.Trim()); command.Parameters.AddWithValue(payload.Address?.Trim() ?? ""); command.Parameters.AddWithValue(NormalizeRole(payload.Role)); command.Parameters.AddWithValue(Convert.ToHexString(RandomNumberGenerator.GetBytes(18)).ToLowerInvariant());
     var id = (long)(await command.ExecuteScalarAsync())!;
+    if (NormalizeRole(payload.Role) == "boy" && string.IsNullOrWhiteSpace(payload.Group))
+    {
+        await using var leastGroup = new NpgsqlCommand("select g.number from groups g left join people p on p.group_number=g.number and p.is_active=true and p.role='boy' group by g.number,g.display_order order by count(p.id),g.display_order limit 1", connection);
+        var group = await leastGroup.ExecuteScalarAsync() as string;
+        if (!string.IsNullOrWhiteSpace(group))
+        {
+            await using var assignGroup = new NpgsqlCommand("update people set group_number=$1,updated_at=now() where id=$2", connection);
+            assignGroup.Parameters.AddWithValue(group); assignGroup.Parameters.AddWithValue(id);
+            await assignGroup.ExecuteNonQueryAsync();
+        }
+    }
     return Results.Created($"/api/people/{id}", new { id });
 });
 
@@ -482,16 +493,21 @@ api.MapPost("/visits", async (VisitSave payload, NpgsqlDataSource db) =>
 api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
 {
     var today = CairoToday();
-    var servants = (payload.Servants ?? []).Select(name => name.Trim()).Where(name => name.Length > 0).Distinct(StringComparer.Ordinal).ToArray();
-    if (servants.Length == 0) return Results.BadRequest(new { error = "أضف أسماء الخدام أولًا" });
     await using var connection = await db.OpenConnectionAsync();
     await using var transaction = await connection.BeginTransactionAsync();
+    var availableServants = new HashSet<string>(StringComparer.Ordinal);
+    await using (var servantCommand = new NpgsqlCommand("select name from people where is_active=true and role='servant'", connection, transaction))
+    await using (var servantReader = await servantCommand.ExecuteReaderAsync())
+        while (await servantReader.ReadAsync()) availableServants.Add(servantReader.GetString(0));
+    var servants = (payload.Servants ?? []).Select(name => name.Trim()).Where(name => name.Length > 0 && availableServants.Contains(name)).Distinct(StringComparer.Ordinal).ToArray();
+    if (servants.Length == 0) return Results.BadRequest(new { error = "اختار خادمًا مسجلًا في إدارة الخورس أولًا" });
     var savedRotationStart = await GetSetting<string?>(connection, "rotationStart");
     var rotationStart = ParseDate(payload.RotationStart, ParseDate(savedRotationStart, today));
     // Allow editing the servant list before the first rotation date; keep the
     // saved start date as the week that receives the new distribution.
     var week = today < rotationStart ? rotationStart : WeekStart(today, rotationStart);
-    // Keep call groups dynamic: one nearly equal group per servant.
+    // Keep the group count aligned with the active servants without re-numbering
+    // everyone on every save. Existing assignments and completed calls are stable.
     await using (var regroupGroups = new NpgsqlCommand(@"
         insert into groups(number, display_order)
         select x::text, x from generate_series(1, $1) x
@@ -500,22 +516,35 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
         regroupGroups.Parameters.AddWithValue(servants.Length);
         await regroupGroups.ExecuteNonQueryAsync();
     }
-    await using (var regroupPeople = new NpgsqlCommand(@"
-        with ranked as (
-          select id, ((row_number() over(order by record_key) - 1) % $1 + 1)::text as next_group
-          from people where is_active = true and role = 'boy'
-        )
-        update people p set group_number = ranked.next_group, updated_at = now()
-        from ranked where p.id = ranked.id;", connection, transaction))
+    var completedPeople = new HashSet<long>();
+    await using (var completed = new NpgsqlCommand("select person_id from call_records where week_start=$1", connection, transaction))
     {
-        regroupPeople.Parameters.AddWithValue(servants.Length);
-        await regroupPeople.ExecuteNonQueryAsync();
+        completed.Parameters.AddWithValue(week);
+        await using var reader = await completed.ExecuteReaderAsync();
+        while (await reader.ReadAsync()) completedPeople.Add(reader.GetInt64(0));
+    }
+    var existingAssignments = new Dictionary<string, string>();
+    await using (var existing = new NpgsqlCommand("select group_number,servant from call_assignments where week_start=$1", connection, transaction))
+    {
+        existing.Parameters.AddWithValue(week);
+        await using var reader = await existing.ExecuteReaderAsync();
+        while (await reader.ReadAsync()) existingAssignments[reader.GetString(0)] = reader.GetString(1);
     }
     var groups = new List<string>();
     await using (var groupCommand = new NpgsqlCommand("select g.number from groups g where exists (select 1 from people p where p.group_number=g.number and p.is_active=true and p.role='boy') order by g.display_order", connection, transaction))
     await using (var reader = await groupCommand.ExecuteReaderAsync())
         while (await reader.ReadAsync()) groups.Add(reader.GetString(0));
-    var assignment = Assignments(groups, servants, week, rotationStart);
+    var assignment = new Dictionary<string, string>();
+    var unusedServants = new Queue<string>(servants);
+    foreach (var group in groups)
+        if (existingAssignments.TryGetValue(group, out var current) && servants.Contains(current, StringComparer.Ordinal))
+        {
+            assignment[group] = current;
+            var remaining = unusedServants.Where(name => !string.Equals(name, current, StringComparison.Ordinal)).ToArray();
+            unusedServants = new Queue<string>(remaining);
+        }
+    foreach (var group in groups)
+        if (!assignment.ContainsKey(group)) assignment[group] = unusedServants.Count > 0 ? unusedServants.Dequeue() : servants[assignment.Count % servants.Length];
     await SetSetting(connection, transaction, "servants", servants);
     await SetSetting(connection, transaction, "rotationStart", rotationStart.ToString("yyyy-MM-dd"));
     await using (var deleteAssignments = new NpgsqlCommand("delete from call_assignments where week_start=$1", connection, transaction))
@@ -528,6 +557,24 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
     {
         assign.Parameters.AddWithValue(week); assign.Parameters.AddWithValue(group); assign.Parameters.AddWithValue(servant);
         await assign.ExecuteNonQueryAsync();
+    }
+    var groupCounts = groups.ToDictionary(group => group, _ => 0);
+    var people = new List<(long Id, string Group)>();
+    await using (var peopleCommand = new NpgsqlCommand("select id,group_number from people where is_active=true and role='boy' order by record_key", connection, transaction))
+    await using (var reader = await peopleCommand.ExecuteReaderAsync())
+        while (await reader.ReadAsync()) people.Add((reader.GetInt64(0), reader.IsDBNull(1) ? "" : reader.GetString(1)));
+    foreach (var person in people)
+    {
+        if (completedPeople.Contains(person.Id) && assignment.ContainsKey(person.Group)) groupCounts[person.Group]++;
+        else if (completedPeople.Contains(person.Id)) continue;
+        else
+        {
+            var target = groupCounts.OrderBy(item => item.Value).ThenBy(item => item.Key).First().Key;
+            groupCounts[target]++;
+            await using var update = new NpgsqlCommand("update people set group_number=$1,updated_at=now() where id=$2", connection, transaction);
+            update.Parameters.AddWithValue(target); update.Parameters.AddWithValue(person.Id);
+            await update.ExecuteNonQueryAsync();
+        }
     }
     await using (var deleteCalls = new NpgsqlCommand("delete from call_records where week_start=$1 and person_id in (select p.id from people p join jsonb_each_text($2::jsonb) checks on checks.key::integer=p.record_key where p.is_active=true)", connection, transaction))
     {
