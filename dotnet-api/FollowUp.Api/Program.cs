@@ -435,7 +435,7 @@ api.MapPost("/people", async (PersonInput payload, NpgsqlDataSource db) =>
     if (!ValidPerson(payload, out var error)) return Results.BadRequest(new { error });
     await using var connection = await db.OpenConnectionAsync();
     var normalizedRole = NormalizeRole(payload.Role);
-    var assignedGroup = string.IsNullOrWhiteSpace(payload.Group) && normalizedRole == "boy" ? await SelectLeastFilledGroupAsync(connection) : (string.IsNullOrWhiteSpace(payload.Group) ? null : payload.Group.Trim());
+    var assignedGroup = normalizedRole != "boy" ? null : string.IsNullOrWhiteSpace(payload.Group) ? await SelectLeastFilledGroupAsync(connection) : payload.Group.Trim();
     await using var command = new NpgsqlCommand("insert into people(record_key,name,note,phone1,phone2,group_number,address,role,qr_token) values((select coalesce(max(record_key),0)+1 from people),$1,$2,$3,$4,$5,$6,$7,$8) returning id", connection);
     command.Parameters.AddWithValue(payload.Name.Trim()); command.Parameters.AddWithValue(payload.Note?.Trim() ?? ""); command.Parameters.AddWithValue(NormalizeEgyptianPhone(payload.Phone1)); command.Parameters.AddWithValue(NormalizeEgyptianPhone(payload.Phone2)); command.Parameters.AddWithValue(string.IsNullOrWhiteSpace(assignedGroup) ? (object)DBNull.Value : assignedGroup.Trim()); command.Parameters.AddWithValue(payload.Address?.Trim() ?? ""); command.Parameters.AddWithValue(normalizedRole); command.Parameters.AddWithValue(Convert.ToHexString(RandomNumberGenerator.GetBytes(18)).ToLowerInvariant());
     var id = (long)(await command.ExecuteScalarAsync())!;
@@ -448,7 +448,7 @@ api.MapPut("/people/{personId:long}", async (long personId, PersonInput payload,
     await using var connection = await db.OpenConnectionAsync();
     var normalizedRole = NormalizeRole(payload.Role);
     var currentPerson = await GetPersonAsync(connection, personId);
-    var targetGroup = string.IsNullOrWhiteSpace(payload.Group) ? currentPerson?.Group : payload.Group.Trim();
+    var targetGroup = normalizedRole == "servant" ? null : string.IsNullOrWhiteSpace(payload.Group) ? currentPerson?.Group : payload.Group.Trim();
     if (normalizedRole == "boy" && string.IsNullOrWhiteSpace(targetGroup)) targetGroup = await SelectLeastFilledGroupAsync(connection, personId);
     await using var command = new NpgsqlCommand("update people set name=$1,note=$2,phone1=$3,phone2=$4,group_number=$5,address=$6,role=$7,updated_at=now() where id=$8 and is_active=true", connection);
     command.Parameters.AddWithValue(payload.Name.Trim()); command.Parameters.AddWithValue(payload.Note?.Trim() ?? ""); command.Parameters.AddWithValue(NormalizeEgyptianPhone(payload.Phone1)); command.Parameters.AddWithValue(NormalizeEgyptianPhone(payload.Phone2)); command.Parameters.AddWithValue(string.IsNullOrWhiteSpace(targetGroup) ? (object)DBNull.Value : targetGroup.Trim()); command.Parameters.AddWithValue(payload.Address?.Trim() ?? ""); command.Parameters.AddWithValue(normalizedRole); command.Parameters.AddWithValue(personId);
@@ -470,12 +470,12 @@ api.MapPost("/visits", async (VisitSave payload, NpgsqlDataSource db) =>
     var date = ParseDate(payload.Date, CairoToday());
     await using var connection = await db.OpenConnectionAsync();
     await using var transaction = await connection.BeginTransactionAsync();
-    await using (var delete = new NpgsqlCommand("delete from visit_records where visit_date=$1 and person_id in (select id from people where is_active=true)", connection, transaction))
+    await using (var delete = new NpgsqlCommand("delete from visit_records where visit_date=$1 and person_id in (select id from people where is_active=true and role='boy')", connection, transaction))
     {
         delete.Parameters.AddWithValue(date);
         await delete.ExecuteNonQueryAsync();
     }
-    await using (var insert = new NpgsqlCommand("insert into visit_records(person_id,visit_date) select p.id,$1 from jsonb_each_text($2::jsonb) checks join people p on p.record_key=checks.key::integer where checks.value='true' and p.is_active=true on conflict do nothing", connection, transaction))
+    await using (var insert = new NpgsqlCommand("insert into visit_records(person_id,visit_date) select p.id,$1 from jsonb_each_text($2::jsonb) checks join people p on p.record_key=checks.key::integer where checks.value='true' and p.is_active=true and p.role='boy' on conflict do nothing", connection, transaction))
     {
         insert.Parameters.AddWithValue(date);
         insert.Parameters.AddWithValue(JsonSerializer.Serialize(payload.Checks ?? new Dictionary<string, bool>()));
@@ -542,13 +542,13 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
     await SetSetting(connection, transaction, "rotationStart", rotationStart.ToString("yyyy-MM-dd"));
 
     var checks = payload.Checks ?? new Dictionary<string, bool>();
-    await using (var deleteCalls = new NpgsqlCommand("delete from call_records where week_start=$1 and person_id in (select p.id from people p join jsonb_each_text($2::jsonb) checks on checks.key::integer=p.record_key where p.is_active=true and checks.value='false')", connection, transaction))
+    await using (var deleteCalls = new NpgsqlCommand("delete from call_records where week_start=$1 and person_id in (select p.id from people p join jsonb_each_text($2::jsonb) checks on checks.key::integer=p.record_key where p.is_active=true and p.role='boy' and checks.value='false')", connection, transaction))
     {
         deleteCalls.Parameters.AddWithValue(week);
         deleteCalls.Parameters.AddWithValue(JsonSerializer.Serialize(checks));
         await deleteCalls.ExecuteNonQueryAsync();
     }
-    await using (var saveCalls = new NpgsqlCommand("insert into call_records(person_id,week_start,servant) select p.id,$1,coalesce(a.servant,'') from people p join jsonb_each_text($2::jsonb) checks on checks.key::integer=p.record_key left join call_assignments a on a.week_start=$1 and a.group_number=p.group_number where checks.value='true' and p.is_active=true on conflict (person_id,week_start) do nothing", connection, transaction))
+    await using (var saveCalls = new NpgsqlCommand("insert into call_records(person_id,week_start,servant) select p.id,$1,coalesce(a.servant,'') from people p join jsonb_each_text($2::jsonb) checks on checks.key::integer=p.record_key left join call_assignments a on a.week_start=$1 and a.group_number=p.group_number where checks.value='true' and p.is_active=true and p.role='boy' on conflict (person_id,week_start) do nothing", connection, transaction))
     {
         saveCalls.Parameters.AddWithValue(week);
         saveCalls.Parameters.AddWithValue(JsonSerializer.Serialize(checks));
@@ -585,7 +585,7 @@ static async Task<object> BuildState(NpgsqlDataSource db, string mode, string? s
     var groups = new List<Group>();
     await using (var command = new NpgsqlCommand("select g.number,g.display_order from groups g where exists (select 1 from people p where p.group_number=g.number and p.is_active=true and p.role='boy') order by g.display_order", connection))
     await using (var reader = await command.ExecuteReaderAsync())
-        while (await reader.ReadAsync()) groups.Add(new Group(reader.GetString(0), people.Count(person => person.Group == reader.GetString(0)), people.Where(person => person.Group == reader.GetString(0)).Select(person => person.RecordKey).ToArray()));
+        while (await reader.ReadAsync()) groups.Add(new Group(reader.GetString(0), people.Count(person => person.Role == "boy" && person.Group == reader.GetString(0)), people.Where(person => person.Role == "boy" && person.Group == reader.GetString(0)).Select(person => person.RecordKey).ToArray()));
     var visits = new HashSet<long>();
     await using (var command = new NpgsqlCommand("select person_id from visit_records where visit_date=$1", connection))
     {
@@ -628,7 +628,8 @@ static async Task<object> BuildState(NpgsqlDataSource db, string mode, string? s
     var rows = people.Select(person =>
     {
         lastCall.TryGetValue(person.Id, out var call);
-        return new { id = person.Id, recordKey = person.RecordKey, name = person.Name, note = person.Note, phone1 = person.Phone1, phone2 = person.Phone2, group = person.Group, address = person.Address, role = person.Role, qrToken = person.QrToken, visited = mode == "visit" && visits.Contains(person.Id), visitedThisMonth = visitedThisMonth.Contains(person.Id), called = calls.ContainsKey(person.Id), servant = calls.GetValueOrDefault(person.Id) ?? savedAssignments.GetValueOrDefault(person.Group) ?? autoAssignments.GetValueOrDefault(person.Group) ?? "", lastVisitedDate = lastVisit.GetValueOrDefault(person.Id) ?? "", lastCalledWeek = call.Week ?? "", lastCaller = call.Servant ?? "", lastChoirDate = lastChoir.GetValueOrDefault(person.Id) ?? "", lastMassDate = lastMass.GetValueOrDefault(person.Id) ?? "" };
+        var group = person.Role == "servant" ? "" : person.Group;
+        return new { id = person.Id, recordKey = person.RecordKey, name = person.Name, note = person.Note, phone1 = person.Phone1, phone2 = person.Phone2, group, address = person.Address, role = person.Role, qrToken = person.QrToken, visited = mode == "visit" && visits.Contains(person.Id), visitedThisMonth = visitedThisMonth.Contains(person.Id), called = calls.ContainsKey(person.Id), servant = calls.GetValueOrDefault(person.Id) ?? savedAssignments.GetValueOrDefault(person.Group) ?? autoAssignments.GetValueOrDefault(person.Group) ?? "", lastVisitedDate = lastVisit.GetValueOrDefault(person.Id) ?? "", lastCalledWeek = call.Week ?? "", lastCaller = call.Servant ?? "", lastChoirDate = lastChoir.GetValueOrDefault(person.Id) ?? "", lastMassDate = lastMass.GetValueOrDefault(person.Id) ?? "" };
     }).ToArray();
     var groupStates = groups.Select(group => new { number = group.Number, members = group.Members, recordKeys = group.RecordKeys, servant = savedAssignments.GetValueOrDefault(group.Number) ?? autoAssignments.GetValueOrDefault(group.Number) ?? "" }).ToArray();
     var weekEnd = week.AddDays(6);
