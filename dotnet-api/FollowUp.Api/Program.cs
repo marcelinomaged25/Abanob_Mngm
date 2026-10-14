@@ -509,7 +509,24 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
     }
     else
     {
-        var assignedServants = new HashSet<string>(existingAssignments.Values.Where(name => !string.IsNullOrWhiteSpace(name)), StringComparer.Ordinal);
+        var removedGroups = existingAssignments.Where(item => !servants.Contains(item.Value, StringComparer.Ordinal)).ToArray();
+        var destinationGroups = existingAssignments
+            .Where(item => servants.Contains(item.Value, StringComparer.Ordinal))
+            .Select(item => item.Key)
+            .ToList();
+
+        if (removedGroups.Length > 0 && destinationGroups.Count > 0)
+        {
+            var destinationServants = destinationGroups.ToDictionary(group => group, group => existingAssignments[group], StringComparer.Ordinal);
+            foreach (var removedGroup in removedGroups)
+            {
+                await RedistributeGroupMembersAsync(connection, transaction, removedGroup.Key, destinationGroups);
+                await UpsertAssignmentAsync(connection, transaction, week, removedGroup.Key, destinationServants[destinationGroups[0]]);
+                existingAssignments[removedGroup.Key] = destinationServants[destinationGroups[0]];
+            }
+        }
+
+        var assignedServants = new HashSet<string>(existingAssignments.Values, StringComparer.Ordinal);
         var emptyGroups = groups.Where(group => !existingAssignments.ContainsKey(group)).ToList();
         foreach (var servant in servants.Where(name => !assignedServants.Contains(name)))
         {
@@ -531,7 +548,7 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
         deleteCalls.Parameters.AddWithValue(JsonSerializer.Serialize(checks));
         await deleteCalls.ExecuteNonQueryAsync();
     }
-    await using (var saveCalls = new NpgsqlCommand("insert into call_records(person_id,week_start,servant) select p.id,$1,coalesce(a.servant,'') from people p join jsonb_each_text($2::jsonb) checks on checks.key::integer=p.record_key left join call_assignments a on a.week_start=$1 and a.group_number=p.group_number where checks.value='true' and p.is_active=true on conflict (person_id,week_start) do update set servant=excluded.servant, recorded_at=now()", connection, transaction))
+    await using (var saveCalls = new NpgsqlCommand("insert into call_records(person_id,week_start,servant) select p.id,$1,coalesce(a.servant,'') from people p join jsonb_each_text($2::jsonb) checks on checks.key::integer=p.record_key left join call_assignments a on a.week_start=$1 and a.group_number=p.group_number where checks.value='true' and p.is_active=true on conflict (person_id,week_start) do nothing", connection, transaction))
     {
         saveCalls.Parameters.AddWithValue(week);
         saveCalls.Parameters.AddWithValue(JsonSerializer.Serialize(checks));
@@ -691,6 +708,42 @@ static async Task<Dictionary<string, string>> LoadWeekAssignmentsAsync(NpgsqlCon
         if (!string.IsNullOrWhiteSpace(servant)) assignments[group] = servant;
     }
     return assignments;
+}
+
+static async Task RedistributeGroupMembersAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string sourceGroup, IReadOnlyList<string> destinationGroups)
+{
+    if (destinationGroups.Count == 0) return;
+
+    var destinationCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+    await using (var countCommand = new NpgsqlCommand(@"select g.number, count(p.id)::int
+        from groups g
+        left join people p on p.group_number=g.number and p.is_active=true and p.role='boy'
+        where g.number=any($1)
+        group by g.number, g.display_order
+        order by g.display_order", connection, transaction))
+    {
+        countCommand.Parameters.AddWithValue(destinationGroups.ToArray());
+        await using var reader = await countCommand.ExecuteReaderAsync();
+        while (await reader.ReadAsync()) destinationCounts[reader.GetString(0)] = reader.GetInt32(1);
+    }
+
+    var personIds = new List<long>();
+    await using (var peopleCommand = new NpgsqlCommand("select id from people where group_number=$1 and is_active=true and role='boy' order by record_key", connection, transaction))
+    {
+        peopleCommand.Parameters.AddWithValue(sourceGroup);
+        await using var reader = await peopleCommand.ExecuteReaderAsync();
+        while (await reader.ReadAsync()) personIds.Add(reader.GetInt64(0));
+    }
+
+    foreach (var personId in personIds)
+    {
+        var destination = destinationGroups.OrderBy(group => destinationCounts.GetValueOrDefault(group)).First();
+        await using var update = new NpgsqlCommand("update people set group_number=$1, updated_at=now() where id=$2", connection, transaction);
+        update.Parameters.AddWithValue(destination);
+        update.Parameters.AddWithValue(personId);
+        await update.ExecuteNonQueryAsync();
+        destinationCounts[destination]++;
+    }
 }
 
 static async Task UpsertAssignmentAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, DateOnly week, string groupNumber, string servant)
