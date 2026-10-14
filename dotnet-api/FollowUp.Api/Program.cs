@@ -89,7 +89,27 @@ app.MapGet("/api/public/qr/{token}", async (string token, NpgsqlDataSource db) =
         await using var requestReader = await requestCommand.ExecuteReaderAsync();
         while (await requestReader.ReadAsync()) requests.Add(new { id = requestReader.GetInt64(0), type = requestReader.GetString(1), status = requestReader.GetString(2), createdAt = requestReader.GetString(3), message = requestReader.GetString(4) });
     }
-    return Results.Ok(new { person = ratedPerson, attendance, monthly, followUpRequests = requests });
+    var servants = new List<object>();
+    await using (var servantCommand = new NpgsqlCommand(@"
+        select p.id, p.name, coalesce(p.phone1, ''), coalesce(p.phone2, ''),
+               case when extract(dow from (now() at time zone 'Africa/Cairo'))=5
+                         and extract(hour from (now() at time zone 'Africa/Cairo')) >= 12
+                         and extract(hour from (now() at time zone 'Africa/Cairo')) < 15 then
+                   case when exists (select 1 from attendance_records a where a.person_id=p.id and a.attendance_type='choir' and a.attendance_date=(now() at time zone 'Africa/Cairo')::date) then 'present' else 'absent' end
+               else 'available' end
+        from people p
+        where p.is_active=true and p.role='servant'
+        order by p.name", connection))
+    await using (var servantReader = await servantCommand.ExecuteReaderAsync())
+    {
+        while (await servantReader.ReadAsync())
+        {
+            var phone1 = servantReader.GetString(2);
+            var phone2 = servantReader.GetString(3);
+            servants.Add(new { id = servantReader.GetInt64(0), name = servantReader.GetString(1), phone1, phone2, choirStatus = servantReader.GetString(4) });
+        }
+    }
+    return Results.Ok(new { person = ratedPerson, attendance, monthly, followUpRequests = requests, servants });
 });
 
 app.MapPost("/api/public/qr/{token}/followup-request", async (string token, FollowUpRequestSave payload, NpgsqlDataSource db) =>
