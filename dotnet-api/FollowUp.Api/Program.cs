@@ -187,7 +187,7 @@ api.MapGet("/dashboard", async (string? date, string? month, NpgsqlDataSource db
     await dailyReader.ReadAsync();
     var dailySummary = new { total = dailyReader.GetInt64(0), choirPresent = dailyReader.GetInt64(1), massPresent = dailyReader.GetInt64(2) };
     await dailyReader.CloseAsync();
-    await using var peopleCommand = new NpgsqlCommand("select p.id,p.record_key,p.name,p.group_number,p.role,count(distinct a.attendance_date) filter(where a.attendance_type='choir'),count(distinct a.attendance_date) filter(where a.attendance_type='mass'),count(distinct v.visit_date),count(distinct c.week_start),max(v.visit_date)::text,(max(a.attendance_date) filter(where a.attendance_type='choir'))::text,(max(a.attendance_date) filter(where a.attendance_type='mass'))::text from people p left join attendance_records a on a.person_id=p.id left join visit_records v on v.person_id=p.id left join call_records c on c.person_id=p.id where p.is_active=true group by p.id order by count(distinct a.attendance_date) filter(where a.attendance_type='choir') + count(distinct a.attendance_date) filter(where a.attendance_type='mass'), count(distinct v.visit_date) + count(distinct c.week_start), p.name", connection);
+    await using var peopleCommand = new NpgsqlCommand("select p.id,p.record_key,p.name,p.group_number,p.role,count(distinct a.attendance_date) filter(where a.attendance_type='choir'),count(distinct a.attendance_date) filter(where a.attendance_type='mass'),count(distinct v.visit_date) filter(where p.role<>'servant'),count(distinct c.week_start),max(v.visit_date)::text,(max(a.attendance_date) filter(where a.attendance_type='choir'))::text,(max(a.attendance_date) filter(where a.attendance_type='mass'))::text from people p left join attendance_records a on a.person_id=p.id left join visit_records v on v.person_id=p.id left join call_records c on (p.role='servant' and c.servant=p.name) or (p.role<>'servant' and c.person_id=p.id) where p.is_active=true group by p.id order by count(distinct a.attendance_date) filter(where a.attendance_type='choir') + count(distinct a.attendance_date) filter(where a.attendance_type='mass'), count(distinct c.week_start), p.name", connection);
     await using var peopleReader = await peopleCommand.ExecuteReaderAsync();
     var people = new List<object>();
     while (await peopleReader.ReadAsync()) people.Add(new { id = peopleReader.GetInt64(0), recordKey = peopleReader.GetInt32(1), name = peopleReader.GetString(2), group = peopleReader.IsDBNull(3) ? "" : peopleReader.GetString(3), role = peopleReader.GetString(4), choirCount = peopleReader.GetInt64(5), massCount = peopleReader.GetInt64(6), visitCount = peopleReader.GetInt64(7), callCount = peopleReader.GetInt64(8), lastVisit = peopleReader.IsDBNull(9) ? "" : peopleReader.GetString(9), lastChoir = peopleReader.IsDBNull(10) ? "" : peopleReader.GetString(10), lastMass = peopleReader.IsDBNull(11) ? "" : peopleReader.GetString(11) });
@@ -217,28 +217,26 @@ api.MapGet("/servant-stats", async (int? year, NpgsqlDataSource db) =>
     await using var connection = await db.OpenConnectionAsync();
     var stats = new List<object>();
     await using (var command = new NpgsqlCommand(@"select p.id,p.name,
-        count(distinct a.attendance_date) filter(where a.attendance_type='choir'),
-        count(distinct a.attendance_date) filter(where a.attendance_type='mass'),
-        count(distinct v.visit_date),count(distinct c.week_start)
-        from people p left join attendance_records a on a.person_id=p.id
-        left join visit_records v on v.person_id=p.id
-        left join call_records c on c.person_id=p.id
+        (select count(distinct a.attendance_date) from attendance_records a where a.person_id=p.id and a.attendance_type='choir'),
+        (select count(distinct a.attendance_date) from attendance_records a where a.person_id=p.id and a.attendance_type='mass'),
+        (select count(*) from call_records c where c.servant=p.name),
+        (select count(distinct c.week_start) from call_records c where c.servant=p.name)
+        from people p
         where p.is_active=true and p.role='servant'
-        group by p.id,p.name order by count(distinct c.week_start) desc,count(distinct v.visit_date) desc,p.name", connection))
+        order by (select count(*) from call_records c where c.servant=p.name) desc,p.name", connection))
     {
         await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync()) stats.Add(new { id = reader.GetInt64(0), name = reader.GetString(1), choir = reader.GetInt64(2), mass = reader.GetInt64(3), visits = reader.GetInt64(4), calls = reader.GetInt64(5) });
+        while (await reader.ReadAsync()) stats.Add(new { id = reader.GetInt64(0), name = reader.GetString(1), choir = reader.GetInt64(2), mass = reader.GetInt64(3), calls = reader.GetInt64(4), callWeeks = reader.GetInt64(5) });
     }
     var monthly = new List<object>();
-    await using (var command = new NpgsqlCommand(@"select to_char(month,'YYYY-MM'),sum(choir),sum(mass),sum(visits),sum(calls) from (
-        select date_trunc('month',attendance_date)::date month,count(*) filter(where attendance_type='choir') choir,count(*) filter(where attendance_type='mass') mass,0 visits,0 calls from attendance_records a join people p on p.id=a.person_id where p.role='servant' and extract(year from attendance_date)=$1 group by 1
-        union all select date_trunc('month',visit_date)::date,0,0,count(*),0 from visit_records v join people p on p.id=v.person_id where p.role='servant' and extract(year from visit_date)=$1 group by 1
-        union all select date_trunc('month',week_start)::date,0,0,0,count(*) from call_records c join people p on p.id=c.person_id where p.role='servant' and extract(year from week_start)=$1 group by 1
+    await using (var command = new NpgsqlCommand(@"select to_char(month,'YYYY-MM'),sum(choir),sum(mass),sum(calls) from (
+        select date_trunc('month',attendance_date)::date month,count(*) filter(where attendance_type='choir') choir,count(*) filter(where attendance_type='mass') mass,0 calls from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='servant' and extract(year from attendance_date)=$1 group by 1
+        union all select date_trunc('month',week_start)::date,0,0,count(*) from call_records c join people p on p.is_active=true and p.role='servant' and p.name=c.servant where extract(year from week_start)=$1 group by 1
     ) data group by month order by month", connection))
     {
         command.Parameters.AddWithValue(selectedYear);
         await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync()) monthly.Add(new { month = reader.GetString(0), choir = reader.GetInt64(1), mass = reader.GetInt64(2), visits = reader.GetInt64(3), calls = reader.GetInt64(4) });
+        while (await reader.ReadAsync()) monthly.Add(new { month = reader.GetString(0), choir = reader.GetInt64(1), mass = reader.GetInt64(2), calls = reader.GetInt64(3) });
     }
     return Results.Ok(new { year = selectedYear, stats, monthly });
 });

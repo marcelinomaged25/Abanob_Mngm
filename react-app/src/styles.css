@@ -254,6 +254,10 @@ tbody tr:hover td { background: #f5f8ff; }
 .servant-bar > i b.visit { background: #d79b24; }
 .servant-bar > i b.attendance { background: #5578d9; }
 .servant-bar strong { min-width: 20px; color: var(--blue-dark); text-align: end; }
+.servant-activity-label { margin-inline-start: 8px; font-size: 10px; font-style: normal; font-weight: 800; }
+.servant-activity-label.active { color: #15794f; }
+.servant-activity-label.medium { color: #9a6800; }
+.servant-activity-label.inactive { color: #b42318; }
 @media (max-width: 720px) { .servant-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .servant-chart-grid { grid-template-columns: 1fr; } }
 .stray-page { display: grid; gap: 18px; }
