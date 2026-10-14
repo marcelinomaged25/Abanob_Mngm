@@ -504,8 +504,8 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
     var availableServants = new HashSet<string>(StringComparer.Ordinal);
     await using (var servantCommand = new NpgsqlCommand("select name from people where is_active=true and role='servant'", connection, transaction))
     await using (var servantReader = await servantCommand.ExecuteReaderAsync())
-        while (await servantReader.ReadAsync()) availableServants.Add(servantReader.GetString(0));
-    var servants = (payload.Servants ?? []).Select(name => name.Trim()).Where(name => name.Length > 0 && availableServants.Contains(name)).Distinct(StringComparer.Ordinal).ToArray();
+        while (await servantReader.ReadAsync()) availableServants.Add(CanonicalServantName(servantReader.GetString(0)));
+    var servants = (payload.Servants ?? []).Select(CanonicalServantName).Where(name => name.Length > 0 && availableServants.Contains(name)).Distinct(StringComparer.Ordinal).ToArray();
     if (servants.Length == 0) return Results.BadRequest(new { error = "اختار خادمًا مسجلًا في إدارة الخورس أولًا" });
     var savedRotationStart = await GetSetting<string?>(connection, "rotationStart");
     var rotationStart = ParseDate(payload.RotationStart, ParseDate(savedRotationStart, today));
