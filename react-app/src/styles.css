@@ -617,8 +617,8 @@ body { background: #eef5f8; }
 .public-home-results a:hover { border-color: #e4b324; transform: translateY(-1px); }
 .public-home-status, .public-home-error { margin: 14px 0 0; color: var(--muted); }
 .public-home-error { color: #b42318; }
-.public-admin-link { position: absolute; top: 14px; left: max(24px, calc((100% - 1040px) / 2)); display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 16px; border: 1px solid #1d396f; border-radius: 10px; background: #1d396f; color: white; font-size: 12px; font-weight: 800; text-decoration: none; box-shadow: 0 5px 14px rgba(29, 57, 111, .18); }
-.public-admin-link:hover { border-color: #2c5de5; background: white; }
+.public-admin-link { position: absolute; top: 14px; left: max(24px, calc((100% - 1040px) / 2)); display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 16px; border: 1px solid #e0b336; border-radius: 10px; background: #e0b336; color: #102f5f; font-size: 12px; font-weight: 800; text-decoration: none; box-shadow: 0 5px 14px rgba(224, 179, 54, .22); }
+.public-admin-link:hover { border-color: #f0c956; background: #f0c956; }
 .login-back-link { display: block; margin-top: 14px; color: #64748b; font-size: 13px; text-align: center; text-decoration: none; }
 .login-back-link:hover { color: var(--navy); text-decoration: underline; }
 .public-report-page { display: flex; flex-direction: column; min-height: 100vh; padding: 28px 18px 48px; background: #eef5f8; color: var(--ink); direction: rtl; }
