@@ -11,7 +11,12 @@ const today = () => {
 };
 const dateLabel = (value) => value ? new Intl.DateTimeFormat("ar-EG", { day: "numeric", month: "long", year: "numeric" }).format(new Date(`${value}T12:00:00`)) : "—";
 const normalizeArabic = (value) => String(value || "").replace(/[إأآ]/g, "ا");
-const splitServants = (value = "") => Array.from(new Set(String(value).split(/\r?\n/).map((name) => name.trim()).filter(Boolean)));
+const canonicalServantName = (value) => {
+  const name = String(value || "").trim().replace(/^[أإآا]\s*[/.]\s*/, "");
+  const normalized = normalizeArabic(name).replace(/\s+/g, "");
+  return ["ميلاد", "ميلد", "ميلادعدلي"].includes(normalized) ? "ميلاد عدلي" : name;
+};
+const splitServants = (value = "") => [...new Set(String(value).split(/\r?\n/).map(canonicalServantName).filter(Boolean))];
 const emptyState = { rows: [], groups: [], servants: [], historySummary: [] };
 const emptyVisitReports = { totalPeople: 0, year: new Date().getFullYear(), daily: [], monthly: [], yearly: [], totals: { daily: 0, monthly: 0, yearly: 0 } };
 const emptyPerson = { name: "", group: "", phone1: "", phone2: "", address: "", note: "", role: "boy" };
@@ -450,9 +455,9 @@ function FollowUpDashboard({ mode, state, selectedDate, setSelectedDate, rotatio
   const servantOptions = useMemo(() => [...new Set([
     ...(state.servants || []),
     ...(state.rows || []).filter((row) => (row.role || "boy") === "servant").map((row) => row.name)
-  ].map((name) => String(name).trim()).filter(Boolean))], [state.rows, state.servants]);
+  ].map(canonicalServantName).filter(Boolean))], [state.rows, state.servants]);
   const addServant = (name) => {
-    const next = String(name || "").trim();
+    const next = canonicalServantName(name);
     if (!next) return;
     const current = servantList;
     if (!current.includes(next)) setServantsText(splitServants([...current, next].join("\n")).join("\n"));

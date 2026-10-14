@@ -488,7 +488,7 @@ api.MapPost("/visits", async (VisitSave payload, NpgsqlDataSource db) =>
 api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
 {
     var today = CairoToday();
-    var servants = (payload.Servants ?? []).Select(name => name.Trim()).Where(name => name.Length > 0).Distinct(StringComparer.Ordinal).ToArray();
+    var servants = (payload.Servants ?? []).Select(CanonicalServantName).Where(name => name.Length > 0).Distinct(StringComparer.Ordinal).ToArray();
     if (servants.Length == 0) return Results.BadRequest(new { error = "أضف أسماء الخدام أولًا" });
     await using var connection = await db.OpenConnectionAsync();
     await using var transaction = await connection.BeginTransactionAsync();
@@ -509,9 +509,32 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
     }
     else
     {
-        var removedGroups = existingAssignments.Where(item => !servants.Contains(item.Value, StringComparer.Ordinal)).ToArray();
+        var duplicateGroups = existingAssignments
+            .GroupBy(item => CanonicalServantName(item.Value), StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .SelectMany(group =>
+            {
+                var ordered = group.OrderBy(item => item.Value == group.Key ? 0 : 1)
+                    .ThenBy(item => groups.IndexOf(item.Key))
+                    .ToArray();
+                return ordered.Skip(1);
+            })
+            .ToArray();
+        var activeGroups = existingAssignments
+            .Where(item => !duplicateGroups.Any(duplicate => duplicate.Key == item.Key))
+            .Select(item => item.Key)
+            .ToList();
+        foreach (var duplicateGroup in duplicateGroups)
+        {
+            if (activeGroups.Count > 0)
+                await RedistributeGroupMembersAsync(connection, transaction, duplicateGroup.Key, activeGroups);
+            await DeleteWeekAssignmentAsync(connection, transaction, week, duplicateGroup.Key);
+            existingAssignments.Remove(duplicateGroup.Key);
+        }
+
+        var removedGroups = existingAssignments.Where(item => !servants.Contains(CanonicalServantName(item.Value), StringComparer.Ordinal)).ToArray();
         var destinationGroups = existingAssignments
-            .Where(item => servants.Contains(item.Value, StringComparer.Ordinal))
+            .Where(item => servants.Contains(CanonicalServantName(item.Value), StringComparer.Ordinal))
             .Select(item => item.Key)
             .ToList();
 
@@ -526,7 +549,7 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
             }
         }
 
-        var assignedServants = new HashSet<string>(existingAssignments.Values, StringComparer.Ordinal);
+        var assignedServants = new HashSet<string>(existingAssignments.Values.Select(CanonicalServantName), StringComparer.Ordinal);
         var emptyGroups = groups.Where(group => !existingAssignments.ContainsKey(group)).ToList();
         foreach (var servant in servants.Where(name => !assignedServants.Contains(name)))
         {
@@ -605,7 +628,7 @@ static async Task<object> BuildState(NpgsqlDataSource db, string mode, string? s
     {
         command.Parameters.AddWithValue(week);
         await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync()) savedAssignments[reader.GetString(0)] = reader.GetString(1);
+        while (await reader.ReadAsync()) savedAssignments[reader.GetString(0)] = CanonicalServantName(reader.GetString(1));
     }
     var assignmentGroups = new List<string>();
     await using (var command = new NpgsqlCommand("select number from groups order by display_order", connection))
@@ -655,16 +678,16 @@ static async Task SetSetting(NpgsqlConnection connection, NpgsqlTransaction tran
 static async Task<string[]> GetServantNamesAsync(NpgsqlConnection connection)
 {
     var saved = await GetSetting<string[]>(connection, "servants");
-    if (saved is { Length: > 0 }) return saved;
+    if (saved is { Length: > 0 }) return saved.Select(CanonicalServantName).Distinct(StringComparer.Ordinal).ToArray();
     var names = new List<string>();
     await using var command = new NpgsqlCommand("select distinct name from people where is_active=true and role='servant' order by name", connection);
     await using var reader = await command.ExecuteReaderAsync();
     while (await reader.ReadAsync())
     {
-        var name = reader.GetString(0).Trim();
+        var name = CanonicalServantName(reader.GetString(0));
         if (!string.IsNullOrWhiteSpace(name)) names.Add(name);
     }
-    return names.ToArray();
+    return names.Distinct(StringComparer.Ordinal).ToArray();
 }
 
 static async Task EnsureGroupSeriesAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, int requiredCount)
@@ -752,8 +775,26 @@ static async Task UpsertAssignmentAsync(NpgsqlConnection connection, NpgsqlTrans
     await using var assign = new NpgsqlCommand("insert into call_assignments(week_start,group_number,servant) values($1,$2,$3) on conflict (week_start,group_number) do update set servant=excluded.servant, assigned_at=now()", connection, transaction);
     assign.Parameters.AddWithValue(week);
     assign.Parameters.AddWithValue(groupNumber);
-    assign.Parameters.AddWithValue(servant.Trim());
+    assign.Parameters.AddWithValue(CanonicalServantName(servant));
     await assign.ExecuteNonQueryAsync();
+}
+
+static async Task DeleteWeekAssignmentAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, DateOnly week, string groupNumber)
+{
+    await using var command = new NpgsqlCommand("delete from call_assignments where week_start=$1 and group_number=$2", connection, transaction);
+    command.Parameters.AddWithValue(week);
+    command.Parameters.AddWithValue(groupNumber);
+    await command.ExecuteNonQueryAsync();
+}
+
+static string CanonicalServantName(string? value)
+{
+    var name = (value ?? "").Trim();
+    if (name.Length == 0) return "";
+    name = System.Text.RegularExpressions.Regex.Replace(name, @"^[أإآا]\s*[/.]\s*", "");
+    var normalized = name.Replace("إ", "ا").Replace("أ", "ا").Replace("آ", "ا");
+    var compact = string.Concat(normalized.Where(character => !char.IsWhiteSpace(character)));
+    return compact is "ميلاد" or "ميلد" or "ميلادعدلي" ? "ميلاد عدلي" : name;
 }
 
 static async Task<Person?> GetPersonAsync(NpgsqlConnection connection, long personId)
