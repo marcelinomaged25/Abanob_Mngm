@@ -1255,6 +1255,28 @@ body { background: #eef5f8; }
 .dark-mode .attendance-page .attendance-letter { background: #151a1e !important; }
 .dark-mode .attendance-page > .table-section { border-color: #30383d !important; box-shadow: none; }
 .dark-mode .attendance-page .attendance-letter { color: #c89d3c; border-bottom-color: #30383d; }
+.dark-mode .weekly-trend,
+.dark-mode .dashboard-calendar,
+.dark-mode .settings-panel { background: #151a1e !important; border-color: #30383d !important; box-shadow: none; }
+.dark-mode .trend-chart { border-bottom-color: #30383d; }
+.dark-mode .trend-controls input,
+.dark-mode .settings-panel input[type="date"],
+.dark-mode .settings-panel input[type="month"],
+.dark-mode input[type="date"],
+.dark-mode input[type="month"] {
+  color-scheme: dark;
+  background: #0e1317 !important;
+  border-color: #30383d !important;
+  color: #edf1ef !important;
+}
+.dark-mode input[type="date"]::-webkit-calendar-picker-indicator,
+.dark-mode input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(1) brightness(.8); opacity: .85; }
+.dark-mode .trend-scope-switch { background: #0e1317; border-color: #30383d; }
+.dark-mode .trend-scope-switch button { color: #96a3a5; }
+.dark-mode .trend-scope-switch button.active { background: #c89d3c; color: #151a1e; }
+.dark-mode .trend-bar.positive { background: #237d62; box-shadow: none; }
+.dark-mode .trend-bar.negative { background: #8b5e58; box-shadow: none; }
+.dark-mode .trend-bar.empty { background: #30383d; }
 
 @media (max-width: 680px) {
   .app-shell { width: 100%; overflow-x: hidden; }
