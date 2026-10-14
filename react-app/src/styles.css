@@ -1365,65 +1365,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .logout-button:hover { border-color: #dcae2d; background: #dcae2d; color: #122f5e; }
 .sidebar-footer-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Keep every report surface readable when the admin shell is dark. */
-.dark-mode .call-group,
-.dark-mode .group-strip,
-.dark-mode .group-card,
-.dark-mode .table-section,
-.dark-mode .table-wrap,
-.dark-mode .report-dialog,
-.dark-mode .report-table-wrap,
-.dark-mode .call-group-members { background: #132a49; border-color: #334966; color: #edf3ff; }
-.dark-mode .call-group-heading { background: #1a3454; border-bottom-color: #3b5677; }
-.dark-mode .call-group-heading strong,
-.dark-mode .call-group-heading b,
-.dark-mode .group-info strong,
-.dark-mode .call-member-info strong,
-.dark-mode .report-dialog h2,
-.dark-mode .name-cell { color: #edf3ff; }
-.dark-mode .call-group-heading span,
-.dark-mode .call-group-heading small,
-.dark-mode .group-info span,
-.dark-mode .group-info small,
-.dark-mode .call-member-info small,
-.dark-mode .report-meta,
-.dark-mode .address-cell,
-.dark-mode .history-date { color: #a9b8cf; }
-.dark-mode .call-member { border-color: #334966; background: #173352; color: #edf3ff; }
-.dark-mode .call-member:hover { border-color: #54749a; background: #1d4169; }
-.dark-mode .call-member:has(input:checked) { border-color: #4f9c88; background: #1a4b4a; }
-.dark-mode .copy-phone { border-color: #3b5677; background: #102845; color: #c7dcff; }
-.dark-mode .table-wrap th,
-.dark-mode .report-table th { border-bottom-color: #3b5677; background: #1a3454; color: #edf3ff; }
-.dark-mode .table-wrap td,
-.dark-mode .report-table td { border-bottom-color: #2d4664; background: #132a49; color: #dbe7f8; }
-.dark-mode .table-wrap tbody tr:hover td,
-.dark-mode .report-table tbody tr:hover td { background: #19385e; }
-.dark-mode .group-tone-1 td,
-.dark-mode .group-tone-2 td,
-.dark-mode .group-tone-3 td,
-.dark-mode .group-tone-4 td,
-.dark-mode .group-tone-5 td,
-.dark-mode .group-tone-6 td,
-.dark-mode .group-tone-7 td,
-.dark-mode .group-tone-8 td,
-.dark-mode .group-tone-9 td { background: #132a49; color: #dbe7f8; }
-.dark-mode .group-tone-1:hover td,
-.dark-mode .group-tone-2:hover td,
-.dark-mode .group-tone-3:hover td,
-.dark-mode .group-tone-4:hover td,
-.dark-mode .group-tone-5:hover td,
-.dark-mode .group-tone-6:hover td,
-.dark-mode .group-tone-7:hover td,
-.dark-mode .group-tone-8:hover td,
-.dark-mode .group-tone-9:hover td { background: #19385e; }
-.dark-mode .group-pill { border-color: #3b5677; background: #1a3960; color: #dbe7f8; }
-.dark-mode .servant-cell { color: #a9c9ff; }
-.dark-mode .servant-cell.muted { color: #f4d36a; }
-.dark-mode .report-summary span { border-color: #3b5677; background: #1a3960; color: #dbe7f8; }
-.dark-mode .report-summary strong { color: #f4d36a; }
-.dark-mode .modal-close { border-color: #3b5677; background: #19385e; color: #dbe7f8; }
-
 @media (max-width: 680px) {
   .sidebar-footer-row { align-items: center; }
   .logout-button { min-height: 36px; padding-inline: 10px; }
@@ -1437,16 +1378,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .sidebar-footer-actions .theme-toggle { min-width: 0; }
 .sidebar-footer-actions .logout-button { min-width: 0; }
 
-/* Dark-mode chart surfaces must keep their center labels readable. */
-.dark-mode .four-donut::after,
-.dark-mode .donut-attendance > div { background: #102845; }
-.dark-mode .four-donut strong,
-.dark-mode .donut-attendance > div { color: #edf3ff; }
-.dark-mode .donut-legend { color: #a9b8cf; }
-.dark-mode .donut-legend b { color: #edf3ff; }
-.dark-mode .attendance-bar-item > div:first-child,
-.dark-mode .trend-value,
-.dark-mode .trend-column small { color: #c8d6ea; }
 .public-note { margin-top: 12px; padding: 10px 13px; border: 1px solid #d9cfb4; border-radius: 10px; background: #fff8df; color: #172137; }
 .public-note strong { display: block; margin-bottom: 4px; color: #a87508; font-size: 12px; }
 .public-note p { margin: 0; font-size: 12px; line-height: 1.7; }
@@ -1491,14 +1422,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .dashboard-people-list article { display: grid; gap: 3px; padding: 10px 12px; border: 1px solid #ded5bd; border-radius: 9px; background: #fffdf7; }
 .dashboard-people-list strong { color: var(--ink); font-size: 12px; }
 .dashboard-people-list span { color: var(--muted); font-size: 10px; }
-.dark-mode .metric-button { border-color: #334966; background: #132a49; color: #edf3ff; }
-.dark-mode .metric-button:hover { border-color: #54749a; background: #19385e; }
-.dark-mode .trend-scope-switch { border-color: #3b5677; background: #102845; }
-.dark-mode .trend-scope-switch button { color: #c8d6ea; }
-.dark-mode .trend-scope-switch button.active { background: #dcae2d; color: #122f5e; }
-.dark-mode .dashboard-people-list article { border-color: #334966; background: #173352; }
-.dark-mode .dashboard-people-list strong { color: #edf3ff; }
-.dark-mode .dashboard-people-list span { color: #a9b8cf; }
 .trend-controls { gap: 8px; }
 .trend-scope-switch { min-height: 44px; align-items: stretch; }
 .trend-scope-switch button { min-width: 74px; min-height: 36px; padding: 8px 13px; font-size: 12px; }
