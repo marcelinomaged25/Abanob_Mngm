@@ -499,8 +499,6 @@ api.MapPost("/visits", async (VisitSave payload, NpgsqlDataSource db) =>
 api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
 {
     var today = CairoToday();
-    var servants = (payload.Servants ?? []).Select(CanonicalServantName).Where(name => name.Length > 0).Distinct(StringComparer.Ordinal).ToArray();
-    if (servants.Length == 0) return Results.BadRequest(new { error = "أضف أسماء الخدام أولًا" });
     await using var connection = await db.OpenConnectionAsync();
     await using var transaction = await connection.BeginTransactionAsync();
     var availableServants = new HashSet<string>(StringComparer.Ordinal);
