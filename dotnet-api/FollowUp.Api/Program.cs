@@ -542,7 +542,7 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
         foreach (var duplicateGroup in duplicateGroups)
         {
             if (activeGroups.Count > 0)
-                await RedistributeGroupMembersAsync(connection, transaction, duplicateGroup.Key, activeGroups);
+                await RedistributeGroupMembersAsync(connection, transaction, duplicateGroup.Key, activeGroups, week);
             await DeleteWeekAssignmentAsync(connection, transaction, week, duplicateGroup.Key);
             existingAssignments.Remove(duplicateGroup.Key);
         }
@@ -558,7 +558,7 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
             var destinationServants = destinationGroups.ToDictionary(group => group, group => existingAssignments[group], StringComparer.Ordinal);
             foreach (var removedGroup in removedGroups)
             {
-                await RedistributeGroupMembersAsync(connection, transaction, removedGroup.Key, destinationGroups);
+                await RedistributeGroupMembersAsync(connection, transaction, removedGroup.Key, destinationGroups, week);
                 await UpsertAssignmentAsync(connection, transaction, week, removedGroup.Key, destinationServants[destinationGroups[0]]);
                 existingAssignments[removedGroup.Key] = destinationServants[destinationGroups[0]];
             }
@@ -753,7 +753,7 @@ static async Task<Dictionary<string, string>> LoadWeekAssignmentsAsync(NpgsqlCon
     return assignments;
 }
 
-static async Task RedistributeGroupMembersAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string sourceGroup, IReadOnlyList<string> destinationGroups)
+static async Task RedistributeGroupMembersAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string sourceGroup, IReadOnlyList<string> destinationGroups, DateOnly week)
 {
     if (destinationGroups.Count == 0) return;
 
@@ -771,9 +771,10 @@ static async Task RedistributeGroupMembersAsync(NpgsqlConnection connection, Npg
     }
 
     var personIds = new List<long>();
-    await using (var peopleCommand = new NpgsqlCommand("select id from people where group_number=$1 and is_active=true and role='boy' order by record_key", connection, transaction))
+    await using (var peopleCommand = new NpgsqlCommand("select p.id from people p where p.group_number=$1 and p.is_active=true and p.role='boy' and not exists (select 1 from call_records c where c.person_id=p.id and c.week_start=$2) order by p.record_key", connection, transaction))
     {
         peopleCommand.Parameters.AddWithValue(sourceGroup);
+        peopleCommand.Parameters.AddWithValue(week);
         await using var reader = await peopleCommand.ExecuteReaderAsync();
         while (await reader.ReadAsync()) personIds.Add(reader.GetInt64(0));
     }
