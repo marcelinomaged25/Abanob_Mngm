@@ -1009,6 +1009,15 @@ body { background: #eef5f8; }
 .dark-mode td { border-color: #26313c; color: #d6e0ea; }
 .dark-mode tbody tr:hover td { background: #1b2732; }
 .dark-mode .group-tone-1 td, .dark-mode .group-tone-2 td, .dark-mode .group-tone-3 td, .dark-mode .group-tone-4 td, .dark-mode .group-tone-5 td, .dark-mode .group-tone-6 td, .dark-mode .group-tone-7 td, .dark-mode .group-tone-8 td, .dark-mode .group-tone-9 td { background: #151b23; }
+.dark-mode .table-wrap thead th { background: #20272d; color: #b8c2c7; }
+.dark-mode .table-wrap tbody tr:nth-child(even) td { background: #171d22; }
+.dark-mode .table-wrap tbody tr:hover td { background: #202a2a; }
+.dark-mode .table-wrap td:first-child { border-right-color: #3b514a; }
+.dark-mode .table-wrap .person-link { color: #c9d7d0; }
+.dark-mode .table-wrap .person-link:hover { color: #71d3ad; }
+.dark-mode .table-wrap .servant-cell { color: #9bc9b5; }
+.dark-mode .table-wrap .servant-cell.muted { color: #c9a966; }
+.dark-mode .table-wrap .history-date { color: #9aa6aa; }
 .dark-mode .person-link, .dark-mode .servant-cell { color: #7db0ff; }
 .dark-mode .group-pill, .dark-mode .count-badge, .dark-mode .week-mark { background: #1b2c43; border-color: #365271; color: #9fc5ff; }
 .dark-mode .call-group { background: #111820; border-color: #29333f; }
