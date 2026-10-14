@@ -239,6 +239,11 @@ tbody tr:hover td { background: #f5f8ff; }
 .servant-choice { padding: 9px 13px; border: 1px solid #cfdced; border-radius: 999px; background: #fff; color: var(--ink); cursor: pointer; font: inherit; font-weight: 700; }
 .servant-choice.selected { border-color: #1a9b88; background: #dff5ed; color: #075c4e; box-shadow: inset 0 0 0 1px #1a9b88; }
 .servant-choice:hover { border-color: #1a9b88; }
+.servant-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0 0 16px; }
+.servant-stats > div { display: grid; gap: 5px; padding: 15px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.servant-stats strong { color: var(--blue-dark); font-size: 24px; }
+.servant-stats span { color: var(--muted); font-size: 12px; }
+@media (max-width: 720px) { .servant-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .stray-page { display: grid; gap: 18px; }
 .stray-hero { display: flex; align-items: center; justify-content: space-between; padding: 22px 26px; border-radius: 18px; background: #0b1a3a; color: white; box-shadow: 0 12px 26px rgba(11, 26, 58, .18); }
 .stray-hero .section-kicker { color: #f2c94c; }
