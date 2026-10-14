@@ -215,30 +215,41 @@ api.MapGet("/servant-stats", async (int? year, NpgsqlDataSource db) =>
 {
     var selectedYear = year ?? CairoToday().Year;
     await using var connection = await db.OpenConnectionAsync();
+    var today = CairoToday();
+    var rotation = ParseDate(await GetSetting<string?>(connection, "rotationStart"), today);
+    var configuredActivityStart = await GetSetting<string?>(connection, "servantActivityStart");
+    var activityStart = ParseDate(configuredActivityStart, WeekStart(today, rotation).AddDays(7));
+    if (configuredActivityStart is null)
+    {
+        await using var startCommand = new NpgsqlCommand("insert into settings(key,value) values('servantActivityStart',$1::jsonb) on conflict(key) do nothing", connection);
+        startCommand.Parameters.AddWithValue(JsonSerializer.Serialize(activityStart.ToString("yyyy-MM-dd")));
+        await startCommand.ExecuteNonQueryAsync();
+    }
     var stats = new List<object>();
     await using (var command = new NpgsqlCommand(@"select p.id,p.name,
         (select count(distinct a.attendance_date) from attendance_records a where a.person_id=p.id and a.attendance_type='choir'),
         (select count(distinct a.attendance_date) from attendance_records a where a.person_id=p.id and a.attendance_type='mass'),
-        (select count(*) from call_records c where regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g')),
-        (select count(distinct c.week_start) from call_records c where regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g'))
+        (select count(*) from call_records c where c.week_start >= $1 and regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g')),
+        (select count(distinct c.week_start) from call_records c where c.week_start >= $1 and regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g'))
         from people p
         where p.is_active=true and p.role='servant'
-        order by (select count(*) from call_records c where regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g')) desc,p.name", connection))
+        order by (select count(*) from call_records c where c.week_start >= $1 and regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g')) desc,p.name", connection))
     {
+        command.Parameters.AddWithValue(activityStart);
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync()) stats.Add(new { id = reader.GetInt64(0), name = reader.GetString(1), choir = reader.GetInt64(2), mass = reader.GetInt64(3), calls = reader.GetInt64(4), callWeeks = reader.GetInt64(5) });
     }
     var monthly = new List<object>();
     await using (var command = new NpgsqlCommand(@"select to_char(month,'YYYY-MM'),sum(choir),sum(mass),sum(calls) from (
         select date_trunc('month',attendance_date)::date month,count(*) filter(where attendance_type='choir') choir,count(*) filter(where attendance_type='mass') mass,0 calls from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='servant' and extract(year from attendance_date)=$1 group by 1
-        union all select date_trunc('month',week_start)::date,0,0,count(*) from call_records c join people p on p.is_active=true and p.role='servant' and regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g') where extract(year from week_start)=$1 group by 1
+        union all select date_trunc('month',week_start)::date,0,0,count(*) from call_records c join people p on p.is_active=true and p.role='servant' and regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g') where week_start >= $2 and extract(year from week_start)=$1 group by 1
     ) data group by month order by month", connection))
     {
-        command.Parameters.AddWithValue(selectedYear);
+        command.Parameters.AddWithValue(selectedYear); command.Parameters.AddWithValue(activityStart);
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync()) monthly.Add(new { month = reader.GetString(0), choir = reader.GetInt64(1), mass = reader.GetInt64(2), calls = reader.GetInt64(3) });
     }
-    return Results.Ok(new { year = selectedYear, stats, monthly });
+    return Results.Ok(new { year = selectedYear, activityStart = activityStart.ToString("yyyy-MM-dd"), stats, monthly });
 });
 
 api.MapGet("/visit-reports", async (int? year, string? month, NpgsqlDataSource db) =>
