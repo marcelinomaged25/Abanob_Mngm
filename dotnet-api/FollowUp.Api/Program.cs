@@ -524,7 +524,6 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
     }
     else
     {
-        var addedServant = false;
         var duplicateGroups = existingAssignments
             .GroupBy(item => CanonicalServantName(item.Value), StringComparer.Ordinal)
             .Where(group => group.Count() > 1)
@@ -574,11 +573,12 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
             emptyGroups.RemoveAt(0);
             await UpsertAssignmentAsync(connection, transaction, week, groupNumber, servant);
             existingAssignments[groupNumber] = servant;
-            addedServant = true;
         }
-        if (addedServant)
-            await BalanceUncalledMembersAsync(connection, transaction, week, existingAssignments.Keys.ToArray());
     }
+
+    // Keep completed calls with their current servant, but balance all remaining
+    // boys across the active groups after every distribution change.
+    await BalanceUncalledMembersAsync(connection, transaction, week, existingAssignments.Keys.ToArray());
 
     await SetSetting(connection, transaction, "servants", servants);
     await SetSetting(connection, transaction, "rotationStart", rotationStart.ToString("yyyy-MM-dd"));
@@ -792,8 +792,8 @@ static async Task RedistributeGroupMembersAsync(NpgsqlConnection connection, Npg
 static async Task BalanceUncalledMembersAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, DateOnly week, IReadOnlyList<string> groups)
 {
     if (groups.Count == 0) return;
-    var counts = groups.ToDictionary(group => group, _ => 0, StringComparer.Ordinal);
-    var people = new List<long>();
+    var totals = groups.ToDictionary(group => group, _ => 0, StringComparer.Ordinal);
+    var uncalled = groups.ToDictionary(group => group, _ => new Queue<long>(), StringComparer.Ordinal);
     await using (var command = new NpgsqlCommand(@"select p.id,p.group_number
         from people p where p.is_active=true and p.role='boy'
         and not exists (select 1 from call_records c where c.person_id=p.id and c.week_start=$1)
@@ -804,17 +804,30 @@ static async Task BalanceUncalledMembersAsync(NpgsqlConnection connection, Npgsq
         while (await reader.ReadAsync())
         {
             var group = reader.IsDBNull(1) ? "" : reader.GetString(1);
-            if (counts.ContainsKey(group)) counts[group]++;
-            people.Add(reader.GetInt64(0));
+            if (totals.ContainsKey(group))
+            {
+                totals[group]++;
+                uncalled[group].Enqueue(reader.GetInt64(0));
+            }
         }
     }
-    foreach (var personId in people)
+    await using (var countCommand = new NpgsqlCommand("select group_number,count(*)::int from people where is_active=true and role='boy' and group_number=any($1) group by group_number", connection, transaction))
     {
-        var target = counts.OrderBy(item => item.Value).ThenBy(item => item.Key).First().Key;
+        countCommand.Parameters.AddWithValue(groups.ToArray());
+        await using var reader = await countCommand.ExecuteReaderAsync();
+        while (await reader.ReadAsync()) totals[reader.GetString(0)] = reader.GetInt32(1);
+    }
+    while (true)
+    {
+        var source = uncalled.Where(item => item.Value.Count > 0).OrderByDescending(item => totals[item.Key]).ThenBy(item => item.Key).FirstOrDefault();
+        var target = totals.OrderBy(item => item.Value).ThenBy(item => item.Key).First();
+        if (source.Key is null || source.Key == target.Key || totals[source.Key] <= totals[target.Key] + 1) break;
+        var personId = source.Value.Dequeue();
         await using var update = new NpgsqlCommand("update people set group_number=$1,updated_at=now() where id=$2", connection, transaction);
-        update.Parameters.AddWithValue(target); update.Parameters.AddWithValue(personId);
+        update.Parameters.AddWithValue(target.Key); update.Parameters.AddWithValue(personId);
         await update.ExecuteNonQueryAsync();
-        counts[target]++;
+        totals[source.Key]--; totals[target.Key]++;
+        uncalled[target.Key].Enqueue(personId);
     }
 }
 
