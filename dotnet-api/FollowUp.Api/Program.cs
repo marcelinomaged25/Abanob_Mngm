@@ -631,6 +631,7 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
     await BalanceUncalledMembersAsync(connection, transaction, week, existingAssignments.Keys.ToArray());
 
     await SetSetting(connection, transaction, "rotationStart", rotationStart.ToString("yyyy-MM-dd"));
+    await SetSetting(connection, transaction, "callSelectedServants", servants);
 
     var checks = payload.Checks ?? new Dictionary<string, bool>();
     await using (var deleteCalls = new NpgsqlCommand("delete from call_records where week_start=$1 and person_id in (select p.id from people p join jsonb_each_text($2::jsonb) checks on checks.key::integer=p.record_key where p.is_active=true and p.role='boy' and checks.value='false')", connection, transaction))
@@ -659,7 +660,7 @@ static async Task<object> BuildState(NpgsqlDataSource db, string mode, string? s
     var rotation = ParseDate(await GetSetting<string?>(connection, "rotationStart"), today);
     var distributionNotStarted = mode == "call" && today < rotation;
     var week = mode == "call" ? (distributionNotStarted ? rotation : WeekStart(today, rotation)) : WeekStart(ParseDate(selectedWeek, today), rotation);
-    var servants = await GetServantNamesAsync(connection);
+    var availableServants = await GetServantNamesAsync(connection);
     var verse = await GetSetting<string?>(connection, "verse") ?? "";
     var people = new List<Person>();
     await using (var command = new NpgsqlCommand("select id,record_key,name,note,phone1,phone2,group_number,address,role,qr_token from people where is_active=true order by record_key", connection))
@@ -702,7 +703,9 @@ static async Task<object> BuildState(NpgsqlDataSource db, string mode, string? s
     await using (var command = new NpgsqlCommand("select number from groups order by display_order", connection))
     await using (var reader = await command.ExecuteReaderAsync())
         while (await reader.ReadAsync()) assignmentGroups.Add(reader.GetString(0));
-    var autoAssignments = Assignments(assignmentGroups, servants, week, rotation);
+    var configuredServants = await GetSetting<string[]>(connection, "callSelectedServants") ?? Array.Empty<string>();
+    var selectedServants = configuredServants.Select(CanonicalServantName).Where(name => availableServants.Contains(name, StringComparer.Ordinal)).Distinct(StringComparer.Ordinal).ToArray();
+    var autoAssignments = Assignments(assignmentGroups, selectedServants, week, rotation);
     var lastVisit = new Dictionary<long, string>();
     await using (var command = new NpgsqlCommand("select person_id,max(visit_date)::text from visit_records group by person_id", connection))
     await using (var reader = await command.ExecuteReaderAsync())
@@ -725,7 +728,7 @@ static async Task<object> BuildState(NpgsqlDataSource db, string mode, string? s
     var groupStates = groups.Select(group => new { number = group.Number, members = group.Members, recordKeys = group.RecordKeys, servant = savedAssignments.GetValueOrDefault(group.Number) ?? autoAssignments.GetValueOrDefault(group.Number) ?? "" }).ToArray();
     var weekEnd = week.AddDays(6);
     var monthTotal = people.Count(person => person.Role == "boy");
-    return new { rows, groups = groupStates, servants, monthVisitedCount = visitedThisMonth.Count, monthTotal, rotationStart = rotation.ToString("yyyy-MM-dd"), distributionNotStarted, selectedDate = date.ToString("yyyy-MM-dd"), selectedWeek = week.ToString("yyyy-MM-dd"), weekEnd = weekEnd.ToString("yyyy-MM-dd"), verse, historySummary = rows.Select(row => new { row.recordKey, row.lastVisitedDate, row.lastCalledWeek, row.lastCaller }).ToArray() };
+    return new { rows, groups = groupStates, servants = mode == "call" ? selectedServants : Array.Empty<string>(), monthVisitedCount = visitedThisMonth.Count, monthTotal, rotationStart = rotation.ToString("yyyy-MM-dd"), distributionNotStarted, selectedDate = date.ToString("yyyy-MM-dd"), selectedWeek = week.ToString("yyyy-MM-dd"), weekEnd = weekEnd.ToString("yyyy-MM-dd"), verse, historySummary = rows.Select(row => new { row.recordKey, row.lastVisitedDate, row.lastCalledWeek, row.lastCaller }).ToArray() };
 }
 
 static async Task<T?> GetSetting<T>(NpgsqlConnection connection, string key)
