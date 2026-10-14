@@ -916,27 +916,6 @@ body { background: #eef5f8; }
 .theme-toggle:hover { background: rgba(255, 255, 255, .15); }
 .sidebar-footer-row { display: flex; align-items: center; justify-content: space-between; gap: 7px; width: 100%; margin-top: 9px; }
 
-.dark-mode { --ink: #edf3ff; --navy: #dfeaff; --muted: #a9b8cf; --line: #334966; --canvas: #0c1d35; --paper: #132a49; --blue-soft: #1a3960; background: #0c1d35; }
-.dark-mode .app-content { background: #0c1d35; color: #edf3ff; }
-.dark-mode .topbar { background: #102845; border-color: #284565; }
-.dark-mode .panel, .dark-mode .table-section, .dark-mode .settings-panel, .dark-mode .stray-note, .dark-mode .stray-person, .dark-mode .public-home-results a { background: #132a49; border-color: #334966; color: #edf3ff; }
-.dark-mode .stray-person:hover { background: #19385e; }
-.dark-mode .stray-note strong, .dark-mode .stray-person-info strong, .dark-mode h1, .dark-mode h2, .dark-mode h3 { color: #edf3ff; }
-.dark-mode input, .dark-mode select, .dark-mode textarea, .dark-mode .search-box { background: #0f2440; border-color: #3b5677; color: #edf3ff; }
-.dark-mode .search-box input { color: #edf3ff; }
-.dark-mode .table-wrap th { background: #1a3454; color: #edf3ff; }
-.dark-mode .table-wrap td { border-color: #2d4664; color: #dbe7f8; }
-.dark-mode .table-wrap tr:hover td { background: #173352; }
-.dark-mode .sub-tabs button, .dark-mode .segmented-control button { background: #132a49; border-color: #3b5677; color: #dbe7f8; }
-.dark-mode .sub-tabs button.active, .dark-mode .segmented-control button.active { background: #dcae2d; border-color: #dcae2d; color: #122f5e; }
-.dark-mode .date-label, .dark-mode .field-hint, .dark-mode .empty-row { color: #a9b8cf; }
-.dark-mode .dashboard-metric, .dark-mode .daily-chart, .dark-mode .dashboard-attendance-table, .dark-mode .attendance-person { background: #132a49; border-color: #334966; color: #edf3ff; }
-.dark-mode .attendance-person:hover { background: #19385e; }
-.dark-mode .attendance-meta, .dark-mode .dashboard-metric span, .dark-mode .dashboard-metric small { color: #a9b8cf; }
-.dark-mode .stray-rank { background: #23466e; color: #f4d36a; }
-.dark-mode .stray-counts, .dark-mode .stray-person-info small, .dark-mode .stray-stats small { color: #a9b8cf; }
-.dark-mode .theme-toggle { background: rgba(0, 0, 0, .16); }
-
 /* Final alignment for tabs, scanner actions, and the mobile sidebar footer. */
 .sub-tabs { padding: 4px; border: 1px solid #ded5bd; border-radius: 11px; background: #f4eedb; }
 .sub-tabs button { border-color: #ded5bd; background: #f4eedb; color: #64748b; }
@@ -1274,6 +1253,12 @@ body { background: #eef5f8; }
 .dark-mode .group-number.tone-7,
 .dark-mode .group-number.tone-8,
 .dark-mode .group-number.tone-9 { background: #303c3b; color: #dce8e2; }
+.dark-mode .attendance-page,
+.dark-mode .attendance-page > .table-section,
+.dark-mode .attendance-page .attendance-grid,
+.dark-mode .attendance-page .attendance-letter { background: #151a1e !important; }
+.dark-mode .attendance-page > .table-section { border-color: #30383d !important; box-shadow: none; }
+.dark-mode .attendance-page .attendance-letter { color: #c89d3c; border-bottom-color: #30383d; }
 
 @media (max-width: 680px) {
   .app-shell { width: 100%; overflow-x: hidden; }
