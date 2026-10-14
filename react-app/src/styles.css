@@ -76,6 +76,16 @@ textarea { min-height: 116px; padding: 11px 12px; resize: vertical; line-height:
 textarea:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(36, 82, 223, .13); }
 .field-hint, label { display: block; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .field-hint { margin-top: 7px; }
+.servants-picker { display: grid; gap: 10px; margin-bottom: 12px; }
+.servants-picker label { margin: 0; color: #46536a; font-weight: 700; }
+.servants-picker select, .servant-inline-add input { width: 100%; padding: 9px 10px; border: 1px solid #cbd3df; border-radius: 9px; background: #fbfcfe; color: var(--ink); }
+.servant-inline-add { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.servant-inline-add .secondary-button { margin-top: 0; }
+.servant-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; padding: 8px 10px; border: 1px solid #e5ebf5; border-radius: 10px; background: #f7f9fd; min-height: 48px; }
+.servant-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid #d9e3ff; border-radius: 999px; background: #edf3ff; color: var(--blue-dark); font-size: 12px; font-weight: 700; }
+.servant-chip.empty { border-style: dashed; background: #f5f7fb; color: var(--muted); }
+.servant-chip button { display: grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: rgba(36, 82, 223, .12); color: var(--blue-dark); cursor: pointer; }
+.servant-chip button:hover { background: rgba(36, 82, 223, .18); }
 .settings-panel label { margin: 13px 0 6px; color: #46536a; font-weight: 700; }
 input[type="date"], input[type="month"] { min-height: 44px; padding: 10px 12px; color-scheme: light; font-size: 14px; }
 .settings-panel input[type="date"], .settings-panel input[type="month"] { display: block; direction: ltr; text-align: left; background: #fbfcfe; border-color: #cbd6e7; }
