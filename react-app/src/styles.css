@@ -921,7 +921,6 @@ body { background: #eef5f8; }
 .sub-tabs button { border-color: #ded5bd; background: #f4eedb; color: #64748b; }
 .sub-tabs button:hover { background: #e9dfc2; color: #122f5e; }
 .sub-tabs button.active { border-color: #dcae2d; background: #dcae2d; color: #122f5e; }
-.dark-mode .sub-tabs button.active { border-color: #dcae2d; background: #dcae2d; color: #122f5e; }
 .scanner-close-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; margin: 2px auto 0; padding: 0 15px; border: 1px solid #d9cfb4; border-radius: 9px; background: #f4eedb; color: #122f5e; font-size: 12px; font-weight: 800; cursor: pointer; }
 .scanner-close-button:hover { background: #e9dfc2; }
 .dark-mode .scanner-close-button:hover { background: #244c78; }
@@ -1077,7 +1076,6 @@ body { background: #eef5f8; }
 .dark-mode .reports-hero .report-month-picker input { background: #0d1012; border-color: #343b40; }
 .dark-mode .daily-chart { background: #141719; }
 .dark-mode .daily-chart .chart-heading { border-color: #2c3235; }
-.dark-mode .report-bar-chart i { background: linear-gradient(180deg, #89c9ff, #4a87b4); }
 .dark-mode .report-bar-column span,
 .dark-mode .report-bar-column strong { color: #cbd4d4; }
 .dark-mode .dashboard-filter-tabs button { border-radius: 999px; }
@@ -1399,16 +1397,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .public-note { margin-top: 12px; padding: 10px 13px; border: 1px solid #d9cfb4; border-radius: 10px; background: #fff8df; color: #172137; }
 .public-note strong { display: block; margin-bottom: 4px; color: #a87508; font-size: 12px; }
 .public-note p { margin: 0; font-size: 12px; line-height: 1.7; }
-.dark-mode .attendance-bar-track,
-.dark-mode .coverage-track { background: #203b5d; }
-.dark-mode .dashboard-table-search,
-.dark-mode .dashboard-filter-tabs button.active { border-color: #dcae2d; background: #dcae2d; color: #122f5e; }
-.dark-mode .weekly-trend,
-.dark-mode .dashboard-calendar,
-.dark-mode .calendar-day b,
-.dark-mode .absent-person:hover { border-color: #54749a; background: #1d4169; }
-.dark-mode .absent-person small { color: #a9b8cf; }
-
 @media (max-width: 680px) {
   .sidebar-footer-actions { gap: 6px; }
   .sidebar-footer-actions .theme-toggle,
@@ -1470,3 +1458,149 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .followup-note-form + .table-section th, .followup-note-form + .table-section td { padding: 9px 8px; }
 }
 @media (max-width: 760px) { .attendance-comment-panel { grid-template-columns: 1fr 1fr; } .attendance-comment-panel textarea { grid-column: 1 / -1; } .attendance-comment-panel .form-actions { grid-column: 1 / -1; } }
+
+/* Final dark theme contract: every admin surface shares one graphite, green, and bronze system. */
+.dark-mode {
+  --canvas: #0b0f12;
+  --paper: #151a1e;
+  --line: #30383d;
+  --ink: #edf1ef;
+  --muted: #96a3a5;
+  --blue: #237d62;
+  --blue-dark: #2d9877;
+  --blue-soft: #20272a;
+  --teal: #237d62;
+  --amber: #c89d3c;
+  color: #edf1ef;
+  background: #0b0f12;
+}
+
+.dark-mode .app-content { background: #0b0f12; color: #edf1ef; }
+.dark-mode .app-sidebar { background: #151a1e; background-image: none; border-color: #30383d; }
+.dark-mode .topbar,
+.dark-mode .panel,
+.dark-mode .table-section,
+.dark-mode .group-strip,
+.dark-mode .dashboard-hero,
+.dark-mode .reports-hero,
+.dark-mode .stray-hero,
+.dark-mode .dashboard-metric,
+.dark-mode .daily-chart,
+.dark-mode .weekly-trend,
+.dark-mode .dashboard-calendar,
+.dark-mode .dashboard-attendance-table,
+.dark-mode .attendance-controls,
+.dark-mode .report-chart-card,
+.dark-mode .report-dialog,
+.dark-mode .login-panel,
+.dark-mode .call-group,
+.dark-mode .servant-dashboard article {
+  background: #151a1e !important;
+  border-color: #30383d !important;
+  color: #edf1ef;
+  box-shadow: none;
+}
+
+.dark-mode .search-box,
+.dark-mode input,
+.dark-mode select,
+.dark-mode textarea,
+.dark-mode .dashboard-table-search,
+.dark-mode .trend-controls input {
+  background: #0e1317 !important;
+  border-color: #30383d !important;
+  color: #edf1ef !important;
+  color-scheme: dark;
+}
+.dark-mode input::placeholder,
+.dark-mode textarea::placeholder { color: #96a3a5; }
+.dark-mode input:focus,
+.dark-mode select:focus,
+.dark-mode textarea:focus,
+.dark-mode .search-box:focus-within {
+  border-color: #237d62 !important;
+  box-shadow: 0 0 0 3px rgba(35, 125, 98, .16);
+}
+
+.dark-mode th { background: #202528 !important; color: #b9c3c2; border-color: #30383d; }
+.dark-mode td { background: #151a1e !important; color: #d8dfdc; border-color: #293236; }
+.dark-mode tbody tr:nth-child(even) td { background: #181d20 !important; }
+.dark-mode tbody tr:hover td { background: #202a27 !important; }
+
+.dark-mode .primary-button,
+.dark-mode .secondary-button,
+.dark-mode .attendance-save {
+  background: #237d62 !important;
+  border-color: #237d62 !important;
+  color: #edf1ef !important;
+}
+.dark-mode .primary-button:hover,
+.dark-mode .secondary-button:hover,
+.dark-mode .attendance-save:hover { background: #2d9877 !important; border-color: #2d9877 !important; }
+
+.dark-mode .sub-tabs button,
+.dark-mode .segmented-control button,
+.dark-mode .mode-tab,
+.dark-mode .dashboard-filter-tabs button,
+.dark-mode .report-period-switch button {
+  background: #151a1e;
+  border-color: #30383d;
+  color: #96a3a5;
+}
+.dark-mode .sub-tabs button.active,
+.dark-mode .segmented-control button.active,
+.dark-mode .mode-tab.active,
+.dark-mode .dashboard-filter-tabs button.active,
+.dark-mode .report-period-switch button.active {
+  background: #237d62 !important;
+  border-color: #237d62 !important;
+  color: #edf1ef !important;
+}
+
+.dark-mode .trend-scope-switch { background: #0e1317; border-color: #30383d; }
+.dark-mode .trend-scope-switch button { color: #96a3a5; }
+.dark-mode .trend-scope-switch button.active { background: #c89d3c; color: #151a1e; }
+.dark-mode .trend-bar.positive { background: #237d62; }
+.dark-mode .trend-bar.negative { background: #8b5e58; }
+.dark-mode .trend-bar.empty { background: #30383d; }
+
+.dark-mode .attendance-page,
+.dark-mode .attendance-page > .table-section,
+.dark-mode .attendance-page .attendance-grid,
+.dark-mode .attendance-page .attendance-letter { background: #151a1e !important; }
+.dark-mode .attendance-person { background: #171b1c !important; border-color: #30383d; }
+.dark-mode .attendance-person.present { background: #153027 !important; border-color: #237d62; }
+.dark-mode .attendance-check { background: #0e1317; border-color: #30383d; }
+.dark-mode .attendance-person.present .attendance-check { background: #237d62; border-color: #237d62; }
+
+.dark-mode .attendance-letter,
+.dark-mode .section-kicker { color: #c89d3c; }
+.dark-mode .date-label,
+.dark-mode label,
+.dark-mode .field-hint,
+.dark-mode .empty-row,
+.dark-mode .history-date,
+.dark-mode .attendance-meta { color: #96a3a5; }
+.dark-mode .person-link,
+.dark-mode .servant-cell { color: #a8d6c1; }
+.dark-mode .person-link:hover { color: #edf1ef; }
+.dark-mode .group-pill,
+.dark-mode .count-badge,
+.dark-mode .week-mark { background: #20272a; border-color: #30383d; color: #c89d3c; }
+.dark-mode .call-group-heading,
+.dark-mode .servant-chips { background: #1b2021; border-color: #30383d; }
+.dark-mode .call-member { background: #151a1e; border-color: #30383d; }
+.dark-mode .call-member:hover { background: #202a27; border-color: #237d62; }
+.dark-mode .servant-chip { background: #193329; border-color: #237d62; color: #bce7d5; }
+.dark-mode .servant-activity-badge.active,
+.dark-mode .attendance-status.present { background: #237d62; color: #edf1ef; }
+.dark-mode .servant-activity-badge.medium { background: #665522; color: #f5d98c; }
+.dark-mode .servant-activity-badge.inactive,
+.dark-mode .attendance-status.absent { background: #3b2c2d; color: #efb5b2; }
+
+.dark-mode .modal-backdrop { background: rgba(0, 0, 0, .74); }
+.dark-mode .modal-close,
+.dark-mode .cancel-button,
+.dark-mode .icon-button { background: #1b2021; border-color: #30383d; color: #96a3a5; }
+.dark-mode .report-bar-chart i { background: #237d62; }
+.dark-mode .report-detail-popover { background: #151a1e; border-color: #30383d; color: #edf1ef; }
