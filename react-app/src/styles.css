@@ -1033,6 +1033,39 @@ body { background: #eef5f8; }
 .dark-mode .modal-backdrop { background: rgba(2, 5, 8, .74); }
 .dark-mode .modal-close, .dark-mode .cancel-button, .dark-mode .icon-button { background: #1b232d; border-color: #344251; color: #b8c4d0; }
 .dark-mode .theme-toggle { background: #151b23; border-color: #3a4857; color: #e5c467; }
+.dark-mode .app-sidebar,
+.dark-mode .dashboard-hero,
+.dark-mode .reports-hero,
+.dark-mode .public-home-content,
+.dark-mode .stray-hero {
+  background-color: #111417;
+  background-image: none;
+  border-color: #2a3033;
+}
+.dark-mode .dashboard-hero,
+.dark-mode .reports-hero,
+.dark-mode .stray-hero { box-shadow: 0 16px 34px rgba(0, 0, 0, .28); }
+.dark-mode .dashboard-hero h2,
+.dark-mode .reports-hero h2,
+.dark-mode .stray-hero h2 { color: #f0f2ef; }
+.dark-mode .dashboard-hero p,
+.dark-mode .reports-hero p,
+.dark-mode .stray-hero p { color: #a1aaa8; }
+.dark-mode .dashboard-metric,
+.dark-mode .daily-chart,
+.dark-mode .dashboard-attendance-table,
+.dark-mode .table-section,
+.dark-mode .panel,
+.dark-mode .group-strip { background: #151819; }
+.dark-mode .dashboard-metric::before,
+.dark-mode .dashboard-metric::after { background: #29302e; }
+.dark-mode .dashboard-metric strong { color: #edf0ed; }
+.dark-mode .dashboard-metric span,
+.dark-mode .dashboard-metric small { color: #929c99; }
+.dark-mode .dashboard-filter-tabs button { background: #1c2122; border-color: #353d3c; color: #a9b3b0; }
+.dark-mode .dashboard-filter-tabs button.active { background: #d7a936; border-color: #d7a936; color: #161817; }
+.dark-mode .chart-badge { background: #d9efe4; color: #206f55; }
+.dark-mode .four-donut { filter: saturate(.75); }
 
 @media (max-width: 680px) {
   .app-shell { width: 100%; overflow-x: hidden; }
