@@ -187,7 +187,7 @@ api.MapGet("/dashboard", async (string? date, string? month, NpgsqlDataSource db
     await dailyReader.ReadAsync();
     var dailySummary = new { total = dailyReader.GetInt64(0), choirPresent = dailyReader.GetInt64(1), massPresent = dailyReader.GetInt64(2) };
     await dailyReader.CloseAsync();
-    await using var peopleCommand = new NpgsqlCommand("select p.id,p.record_key,p.name,p.group_number,p.role,count(distinct a.attendance_date) filter(where a.attendance_type='choir'),count(distinct a.attendance_date) filter(where a.attendance_type='mass'),count(distinct v.visit_date) filter(where p.role<>'servant'),count(distinct c.week_start),max(v.visit_date)::text,(max(a.attendance_date) filter(where a.attendance_type='choir'))::text,(max(a.attendance_date) filter(where a.attendance_type='mass'))::text from people p left join attendance_records a on a.person_id=p.id left join visit_records v on v.person_id=p.id left join call_records c on (p.role='servant' and c.servant=p.name) or (p.role<>'servant' and c.person_id=p.id) where p.is_active=true group by p.id order by count(distinct a.attendance_date) filter(where a.attendance_type='choir') + count(distinct a.attendance_date) filter(where a.attendance_type='mass'), count(distinct c.week_start), p.name", connection);
+    await using var peopleCommand = new NpgsqlCommand("select p.id,p.record_key,p.name,p.group_number,p.role,count(distinct a.attendance_date) filter(where a.attendance_type='choir'),count(distinct a.attendance_date) filter(where a.attendance_type='mass'),count(distinct v.visit_date) filter(where p.role<>'servant'),count(distinct c.week_start),max(v.visit_date)::text,(max(a.attendance_date) filter(where a.attendance_type='choir'))::text,(max(a.attendance_date) filter(where a.attendance_type='mass'))::text from people p left join attendance_records a on a.person_id=p.id left join visit_records v on v.person_id=p.id left join call_records c on (p.role='servant' and regexp_replace(translate(c.servant,'إأآ','ااا'),'\\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\\s+','','g')) or (p.role<>'servant' and c.person_id=p.id) where p.is_active=true group by p.id order by count(distinct a.attendance_date) filter(where a.attendance_type='choir') + count(distinct a.attendance_date) filter(where a.attendance_type='mass'), count(distinct c.week_start), p.name", connection);
     await using var peopleReader = await peopleCommand.ExecuteReaderAsync();
     var people = new List<object>();
     while (await peopleReader.ReadAsync()) people.Add(new { id = peopleReader.GetInt64(0), recordKey = peopleReader.GetInt32(1), name = peopleReader.GetString(2), group = peopleReader.IsDBNull(3) ? "" : peopleReader.GetString(3), role = peopleReader.GetString(4), choirCount = peopleReader.GetInt64(5), massCount = peopleReader.GetInt64(6), visitCount = peopleReader.GetInt64(7), callCount = peopleReader.GetInt64(8), lastVisit = peopleReader.IsDBNull(9) ? "" : peopleReader.GetString(9), lastChoir = peopleReader.IsDBNull(10) ? "" : peopleReader.GetString(10), lastMass = peopleReader.IsDBNull(11) ? "" : peopleReader.GetString(11) });
@@ -219,11 +219,11 @@ api.MapGet("/servant-stats", async (int? year, NpgsqlDataSource db) =>
     await using (var command = new NpgsqlCommand(@"select p.id,p.name,
         (select count(distinct a.attendance_date) from attendance_records a where a.person_id=p.id and a.attendance_type='choir'),
         (select count(distinct a.attendance_date) from attendance_records a where a.person_id=p.id and a.attendance_type='mass'),
-        (select count(*) from call_records c where c.servant=p.name),
-        (select count(distinct c.week_start) from call_records c where c.servant=p.name)
+        (select count(*) from call_records c where regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g')),
+        (select count(distinct c.week_start) from call_records c where regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g'))
         from people p
         where p.is_active=true and p.role='servant'
-        order by (select count(*) from call_records c where c.servant=p.name) desc,p.name", connection))
+        order by (select count(*) from call_records c where regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g')) desc,p.name", connection))
     {
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync()) stats.Add(new { id = reader.GetInt64(0), name = reader.GetString(1), choir = reader.GetInt64(2), mass = reader.GetInt64(3), calls = reader.GetInt64(4), callWeeks = reader.GetInt64(5) });
@@ -231,7 +231,7 @@ api.MapGet("/servant-stats", async (int? year, NpgsqlDataSource db) =>
     var monthly = new List<object>();
     await using (var command = new NpgsqlCommand(@"select to_char(month,'YYYY-MM'),sum(choir),sum(mass),sum(calls) from (
         select date_trunc('month',attendance_date)::date month,count(*) filter(where attendance_type='choir') choir,count(*) filter(where attendance_type='mass') mass,0 calls from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='servant' and extract(year from attendance_date)=$1 group by 1
-        union all select date_trunc('month',week_start)::date,0,0,count(*) from call_records c join people p on p.is_active=true and p.role='servant' and p.name=c.servant where extract(year from week_start)=$1 group by 1
+        union all select date_trunc('month',week_start)::date,0,0,count(*) from call_records c join people p on p.is_active=true and p.role='servant' and regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g') where extract(year from week_start)=$1 group by 1
     ) data group by month order by month", connection))
     {
         command.Parameters.AddWithValue(selectedYear);
@@ -630,7 +630,6 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
     // boys across the active groups after every distribution change.
     await BalanceUncalledMembersAsync(connection, transaction, week, existingAssignments.Keys.ToArray());
 
-    await SetSetting(connection, transaction, "servants", servants);
     await SetSetting(connection, transaction, "rotationStart", rotationStart.ToString("yyyy-MM-dd"));
 
     var checks = payload.Checks ?? new Dictionary<string, bool>();
@@ -746,8 +745,6 @@ static async Task SetSetting(NpgsqlConnection connection, NpgsqlTransaction tran
 
 static async Task<string[]> GetServantNamesAsync(NpgsqlConnection connection)
 {
-    var saved = await GetSetting<string[]>(connection, "servants");
-    if (saved is { Length: > 0 }) return saved.Select(CanonicalServantName).Distinct(StringComparer.Ordinal).ToArray();
     var names = new List<string>();
     await using var command = new NpgsqlCommand("select distinct name from people where is_active=true and role='servant' order by name", connection);
     await using var reader = await command.ExecuteReaderAsync();
