@@ -1067,6 +1067,49 @@ body { background: #eef5f8; }
 .dark-mode .chart-badge { background: #d9efe4; color: #206f55; }
 .dark-mode .four-donut { filter: saturate(.75); }
 
+/* Explorer-style dark dashboard surfaces inspired by the supplied reference. */
+.dark-mode .dashboard-hero,
+.dark-mode .reports-hero,
+.dark-mode .stray-hero {
+  background: linear-gradient(118deg, #6258c9 0%, #4e8ddd 48%, #0bb6c5 100%);
+  border: 0;
+  border-radius: 14px;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, .26);
+}
+.dark-mode .dashboard-hero h2,
+.dark-mode .reports-hero h2,
+.dark-mode .stray-hero h2 { color: #fff; }
+.dark-mode .dashboard-hero p,
+.dark-mode .reports-hero p,
+.dark-mode .stray-hero p { color: rgba(255, 255, 255, .82); }
+.dark-mode .dashboard-hero .hero-date input,
+.dark-mode .reports-hero input { background: rgba(8, 14, 21, .86); border-color: rgba(255, 255, 255, .18); color: #f4f7fa; }
+.dark-mode .dashboard-metrics,
+.dark-mode .historical-metrics { gap: 10px; }
+.dark-mode .dashboard-metric,
+.dark-mode .daily-chart,
+.dark-mode .dashboard-attendance-table,
+.dark-mode .panel,
+.dark-mode .table-section,
+.dark-mode .group-strip { border-radius: 12px; background: #1c1e20; border-color: #2a2e31; }
+.dark-mode .dashboard-metric { min-height: 116px; }
+.dark-mode .dashboard-metric::before,
+.dark-mode .dashboard-metric::after { background: #343b3b; }
+.dark-mode .dashboard-metric strong { color: #f2f4f2; }
+.dark-mode .dashboard-metric span,
+.dark-mode .dashboard-metric small { color: #9aa4a4; }
+.dark-mode .dashboard-attendance-table .dashboard-table-search,
+.dark-mode .reports-hero .report-month-picker input { background: #0d1012; border-color: #343b40; }
+.dark-mode .daily-chart { background: #141719; }
+.dark-mode .daily-chart .chart-heading { border-color: #2c3235; }
+.dark-mode .report-bar-chart i { background: linear-gradient(180deg, #89c9ff, #4a87b4); }
+.dark-mode .report-bar-column span,
+.dark-mode .report-bar-column strong { color: #cbd4d4; }
+.dark-mode .dashboard-filter-tabs button { border-radius: 999px; }
+.dark-mode .table-section .table-wrap,
+.dark-mode .call-group,
+.dark-mode .servant-dashboard article { border-radius: 10px; }
+
 @media (max-width: 680px) {
   .app-shell { width: 100%; overflow-x: hidden; }
   .app-sidebar { width: 100%; min-height: auto; box-sizing: border-box; overflow: hidden; padding: 10px 10px 12px; }
