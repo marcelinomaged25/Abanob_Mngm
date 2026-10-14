@@ -11,6 +11,7 @@ const today = () => {
 };
 const dateLabel = (value) => value ? new Intl.DateTimeFormat("ar-EG", { day: "numeric", month: "long", year: "numeric" }).format(new Date(`${value}T12:00:00`)) : "—";
 const normalizeArabic = (value) => String(value || "").replace(/[إأآ]/g, "ا");
+const splitServants = (value = "") => Array.from(new Set(String(value).split(/\r?\n/).map((name) => name.trim()).filter(Boolean)));
 const emptyState = { rows: [], groups: [], servants: [], historySummary: [] };
 const emptyVisitReports = { totalPeople: 0, year: new Date().getFullYear(), daily: [], monthly: [], yearly: [], totals: { daily: 0, monthly: 0, yearly: 0 } };
 const emptyPerson = { name: "", group: "", phone1: "", phone2: "", address: "", note: "", role: "boy" };
@@ -438,12 +439,32 @@ function DashboardCalendar({ entries }) {
 }
 
 function FollowUpDashboard({ mode, state, selectedDate, setSelectedDate, rotationStart, setRotationStart, servantsText, setServantsText, busy, saveFollowUp, load, checkedCount, percent }) {
+  const [selectedServant, setSelectedServant] = useState("");
+  const [customServant, setCustomServant] = useState("");
   const monthVisited = mode === "visit" ? (state.monthVisitedCount || 0) : checkedCount;
   const monthTotal = mode === "visit" ? (state.monthTotal || state.rows.length) : state.rows.length;
   const monthPercent = monthTotal ? Math.round(monthVisited * 100 / monthTotal) : 0;
   const jumpToCallGroup = (groupNumber) => document.getElementById(`call-group-${groupNumber}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const servantList = useMemo(() => splitServants(servantsText), [servantsText]);
+  const servantOptions = useMemo(() => [...new Set([
+    ...(state.servants || []),
+    ...(state.rows || []).filter((row) => (row.role || "boy") === "servant").map((row) => row.name)
+  ].map((name) => String(name).trim()).filter(Boolean))], [state.rows, state.servants]);
+  const addServant = (name) => {
+    const next = String(name || "").trim();
+    if (!next) return;
+    const current = servantList;
+    if (!current.includes(next)) setServantsText(splitServants([...current, next].join("\n")).join("\n"));
+  };
+  const removeServant = (name) => setServantsText(splitServants(servantList.filter((item) => item !== name).join("\n")).join("\n"));
+  const handleServantsTextChange = (value) => setServantsText(splitServants(value).join("\n"));
   return <><section className="control-grid">
-    {mode === "call" && <article className="panel servants-panel"><div className="panel-heading"><div><p className="section-kicker">قائمة التوزيع</p><h2>مسؤولو الاتصال</h2></div><span className="count-badge">{servantsText.split(/\r?\n/).filter((name) => name.trim()).length}</span></div><textarea rows="5" placeholder="اكتب اسم كل خادم في سطر" value={servantsText} onChange={(event) => setServantsText(event.target.value)} /><div className="field-hint">كل سطر خادم واحد. التوزيع يتناوب أسبوعيًا على الجروبات.</div></article>}
+    {mode === "call" && <article className="panel servants-panel"><div className="panel-heading"><div><p className="section-kicker">قائمة التوزيع</p><h2>مسؤولو الاتصال</h2></div><span className="count-badge">{servantList.length}</span></div>
+      <div className="servants-picker"><label>اختر من الخدام الموجودين<select value={selectedServant} onChange={(event) => { const value = event.target.value; setSelectedServant(""); if (value) addServant(value); }}><option value="">اختر خادمًا</option>{servantOptions.map((name) => <option key={name} value={name}>{name}</option>)}</select></label><div className="servant-inline-add"><input value={customServant} onChange={(event) => setCustomServant(event.target.value)} placeholder="أو اكتب اسم خادم جديد" /><button type="button" className="secondary-button" onClick={() => { addServant(customServant); setCustomServant(""); }}>إضافة</button></div></div>
+      <div className="servant-chips">{servantList.length ? servantList.map((name) => <span key={name} className="servant-chip"><span>{name}</span><button type="button" aria-label={`حذف ${name}`} onClick={() => removeServant(name)}>×</button></span>) : <span className="servant-chip empty">لا توجد أسماء</span>}</div>
+      <textarea rows="5" placeholder="اسم كل خادم في سطر" value={servantsText} onChange={(event) => handleServantsTextChange(event.target.value)} />
+      <div className="field-hint">اختر من أسماء الخدام الفعلية الموجودة، أو أضف اسمًا جديدًا إذا كان غير موجود. لا يتكرر الاسم في القائمة.</div>
+    </article>}
     <article className="panel settings-panel"><div className="panel-heading"><div><p className="section-kicker">{mode === "visit" ? "التاريخ" : "دورة التوزيع"}</p><h2>{mode === "visit" ? "تاريخ الزيارة" : state.distributionNotStarted ? "أول أسبوع قادم" : "الأسبوع الحالي"}</h2></div><span className="week-mark"><CalendarDays size={17} /></span></div>{mode === "visit" ? <><label htmlFor="period-date">تاريخ تسجيل الزيارة</label><input id="period-date" type="date" value={selectedDate} onChange={(event) => { setSelectedDate(event.target.value); load(mode, event.target.value); }} /><div className="period-range">{dateLabel(selectedDate)}</div><label htmlFor="visit-month">شهر متابعة الافتقاد</label><input id="visit-month" type="month" value={selectedDate.slice(0, 7)} onChange={(event) => { const date = `${event.target.value}-01`; setSelectedDate(date); load(mode, date); }} /></> : <><div className="period-range">من {dateLabel(state.selectedWeek)} إلى {dateLabel(state.weekEnd)}<br />{state.distributionNotStarted ? "لم يبدأ التوزيع بعد." : "يتغير تلقائيًا كل 7 أيام."}</div><label htmlFor="rotation-date">بداية أول أسبوع للتوزيع</label><input id="rotation-date" type="date" value={rotationStart} onChange={(event) => setRotationStart(event.target.value)} /><div className="field-hint">اضبطه مرة واحدة. التطبيق يحدد أسبوع اليوم والمسؤولين تلقائيًا.</div><button className="primary-button" disabled={busy} onClick={() => saveFollowUp(true)}>↻ حفظ بداية التوزيع</button></>}</article>
     <article className="panel overview-panel"><div className="panel-heading"><div><p className="section-kicker">ملخص الشهر</p><h2>حالة الافتقاد</h2></div></div><div className="metrics"><div className="metric"><strong>{state.groups.length}</strong><span>جروب</span></div><div className="metric"><strong>{monthTotal}</strong><span>مخدوم</span></div><div className="metric"><strong>{mode === "visit" ? monthVisited : checkedCount}</strong><span>{mode === "visit" ? "تمت زيارتهم هذا الشهر" : "تم الاتصال بهم"}</span></div></div><div className="progress-track"><div className="progress-fill" style={{ width: `${mode === "visit" ? monthPercent : percent}%` }} /></div><div className="progress-label">{mode === "visit" ? `${monthVisited} من ${monthTotal} · متبقي ${Math.max(0, monthTotal - monthVisited)}` : `${checkedCount} من ${state.rows.length} · متبقي ${state.rows.length - checkedCount}`}</div><div className="rotation-label">{mode === "visit" ? "إجمالي الزيارات المسجلة خلال الشهر المختار" : "مسؤول اتصال واحد لكل جروب خلال الأسبوع"}</div></article>
   </section>{mode === "call" && <section className="group-strip"><div className="section-title-row"><div><p className="section-kicker">المتابعة الحالية</p><h2>مسؤولو الاتصال الأسبوعي</h2></div><span className="date-label">{dateLabel(state.selectedWeek)}</span></div><div className="group-cards">{state.groups.map((group) => { const members = state.rows.filter((row) => row.group === group.number); const checked = members.filter((row) => row.called).length; return <article className={`group-card ${group.servant ? "has-servant" : ""}`} key={group.number} role="button" tabIndex="0" onClick={() => jumpToCallGroup(group.number)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); jumpToCallGroup(group.number); } }}><div className={`group-number tone-${groupTone(group.number)}`}>{group.number}</div><div className="group-info"><span>جروب</span><strong>{group.servant || "لم يُحدد"}</strong><small>{group.members} أفراد · اتصالات {checked}</small></div></article>; })}</div></section>}</>;
