@@ -1643,8 +1643,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .dark-mode .topbar-verse span { color: #edf1ef; }
 @media (max-width: 680px) {
   .topbar {
+    width: 100vw;
     min-height: 0;
-    margin-bottom: 12px;
+    margin: 0 calc(50% - 50vw) 12px;
     padding: 10px 12px;
     gap: 8px;
     display: block;
