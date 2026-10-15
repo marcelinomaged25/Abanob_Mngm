@@ -1608,6 +1608,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* Keep the sidebar background flat and consistent; no decorative pattern behind it. */
 .app-sidebar,
 .dark-mode .app-sidebar {
+  background: transparent !important;
   background-image: none !important;
 }
 
