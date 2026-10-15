@@ -1640,6 +1640,37 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .app-sidebar .theme-toggle:hover,
 .app-sidebar .logout-button:hover { border-color: #c89d3c; background: #237d62; color: #edf1ef; }
 
+/* Light mode keeps the transparent rail, but uses the light template controls. */
+.app-shell:not(.dark-mode) .app-sidebar .sidebar-item {
+  border-color: #d7dde7;
+  background: rgba(255, 253, 247, .94);
+  color: #172137;
+  box-shadow: 0 4px 12px rgba(23, 33, 55, .07);
+}
+.app-shell:not(.dark-mode) .app-sidebar .sidebar-item:hover {
+  border-color: #c89d3c;
+  background: #fff7df;
+  color: #172137;
+}
+.app-shell:not(.dark-mode) .app-sidebar .sidebar-item.active {
+  border-color: #c89d3c;
+  background: #237d62;
+  color: #edf1ef;
+  box-shadow: 0 5px 14px rgba(35, 125, 98, .2);
+}
+.app-shell:not(.dark-mode) .app-sidebar .theme-toggle,
+.app-shell:not(.dark-mode) .app-sidebar .logout-button {
+  border-color: #d7dde7;
+  background: rgba(255, 253, 247, .94);
+  color: #172137;
+}
+.app-shell:not(.dark-mode) .app-sidebar .theme-toggle:hover,
+.app-shell:not(.dark-mode) .app-sidebar .logout-button:hover {
+  border-color: #c89d3c;
+  background: #fff7df;
+  color: #172137;
+}
+
 /* Compact scripture header replaces the oversized legacy admin title on every screen. */
 .topbar-verse {
   position: relative;
