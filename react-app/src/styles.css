@@ -1671,6 +1671,45 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   color: #172137;
 }
 
+/* Light mode sidebar matches the original Coptic blue reference treatment. */
+.app-shell:not(.dark-mode) .app-sidebar {
+  background-color: #062c59 !important;
+  background-image: linear-gradient(rgba(4, 35, 75, .1), rgba(4, 35, 75, .1)), url("/dashboard-pattern.png") !important;
+  background-position: center, center;
+  background-size: cover, 320px 280px;
+  background-repeat: no-repeat, repeat;
+  color: #eef3ff;
+}
+.app-shell:not(.dark-mode) .app-sidebar .sidebar-item {
+  border-color: transparent;
+  background: rgba(255, 255, 255, .06);
+  color: #eef3ff;
+  box-shadow: none;
+}
+.app-shell:not(.dark-mode) .app-sidebar .sidebar-item:hover {
+  border-color: rgba(244, 197, 48, .65);
+  background: rgba(255, 255, 255, .12);
+  color: #fff;
+}
+.app-shell:not(.dark-mode) .app-sidebar .sidebar-item.active {
+  border-color: #f4c530;
+  background: #dcae2d;
+  color: #142f63;
+  box-shadow: 0 8px 18px rgba(8, 25, 65, .22);
+}
+.app-shell:not(.dark-mode) .app-sidebar .theme-toggle,
+.app-shell:not(.dark-mode) .app-sidebar .logout-button {
+  border-color: rgba(255, 255, 255, .22);
+  background: rgba(255, 255, 255, .08);
+  color: #eef3ff;
+}
+.app-shell:not(.dark-mode) .app-sidebar .theme-toggle:hover,
+.app-shell:not(.dark-mode) .app-sidebar .logout-button:hover {
+  border-color: #f4c530;
+  background: rgba(255, 255, 255, .14);
+  color: #fff;
+}
+
 /* Compact scripture header replaces the oversized legacy admin title on every screen. */
 .topbar-verse {
   position: relative;
