@@ -1872,3 +1872,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .sub-tabs { width: fit-content; max-width: 100%; margin-inline-start: auto; }
   .sub-tabs button { flex-basis: 88px; min-width: 88px; }
 }
+
+/* Keep the sidebar visually identical to the attendance dashboard hero. */
+.app-shell:not(.dark-mode) .app-sidebar {
+  background: #062c59 url("/dashboard-pattern.png") center / cover no-repeat !important;
+  background-blend-mode: normal !important;
+}
