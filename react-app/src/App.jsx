@@ -44,6 +44,20 @@ function searchableRowText(row) {
     .toLocaleLowerCase("ar");
 }
 
+function searchMatches(text, term) {
+  if (!term) return true;
+  if (text.includes(term)) return true;
+  const compactText = text.replace(/[\s،,.\-_/]/g, "");
+  const compactTerm = term.replace(/[\s،,.\-_/]/g, "");
+  if (compactTerm.length < 3) return false;
+  let index = 0;
+  for (const character of compactText) {
+    if (character === compactTerm[index]) index += 1;
+    if (index === compactTerm.length) return true;
+  }
+  return false;
+}
+
 function findDuplicateNames(people) {
   const groups = new Map();
   for (const person of people || []) {
@@ -143,9 +157,9 @@ export default function App() {
 
   const searchIndex = useMemo(() => state.rows.map((row) => ({ row, text: searchableRowText(row) })), [state.rows]);
   const searchTerm = useMemo(() => normalizeArabic(query).trim().toLocaleLowerCase("ar"), [query]);
-  const rows = useMemo(() => searchIndex.filter(({ text }) => !searchTerm || text.includes(searchTerm)).map(({ row }) => row), [searchIndex, searchTerm]);
+  const rows = useMemo(() => searchIndex.filter(({ text }) => searchMatches(text, searchTerm)).map(({ row }) => row), [searchIndex, searchTerm]);
   const visitRows = useMemo(() => searchIndex
-    .filter(({ row, text }) => (includeVisitedThisMonth ? row.visitedThisMonth : !row.visitedThisMonth) && (!searchTerm || text.includes(searchTerm)))
+    .filter(({ row, text }) => (includeVisitedThisMonth ? row.visitedThisMonth : !row.visitedThisMonth) && searchMatches(text, searchTerm))
     .map(({ row }) => row), [includeVisitedThisMonth, searchIndex, searchTerm]);
   const followUpRows = state.rows.filter((row) => row.role !== "servant");
   const checkedCount = followUpRows.filter((row) => mode === "visit" ? row.visited : row.called).length;
