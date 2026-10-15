@@ -1691,3 +1691,49 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   }
   .sub-tabs button svg { flex: 0 0 auto; }
 }
+
+/* Landscape phones use the desktop shell instead of the portrait navigation strip. */
+@media (max-width: 900px) and (orientation: landscape) {
+  html, body, #root { min-width: 0; width: 100%; overflow-x: hidden; }
+  .app-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 190px;
+    min-height: 100vh;
+  }
+  .app-sidebar {
+    position: sticky;
+    top: 0;
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    height: 100vh;
+    min-width: 0;
+    padding: 14px 10px;
+  }
+  .sidebar-brand { display: flex; padding: 0 5px 14px; }
+  .sidebar-brand img { width: 34px; height: 34px; }
+  .sidebar-brand strong { font-size: 12px; }
+  .sidebar-brand span { font-size: 9px; }
+  .sidebar-label { display: block; margin: 0 5px 7px; font-size: 9px; }
+  .sidebar-nav { display: grid; gap: 3px; overflow: visible; }
+  .sidebar-item { justify-content: flex-start; width: 100%; min-width: 0; min-height: 32px; padding: 7px 8px; font-size: 10px; }
+  .sidebar-item span { display: inline; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sidebar-footer { display: flex; margin-top: auto; padding: 9px 4px 0; }
+  .app-content {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    width: 100%;
+    padding: 12px 16px 30px;
+  }
+  .topbar { margin: -12px -16px 12px; padding: 8px 16px; }
+  .topbar-verse span { font-size: 15px; }
+  .top-actions { display: none; }
+  .dashboard-hero { min-height: 126px; }
+  .dashboard-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .dashboard-main-grid, .dashboard-secondary, .dashboard-attendance-split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-attendance-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .attendance-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sub-tabs { width: fit-content; max-width: 100%; margin-inline-start: auto; }
+  .sub-tabs button { flex-basis: 88px; min-width: 88px; }
+}
