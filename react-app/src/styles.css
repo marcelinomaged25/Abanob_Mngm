@@ -1654,15 +1654,17 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     justify-content: center;
     width: 100%;
     text-align: center;
-    min-height: 72px;
-    padding-inline: 28px;
+    min-height: 56px;
+    padding-inline: 8px;
   }
   .topbar-verse span {
     display: block;
-    max-width: 100%;
+    width: 100%;
+    max-width: none;
     color: #172137;
-    font-size: 20px;
-    line-height: 1.8;
+    font-size: clamp(11px, 3.8vw, 16px);
+    line-height: 1.5;
+    white-space: nowrap;
     text-align: center;
   }
   .topbar-verse::before { display: none; }
