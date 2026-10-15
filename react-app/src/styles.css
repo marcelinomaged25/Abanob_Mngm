@@ -1684,7 +1684,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* Warm stone-text background trial for the light sidebar. */
 .app-shell:not(.dark-mode) .app-sidebar {
   background-color: #4a2815 !important;
-  background-image: linear-gradient(rgba(35, 18, 8, .12), rgba(35, 18, 8, .12)), url("/sidebar-stone.png") !important;
+  background-image: linear-gradient(rgba(35, 18, 8, .04), rgba(35, 18, 8, .04)), url("/sidebar-stone.png") !important;
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
@@ -1748,6 +1748,49 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   border-color: #d9c5a6;
   background: rgba(255, 253, 247, .96);
 }
+
+/* Public search and report pages use the same warm stone identity. */
+.public-parent-home {
+  background: #f4eee5;
+}
+.public-home-glow { display: none; }
+.public-home-brand {
+  background: rgba(255, 253, 247, .96);
+  color: #4a2815;
+  border-bottom: 1px solid #d9c5a6;
+}
+.public-home-brand span { color: #8b7560; }
+.public-home-content {
+  background: linear-gradient(rgba(35, 18, 8, .44), rgba(35, 18, 8, .44)), url("/sidebar-stone.png") center / cover no-repeat;
+  color: #fff8ed;
+}
+.public-home-content h1 { color: #fff8ed; }
+.public-home-copy,
+.public-home-copy::after { color: #f2dfc0; }
+.public-home-search {
+  border-color: #d9c5a6;
+  background: rgba(255, 253, 247, .96);
+  color: #7f6a55;
+  box-shadow: 0 14px 32px rgba(35, 18, 8, .22);
+}
+.public-home-search:focus-within {
+  border-color: #c89d3c;
+  box-shadow: 0 0 0 4px rgba(200, 157, 60, .18), 0 14px 32px rgba(35, 18, 8, .16);
+}
+.public-home-search input { color: #4a2815; }
+.public-home-results a {
+  border-color: #d9c5a6;
+  background: rgba(255, 253, 247, .96);
+  color: #4a2815;
+}
+.public-home-results a:hover { border-color: #c89d3c; background: #fff7df; }
+.public-admin-link {
+  border-color: #c89d3c;
+  background: #c89d3c;
+  color: #3b2415;
+}
+.public-admin-link:hover { border-color: #dfb95b; background: #dfb95b; }
+.public-report-page { background: #f4eee5; }
 
 /* Compact scripture header replaces the oversized legacy admin title on every screen. */
 .topbar-verse {
