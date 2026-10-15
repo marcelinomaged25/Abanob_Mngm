@@ -1673,11 +1673,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 /* Light mode sidebar matches the original Coptic blue reference treatment. */
 .app-shell:not(.dark-mode) .app-sidebar {
-  background-color: #062c59 !important;
-  background-image: linear-gradient(rgba(4, 35, 75, .1), rgba(4, 35, 75, .1)), url("/dashboard-pattern.png") !important;
+  background-color: #102e66 !important;
+  background-image: url("/hero-frame.svg") !important;
   background-position: center, center;
-  background-size: cover, 320px 280px;
-  background-repeat: no-repeat, repeat;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   color: #eef3ff;
 }
 .app-shell:not(.dark-mode) .app-sidebar .sidebar-item {
