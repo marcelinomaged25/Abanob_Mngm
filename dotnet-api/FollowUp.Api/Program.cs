@@ -637,9 +637,10 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
         }
     }
 
-    // Keep completed calls with their current servant, but balance all remaining
-    // boys across the active groups after every distribution change.
-    await BalanceUncalledMembersAsync(connection, transaction, week, existingAssignments.Keys.ToArray());
+    // Only an explicit distribution save may move uncalled boys. A normal
+    // group/save action must never rebalance unrelated groups.
+    if (payload.Redistribute)
+        await BalanceUncalledMembersAsync(connection, transaction, week, existingAssignments.Keys.ToArray());
 
     await SetSetting(connection, transaction, "rotationStart", rotationStart.ToString("yyyy-MM-dd"));
     await SetSetting(connection, transaction, "callSelectedServants", servants);
@@ -1055,7 +1056,7 @@ static void LoadEnvironmentFile(string? path)
 record Person(long Id, int RecordKey, string Name, string Note, string Phone1, string Phone2, string Group, string Address, string Role, string QrToken);
 record Group(string Number, int Members, int[] RecordKeys);
 record VisitSave(string Date, Dictionary<string, bool>? Checks);
-record CallSave(string? RotationStart, string[]? Servants, Dictionary<string, bool>? Checks);
+record CallSave(string? RotationStart, string[]? Servants, Dictionary<string, bool>? Checks, bool Redistribute = false);
 record PersonInput(string Name, string? Group, string? Phone1, string? Phone2, string? Address, string? Note, string? Role);
 record AttendanceSave(string Type, string Date, Dictionary<string, bool>? Checks);
 record AttendanceCommentSave(string Type, string Date, int RecordKey, string Comment);

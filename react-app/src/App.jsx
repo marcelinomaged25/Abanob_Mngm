@@ -197,7 +197,7 @@ export default function App() {
       } else {
         const checks = Object.fromEntries(state.rows.filter((row) => row.role !== "servant" && (!groupFilter || row.group === groupFilter)).map((row) => [row.recordKey, row.called === true]));
         const servants = servantsText.split(/\r?\n/).map((name) => name.trim()).filter(Boolean);
-        result = await request("/api/calls", { method: "POST", body: JSON.stringify({ rotationStart, servants, checks }) });
+        result = await request("/api/calls", { method: "POST", body: JSON.stringify({ rotationStart, servants, checks, redistribute: assign }) });
       }
       setState(result); setRotationStart(result.rotationStart || rotationStart); setServantsText((result.servants || []).join("\n"));
       setNotice(assign ? "تم حفظ دورة التوزيع" : "تم حفظ العلامات");
