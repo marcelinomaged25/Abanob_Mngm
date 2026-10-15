@@ -229,13 +229,12 @@ api.MapGet("/servant-stats", async (int? year, NpgsqlDataSource db) =>
     await using (var command = new NpgsqlCommand(@"select p.id,p.name,
         (select count(distinct a.attendance_date) from attendance_records a where a.person_id=p.id and a.attendance_type='choir'),
         (select count(distinct a.attendance_date) from attendance_records a where a.person_id=p.id and a.attendance_type='mass'),
-        (select count(*) from call_records c where c.week_start >= $1 and regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g')),
-        (select count(distinct c.week_start) from call_records c where c.week_start >= $1 and regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g'))
+        (select count(*) from call_records c where regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g')),
+        (select count(distinct c.week_start) from call_records c where regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g'))
         from people p
         where p.is_active=true and p.role='servant'
         order by (select count(*) from call_records c where c.week_start >= $1 and regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g')) desc,p.name", connection))
     {
-        command.Parameters.AddWithValue(activityStart);
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync()) stats.Add(new { id = reader.GetInt64(0), name = reader.GetString(1), choir = reader.GetInt64(2), mass = reader.GetInt64(3), calls = reader.GetInt64(4), callWeeks = reader.GetInt64(5) });
     }
