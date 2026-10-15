@@ -1626,11 +1626,40 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     margin-bottom: 12px;
     padding: 10px 12px;
     gap: 8px;
+    display: block;
+  }
+  .topbar-verse {
+    justify-content: center;
+    width: 100%;
+    text-align: center;
   }
   .topbar-verse span {
-    font-size: 13px;
-    line-height: 1.6;
+    display: block;
+    max-width: 100%;
+    color: #172137;
+    font-size: 18px;
+    line-height: 1.8;
+    text-align: center;
   }
-  .top-actions { flex: 0 0 auto; }
-  .save-state { padding: 5px 8px; font-size: 10px; }
+  .dark-mode .topbar-verse span { color: #c89d3c; }
+  .top-actions { display: none; }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  .app-sidebar { padding: 8px 12px; }
+  .sidebar-brand { display: flex; align-items: center; padding-bottom: 7px; }
+  .sidebar-brand img { width: 34px; height: 34px; }
+  .sidebar-brand strong { font-size: 12px; }
+  .sidebar-brand span, .sidebar-label, .sidebar-footer { display: none; }
+  .sidebar-nav { display: flex; gap: 5px; overflow-x: auto; }
+  .sidebar-item { flex: 1 0 auto; justify-content: center; width: auto; min-height: 36px; padding: 7px 10px; }
+  .sidebar-item span { display: none; }
+  .app-content { padding: 10px 14px 24px; }
+  .topbar { margin: -10px -14px 12px; padding: 8px 14px; }
+  .topbar-verse span { font-size: 16px; }
+  .dashboard-hero { min-height: 132px; padding: 14px 20px; }
+  .dashboard-hero img { width: 70px; height: 70px; }
+  .dashboard-metrics { grid-template-columns: repeat(3, 1fr); }
+  .dashboard-main-grid, .dashboard-secondary { grid-template-columns: 1fr 1fr; }
+  .attendance-grid { grid-template-columns: repeat(4, 1fr); }
 }
