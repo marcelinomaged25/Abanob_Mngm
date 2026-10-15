@@ -218,10 +218,11 @@ api.MapGet("/servant-stats", async (int? year, NpgsqlDataSource db) =>
     var today = CairoToday();
     var rotation = ParseDate(await GetSetting<string?>(connection, "rotationStart"), today);
     var configuredActivityStart = await GetSetting<string?>(connection, "servantActivityStart");
-    var activityStart = ParseDate(configuredActivityStart, WeekStart(today, rotation).AddDays(7));
-    if (configuredActivityStart is null)
+    var activityStart = ParseDate(configuredActivityStart, WeekStart(today, rotation));
+    if (configuredActivityStart is null || activityStart > today)
     {
-        await using var startCommand = new NpgsqlCommand("insert into settings(key,value) values('servantActivityStart',$1::jsonb) on conflict(key) do nothing", connection);
+        activityStart = WeekStart(today, rotation);
+        await using var startCommand = new NpgsqlCommand("insert into settings(key,value) values('servantActivityStart',$1::jsonb) on conflict(key) do update set value=excluded.value,updated_at=now()", connection);
         startCommand.Parameters.AddWithValue(JsonSerializer.Serialize(activityStart.ToString("yyyy-MM-dd")));
         await startCommand.ExecuteNonQueryAsync();
     }
@@ -663,7 +664,7 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
         deleteCalls.Parameters.AddWithValue(JsonSerializer.Serialize(checks));
         await deleteCalls.ExecuteNonQueryAsync();
     }
-    await using (var saveCalls = new NpgsqlCommand("insert into call_records(person_id,week_start,servant) select p.id,$1,coalesce(a.servant,'') from people p join jsonb_each_text($2::jsonb) checks on checks.key::integer=p.record_key left join call_assignments a on a.week_start=$1 and a.group_number=p.group_number where checks.value='true' and p.is_active=true and p.role='boy' on conflict (person_id,week_start) do nothing", connection, transaction))
+    await using (var saveCalls = new NpgsqlCommand("insert into call_records(person_id,week_start,servant) select p.id,$1,coalesce(a.servant,'') from people p join jsonb_each_text($2::jsonb) checks on checks.key::integer=p.record_key left join call_assignments a on a.week_start=$1 and a.group_number=p.group_number where checks.value='true' and p.is_active=true and p.role='boy' on conflict (person_id,week_start) do update set servant=excluded.servant,recorded_at=now()", connection, transaction))
     {
         saveCalls.Parameters.AddWithValue(week);
         saveCalls.Parameters.AddWithValue(JsonSerializer.Serialize(checks));
@@ -742,11 +743,24 @@ static async Task<object> BuildState(NpgsqlDataSource db, string mode, string? s
     await using (var command = new NpgsqlCommand("select person_id,attendance_type,max(attendance_date)::text from attendance_records group by person_id,attendance_type", connection))
     await using (var reader = await command.ExecuteReaderAsync())
         while (await reader.ReadAsync()) { if (reader.GetString(1) == "choir") lastChoir[reader.GetInt64(0)] = reader.GetString(2); else lastMass[reader.GetInt64(0)] = reader.GetString(2); }
+    var choirCounts = new Dictionary<long, long>();
+    var massCounts = new Dictionary<long, long>();
+    await using (var command = new NpgsqlCommand("select person_id,count(distinct attendance_date) filter(where attendance_type='choir'),count(distinct attendance_date) filter(where attendance_type='mass') from attendance_records group by person_id", connection))
+    await using (var reader = await command.ExecuteReaderAsync())
+        while (await reader.ReadAsync()) { choirCounts[reader.GetInt64(0)] = reader.GetInt64(1); massCounts[reader.GetInt64(0)] = reader.GetInt64(2); }
+    var boyCallCounts = new Dictionary<long, long>();
+    await using (var command = new NpgsqlCommand("select person_id,count(*) from call_records group by person_id", connection))
+    await using (var reader = await command.ExecuteReaderAsync())
+        while (await reader.ReadAsync()) boyCallCounts[reader.GetInt64(0)] = reader.GetInt64(1);
+    var servantCallCounts = new Dictionary<string, long>(StringComparer.Ordinal);
+    await using (var command = new NpgsqlCommand(@"select effective_servant,count(*) from (select coalesce(nullif(c.servant,''),ca.servant) effective_servant from call_records c join people cp on cp.id=c.person_id left join call_assignments ca on ca.week_start=c.week_start and ca.group_number=cp.group_number) sub where effective_servant is not null and effective_servant<>'' group by effective_servant", connection))
+    await using (var reader = await command.ExecuteReaderAsync())
+        while (await reader.ReadAsync()) { var name = CanonicalServantName(reader.GetString(0)); servantCallCounts[name] = servantCallCounts.GetValueOrDefault(name) + reader.GetInt64(1); }
     var rows = people.Select(person =>
     {
         lastCall.TryGetValue(person.Id, out var call);
         var group = person.Role == "servant" ? "" : person.Group;
-        return new { id = person.Id, recordKey = person.RecordKey, name = person.Name, note = person.Note, phone1 = person.Phone1, phone2 = person.Phone2, group, address = person.Address, role = person.Role, qrToken = person.QrToken, visited = mode == "visit" && visits.Contains(person.Id), visitedThisMonth = visitedThisMonth.Contains(person.Id), called = calls.ContainsKey(person.Id), servant = calls.GetValueOrDefault(person.Id) ?? savedAssignments.GetValueOrDefault(person.Group) ?? autoAssignments.GetValueOrDefault(person.Group) ?? "", lastVisitedDate = lastVisit.GetValueOrDefault(person.Id) ?? "", lastCalledWeek = call.Week ?? "", lastCaller = call.Servant ?? "", lastChoirDate = lastChoir.GetValueOrDefault(person.Id) ?? "", lastMassDate = lastMass.GetValueOrDefault(person.Id) ?? "" };
+        return new { id = person.Id, recordKey = person.RecordKey, name = person.Name, note = person.Note, phone1 = person.Phone1, phone2 = person.Phone2, group, address = person.Address, role = person.Role, qrToken = person.QrToken, visited = mode == "visit" && visits.Contains(person.Id), visitedThisMonth = visitedThisMonth.Contains(person.Id), called = calls.ContainsKey(person.Id), servant = calls.GetValueOrDefault(person.Id) ?? savedAssignments.GetValueOrDefault(person.Group) ?? autoAssignments.GetValueOrDefault(person.Group) ?? "", lastVisitedDate = lastVisit.GetValueOrDefault(person.Id) ?? "", lastCalledWeek = call.Week ?? "", lastCaller = call.Servant ?? "", lastChoirDate = lastChoir.GetValueOrDefault(person.Id) ?? "", lastMassDate = lastMass.GetValueOrDefault(person.Id) ?? "", callCount = person.Role == "servant" ? servantCallCounts.GetValueOrDefault(CanonicalServantName(person.Name)) : boyCallCounts.GetValueOrDefault(person.Id), choirCount = choirCounts.GetValueOrDefault(person.Id), massCount = massCounts.GetValueOrDefault(person.Id) };
     }).ToArray();
     var groupStates = groups.Select(group => new { number = group.Number, members = group.Members, recordKeys = group.RecordKeys, servant = savedAssignments.GetValueOrDefault(group.Number) ?? autoAssignments.GetValueOrDefault(group.Number) ?? "" }).ToArray();
     var weekEnd = week.AddDays(6);
