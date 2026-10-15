@@ -1663,3 +1663,31 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .dashboard-main-grid, .dashboard-secondary { grid-template-columns: 1fr 1fr; }
   .attendance-grid { grid-template-columns: repeat(4, 1fr); }
 }
+
+@media (max-width: 680px) {
+  .sub-tabs {
+    display: flex;
+    align-items: stretch;
+    width: calc(100% + 4px);
+    max-width: calc(100% + 4px);
+    margin-inline: -2px;
+    padding: 3px;
+    gap: 4px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .sub-tabs::-webkit-scrollbar { display: none; }
+  .sub-tabs button {
+    flex: 0 0 92px;
+    min-width: 92px;
+    min-height: 50px;
+    justify-content: center;
+    padding: 6px 5px;
+    font-size: 10px;
+    line-height: 1.25;
+    text-align: center;
+    white-space: normal;
+  }
+  .sub-tabs button svg { flex: 0 0 auto; }
+}
