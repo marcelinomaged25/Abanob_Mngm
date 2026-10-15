@@ -1680,6 +1680,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   background-repeat: no-repeat;
   color: #eef3ff;
 }
+
+/* Warm stone-text background trial for the light sidebar. */
+.app-shell:not(.dark-mode) .app-sidebar {
+  background-color: #4a2815 !important;
+  background-image: linear-gradient(rgba(35, 18, 8, .28), rgba(35, 18, 8, .28)), url("/sidebar-stone.png") !important;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
 .app-shell:not(.dark-mode) .app-sidebar .sidebar-item {
   border-color: transparent;
   background: rgba(255, 255, 255, .06);
