@@ -1612,6 +1612,34 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   background-image: none !important;
 }
 
+/* Transparent rail, readable controls. */
+.app-sidebar .sidebar-item {
+  border: 1px solid rgba(48, 56, 61, .72);
+  background: rgba(21, 26, 30, .88);
+  color: #edf1ef;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, .12);
+}
+.app-sidebar .sidebar-item:hover {
+  border-color: #c89d3c;
+  background: rgba(35, 125, 98, .88);
+  color: #edf1ef;
+}
+.app-sidebar .sidebar-item.active {
+  border-color: #c89d3c;
+  background: #237d62;
+  color: #edf1ef;
+  box-shadow: 0 6px 16px rgba(35, 125, 98, .28);
+}
+.app-sidebar .sidebar-footer { border-top-color: rgba(48, 56, 61, .72); }
+.app-sidebar .theme-toggle,
+.app-sidebar .logout-button {
+  border-color: #30383d;
+  background: rgba(21, 26, 30, .9);
+  color: #edf1ef;
+}
+.app-sidebar .theme-toggle:hover,
+.app-sidebar .logout-button:hover { border-color: #c89d3c; background: #237d62; color: #edf1ef; }
+
 /* Compact scripture header replaces the oversized legacy admin title on every screen. */
 .topbar-verse {
   position: relative;
