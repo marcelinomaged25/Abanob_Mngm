@@ -641,6 +641,18 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
     if (payload.Redistribute)
         await BalanceUncalledMembersAsync(connection, transaction, week, existingAssignments.Keys.ToArray());
 
+    // Persist every displayed weekly assignment before writing call records.
+    // Auto-assigned groups must still carry their servant into call_records.
+    var displayedAssignments = Assignments(groups, servants, week, rotationStart);
+    foreach (var item in displayedAssignments)
+    {
+        if (!existingAssignments.ContainsKey(item.Key))
+        {
+            await UpsertAssignmentAsync(connection, transaction, week, item.Key, item.Value);
+            existingAssignments[item.Key] = item.Value;
+        }
+    }
+
     await SetSetting(connection, transaction, "rotationStart", rotationStart.ToString("yyyy-MM-dd"));
     await SetSetting(connection, transaction, "callSelectedServants", servants);
 
