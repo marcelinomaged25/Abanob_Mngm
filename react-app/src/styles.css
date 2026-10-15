@@ -1719,6 +1719,36 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   color: #fff;
 }
 
+/* Unified warm stone identity for the remaining light-mode blue surfaces. */
+.app-shell:not(.dark-mode) .app-content {
+  background: #f4eee5;
+}
+.app-shell:not(.dark-mode) .dashboard-hero,
+.app-shell:not(.dark-mode) .reports-hero,
+.app-shell:not(.dark-mode) .stray-hero {
+  background-color: #4a2815 !important;
+  background-image: linear-gradient(rgba(35, 18, 8, .46), rgba(35, 18, 8, .46)), url("/sidebar-stone.png") !important;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  box-shadow: 0 14px 30px rgba(74, 40, 21, .2);
+}
+.app-shell:not(.dark-mode) .dashboard-hero::before,
+.app-shell:not(.dark-mode) .dashboard-hero::after { display: none; }
+.app-shell:not(.dark-mode) .dashboard-hero .section-kicker,
+.app-shell:not(.dark-mode) .reports-hero .section-kicker,
+.app-shell:not(.dark-mode) .stray-hero .section-kicker { color: #f1c969; }
+.app-shell:not(.dark-mode) .dashboard-hero p:not(.section-kicker),
+.app-shell:not(.dark-mode) .reports-hero p:not(.section-kicker),
+.app-shell:not(.dark-mode) .stray-hero p:not(.section-kicker) { color: #f2dfc0; }
+.login-screen {
+  background: linear-gradient(rgba(35, 18, 8, .34), rgba(35, 18, 8, .34)), url("/sidebar-stone.png") center / cover no-repeat;
+}
+.login-panel {
+  border-color: #d9c5a6;
+  background: rgba(255, 253, 247, .96);
+}
+
 /* Compact scripture header replaces the oversized legacy admin title on every screen. */
 .topbar-verse {
   position: relative;
