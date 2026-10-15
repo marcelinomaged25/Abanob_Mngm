@@ -37,6 +37,13 @@ function nameKey(value) {
   return normalizeArabic(value).trim().replace(/\s+/g, " ").toLocaleLowerCase("ar");
 }
 
+function searchableRowText(row) {
+  return normalizeArabic([row.name, row.group, row.phone1, row.phone2, row.address, row.note, row.servant, row.lastCaller]
+    .filter(Boolean)
+    .join(" "))
+    .toLocaleLowerCase("ar");
+}
+
 function findDuplicateNames(people) {
   const groups = new Map();
   for (const person of people || []) {
@@ -134,11 +141,12 @@ export default function App() {
 
   useEffect(() => { if (password && username) { load(mode, mode === "attendance" ? attendanceDate : selectedDate, password); } }, [password, username]);
 
-  const rows = useMemo(() => {
-    const term = normalizeArabic(query).trim().toLocaleLowerCase("ar");
-    return state.rows.filter((row) => normalizeArabic([row.name, row.group, row.phone1, row.phone2, row.address, row.note, row.servant, row.lastCaller].filter(Boolean).join(" ")).toLocaleLowerCase("ar").includes(term));
-  }, [query, state.rows]);
-  const visitRows = useMemo(() => { const term = normalizeArabic(query).trim().toLocaleLowerCase("ar"); const base = state.rows.filter((row) => includeVisitedThisMonth ? row.visitedThisMonth : !row.visitedThisMonth); return base.filter((row) => normalizeArabic([row.name, row.group, row.phone1, row.phone2, row.address, row.note, row.servant, row.lastCaller].filter(Boolean).join(" ")).toLocaleLowerCase("ar").includes(term)); }, [includeVisitedThisMonth, query, state.rows]);
+  const searchIndex = useMemo(() => state.rows.map((row) => ({ row, text: searchableRowText(row) })), [state.rows]);
+  const searchTerm = useMemo(() => normalizeArabic(query).trim().toLocaleLowerCase("ar"), [query]);
+  const rows = useMemo(() => searchIndex.filter(({ text }) => !searchTerm || text.includes(searchTerm)).map(({ row }) => row), [searchIndex, searchTerm]);
+  const visitRows = useMemo(() => searchIndex
+    .filter(({ row, text }) => (includeVisitedThisMonth ? row.visitedThisMonth : !row.visitedThisMonth) && (!searchTerm || text.includes(searchTerm)))
+    .map(({ row }) => row), [includeVisitedThisMonth, searchIndex, searchTerm]);
   const followUpRows = state.rows.filter((row) => row.role !== "servant");
   const checkedCount = followUpRows.filter((row) => mode === "visit" ? row.visited : row.called).length;
   const percent = followUpRows.length ? Math.round(checkedCount * 100 / followUpRows.length) : 0;
@@ -280,17 +288,20 @@ function PublicParentHome() {
   useEffect(() => {
     const search = query.trim();
     if (search.length < 2) { setResults([]); setError(""); return undefined; }
+    const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setLoading(true); setError("");
       try {
-        const response = await fetch(`${apiUrl}/api/public/people?query=${encodeURIComponent(search)}`);
+        const response = await fetch(`${apiUrl}/api/public/people?query=${encodeURIComponent(search)}`, { signal: controller.signal });
         const body = await response.json().catch(() => []);
         if (!response.ok) throw new Error(body.error || "تعذر البحث الآن");
         setResults(body);
-      } catch (searchError) { setResults([]); setError(searchError.message); }
+      } catch (searchError) {
+        if (searchError.name !== "AbortError") { setResults([]); setError(searchError.message); }
+      }
       finally { setLoading(false); }
     }, 250);
-    return () => window.clearTimeout(timer);
+    return () => { window.clearTimeout(timer); controller.abort(); };
   }, [query]);
   return <main className="public-parent-home"><div className="public-home-glow" /><header className="public-home-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>خورس القديس أبانوب</strong><span>متابعة حضور الأبناء</span></div></header><section className="public-home-content"><img className="public-home-saint" src="/saint-abanoub.png" alt="القديس أبانوب" /><p className="section-kicker">أهلًا بكم</p><h1>تابع حضور ابنك</h1><p className="public-home-copy">اكتب اسم الابن للوصول إلى تقرير حضور الخورس والقداس.</p><div className="public-home-search"><Search size={22} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث باسم الابن" aria-label="البحث باسم الابن" autoComplete="off" /><button type="button" className="public-scan-button" onClick={() => setShowScanner(true)} title="مسح QR" aria-label="مسح QR"><QrCode size={23} /></button></div>{showScanner && <PublicParentScanner onClose={() => setShowScanner(false)} />}{loading && <p className="public-home-status">جاري البحث...</p>}{error && <p className="public-home-error">{error}</p>}{!loading && query.trim().length >= 2 && !results.length && !error && <p className="public-home-status">لا يوجد ابن بهذا الاسم</p>}{results.length > 0 && <div className="public-home-results">{results.map((person) => <a key={person.token} href={`/qr/${person.token}`}><span>{person.name}</span><ChevronLeft size={19} /></a>)}</div>}</section><a className="public-admin-link" href="/admin"><UserCheck size={16} /> دخول الخدام</a></main>;
 }
