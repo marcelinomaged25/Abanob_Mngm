@@ -1674,7 +1674,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* Light mode sidebar matches the original Coptic blue reference treatment. */
 .app-shell:not(.dark-mode) .app-sidebar {
   background-color: #0c1b3c !important;
-  background-image: url("/dashboard-coptic.png") !important;
+  background-image: url("/sidebar-pattern.png") !important;
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
