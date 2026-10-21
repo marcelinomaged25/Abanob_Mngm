@@ -9,8 +9,8 @@ const today = () => {
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}`;
 };
-const fridaySessionsSinceStart = () => {
-  const start = new Date("2026-10-16T12:00:00");
+const fridaySessionsSinceStart = (startDate = "2026-10-16") => {
+  const start = new Date(`${startDate}T12:00:00`);
   const end = new Date(`${today()}T12:00:00`);
   let sessions = 0;
   for (let date = start; date <= end; date.setDate(date.getDate() + 7)) sessions += 1;
@@ -620,7 +620,7 @@ function MembersDirectoryByRole({ rows, query, setQuery, openReport, loading }) 
   const [servantUnlocked, setServantUnlocked] = useState(false);
   const [servantPasswordError, setServantPasswordError] = useState(false);
   const scopedRows = rows.filter((row) => (row.role || "boy") === scope);
-  const attendanceSessions = fridaySessionsSinceStart();
+  const attendanceSessions = fridaySessionsSinceStart(scope === "servant" ? "2026-10-16" : "2026-10-02");
   const statRows = scope === "servant" ? scopedRows.map((row) => ({ ...row, calls: row.callCount || 0, choir: row.choirCount || 0, mass: row.massCount || 0 })) : [];
   const loadStats = () => setShowStats(true);
   const max = (key) => Math.max(1, ...statRows.map((row) => row[key] || 0));
