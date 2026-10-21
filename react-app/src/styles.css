@@ -1911,3 +1911,57 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   background: #062c59 url("/dashboard-pattern.png") center / cover no-repeat !important;
   background-blend-mode: normal !important;
 }
+
+.servant-report-lock {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  width: min(460px, 100%);
+  gap: 12px;
+  margin: 28px auto;
+  padding: 24px;
+  border-color: #e2d8c0;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.servant-report-lock::before {
+  content: "دخول تقارير الخدام";
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 800;
+}
+.servant-report-lock label { margin: 0; color: var(--muted); font-size: 12px; }
+.servant-report-lock input[type="password"] {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid #d8c99f;
+  border-radius: 9px;
+  background: #fffefb;
+  color: var(--ink);
+  direction: ltr;
+  text-align: center;
+  font-size: 18px;
+  letter-spacing: 0;
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+.servant-report-lock input[type="password"]:focus {
+  border-color: #c89d3c;
+  box-shadow: 0 0 0 3px rgba(200, 157, 60, .16);
+  outline: 0;
+}
+.servant-report-lock .primary-button { margin-top: 2px; }
+.servant-report-lock p { font-size: 12px; }
+.dark-mode .servant-report-lock { border-color: #30383d; }
+.dark-mode .servant-report-lock::before { color: #edf1ef; }
+.dark-mode .servant-report-lock input[type="password"] {
+  border-color: #30383d;
+  background: #0e1317;
+  color: #edf1ef;
+}
+.dark-mode .servant-report-lock input[type="password"]:focus {
+  border-color: #c89d3c;
+  box-shadow: 0 0 0 3px rgba(200, 157, 60, .18);
+}
+@media (max-width: 600px) {
+  .servant-report-lock { margin: 18px auto; padding: 18px; }
+}
