@@ -1984,9 +1984,17 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .members-directory .table-wrap td:nth-child(8) { width: 10%; }
 .members-directory .table-wrap .name-cell { min-width: 0; overflow-wrap: anywhere; white-space: normal; }
 .members-directory .table-wrap .name-cell .person-link { text-align: center; }
+.members-directory .table-wrap th,
+.members-directory .table-wrap td { padding: 11px 14px; text-align: right; }
+.members-directory .table-wrap .name-cell,
+.members-directory .table-wrap .name-cell .person-link { text-align: right; }
+.members-directory .table-wrap tbody tr:nth-child(even) td { background: #fbf8ef; }
+.members-directory .table-wrap tbody tr:hover td { background: #f4f0e4; }
+.members-directory .table-wrap .attendance-fraction,
+.members-directory .table-wrap td:nth-child(n + 6) { font-variant-numeric: tabular-nums; }
 @media (max-width: 600px) {
   .servant-report-lock { margin: 18px auto; padding: 18px; }
   .members-directory .table-wrap th,
-  .members-directory .table-wrap td { padding: 10px 8px; }
+  .members-directory .table-wrap td { padding: 10px 11px; }
   .members-directory .table-wrap { overscroll-behavior-inline: contain; }
 }
