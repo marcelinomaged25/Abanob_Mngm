@@ -33,6 +33,35 @@ await using (var connection = await dataSource.OpenConnectionAsync())
 await using (var command = new NpgsqlCommand(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "schema.sql")), connection))
     await command.ExecuteNonQueryAsync();
 
+await using (var connection = await dataSource.OpenConnectionAsync())
+await using (var transaction = await connection.BeginTransactionAsync())
+{
+    await using var marker = new NpgsqlCommand("select exists(select 1 from settings where key='servant-call-credit-kyrillos-samah-to-milad-adly-v1')", connection, transaction);
+    var correctionApplied = (bool)(await marker.ExecuteScalarAsync() ?? false);
+    if (!correctionApplied)
+    {
+        await using (var backfill = new NpgsqlCommand("update call_records c set servant=a.servant from people p,call_assignments a where p.id=c.person_id and p.group_number=a.group_number and c.week_start=a.week_start and p.role='boy' and nullif(btrim(c.servant),'') is null and nullif(btrim(a.servant),'') is not null", connection, transaction))
+            await backfill.ExecuteNonQueryAsync();
+        const string sourceMatch = "regexp_replace(translate(servant,'إأآ','ااا'),'\\s+','','g')=regexp_replace(translate($1,'إأآ','ااا'),'\\s+','','g')";
+        await using var countSource = new NpgsqlCommand($"select count(*) from call_records where {sourceMatch}", connection, transaction);
+        countSource.Parameters.AddWithValue("كيرلس سامح");
+        var sourceCount = Convert.ToInt64(await countSource.ExecuteScalarAsync());
+        if (sourceCount == 11)
+        {
+            await using var transfer = new NpgsqlCommand($"update call_records set servant=$2 where {sourceMatch}", connection, transaction);
+            transfer.Parameters.AddWithValue("كيرلس سامح");
+            transfer.Parameters.AddWithValue("ميلاد عدلي");
+            var transferred = await transfer.ExecuteNonQueryAsync();
+            if (transferred == 11)
+            {
+                await using var saveMarker = new NpgsqlCommand("insert into settings(key,value) values('servant-call-credit-kyrillos-samah-to-milad-adly-v1','true'::jsonb) on conflict(key) do nothing", connection, transaction);
+                await saveMarker.ExecuteNonQueryAsync();
+            }
+        }
+    }
+    await transaction.CommitAsync();
+}
+
 app.MapGet("/", () => Results.Ok(new { service = "Abanob Choir Follow-up API", status = "ok" }));
 app.MapGet("/api/health", async (NpgsqlDataSource db) =>
 {
@@ -184,7 +213,7 @@ api.MapGet("/dashboard", async (string? date, string? month, NpgsqlDataSource db
     await dailyReader.ReadAsync();
     var dailySummary = new { total = dailyReader.GetInt64(0), choirPresent = dailyReader.GetInt64(1), massPresent = dailyReader.GetInt64(2) };
     await dailyReader.CloseAsync();
-    await using var peopleCommand = new NpgsqlCommand("select p.id,p.record_key,p.name,p.group_number,p.role,count(distinct a.attendance_date) filter(where a.attendance_type='choir'),count(distinct a.attendance_date) filter(where a.attendance_type='mass'),count(distinct v.visit_date) filter(where p.role<>'servant'),count(c.person_id),max(v.visit_date)::text,(max(a.attendance_date) filter(where a.attendance_type='choir'))::text,(max(a.attendance_date) filter(where a.attendance_type='mass'))::text from people p left join attendance_records a on a.person_id=p.id left join visit_records v on v.person_id=p.id left join call_records c on (p.role='servant' and (regexp_replace(translate(c.servant,'إأآ','ااا'),'\\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\\s+','','g') or exists (select 1 from call_assignments ca join people called_person on called_person.id=c.person_id where ca.week_start=c.week_start and ca.group_number=called_person.group_number and regexp_replace(translate(ca.servant,'إأآ','ااا'),'\\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\\s+','','g')))) or (p.role<>'servant' and c.person_id=p.id) where p.is_active=true group by p.id order by count(distinct a.attendance_date) filter(where a.attendance_type='choir') + count(distinct a.attendance_date) filter(where a.attendance_type='mass'), count(c.person_id), p.name", connection);
+    await using var peopleCommand = new NpgsqlCommand("select p.id,p.record_key,p.name,p.group_number,p.role,count(distinct a.attendance_date) filter(where a.attendance_type='choir'),count(distinct a.attendance_date) filter(where a.attendance_type='mass'),count(distinct v.visit_date) filter(where p.role<>'servant'),count(distinct (c.person_id,c.week_start)) filter(where c.person_id is not null),max(v.visit_date)::text,(max(a.attendance_date) filter(where a.attendance_type='choir'))::text,(max(a.attendance_date) filter(where a.attendance_type='mass'))::text from people p left join attendance_records a on a.person_id=p.id left join visit_records v on v.person_id=p.id left join call_records c on (p.role='servant' and regexp_replace(translate(c.servant,'إأآ','ااا'),'\\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\\s+','','g')) or (p.role<>'servant' and c.person_id=p.id) where p.is_active=true group by p.id order by count(distinct a.attendance_date) filter(where a.attendance_type='choir') + count(distinct a.attendance_date) filter(where a.attendance_type='mass'), count(distinct (c.person_id,c.week_start)) filter(where c.person_id is not null), p.name", connection);
     await using var peopleReader = await peopleCommand.ExecuteReaderAsync();
     var people = new List<object>();
     while (await peopleReader.ReadAsync()) people.Add(new { id = peopleReader.GetInt64(0), recordKey = peopleReader.GetInt32(1), name = peopleReader.GetString(2), group = peopleReader.IsDBNull(3) ? "" : peopleReader.GetString(3), role = peopleReader.GetString(4), choirCount = peopleReader.GetInt64(5), massCount = peopleReader.GetInt64(6), visitCount = peopleReader.GetInt64(7), callCount = peopleReader.GetInt64(8), lastVisit = peopleReader.IsDBNull(9) ? "" : peopleReader.GetString(9), lastChoir = peopleReader.IsDBNull(10) ? "" : peopleReader.GetString(10), lastMass = peopleReader.IsDBNull(11) ? "" : peopleReader.GetString(11) });
@@ -677,7 +706,7 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
         deleteCalls.Parameters.AddWithValue(JsonSerializer.Serialize(checks));
         await deleteCalls.ExecuteNonQueryAsync();
     }
-    await using (var saveCalls = new NpgsqlCommand("insert into call_records(person_id,week_start,servant) select p.id,$1,coalesce(a.servant,'') from people p join jsonb_each_text($2::jsonb) checks on checks.key::integer=p.record_key left join call_assignments a on a.week_start=$1 and a.group_number=p.group_number where checks.value='true' and p.is_active=true and p.role='boy' on conflict (person_id,week_start) do update set servant=excluded.servant,recorded_at=now()", connection, transaction))
+    await using (var saveCalls = new NpgsqlCommand("insert into call_records(person_id,week_start,servant) select p.id,$1,coalesce(a.servant,'') from people p join jsonb_each_text($2::jsonb) checks on checks.key::integer=p.record_key left join call_assignments a on a.week_start=$1 and a.group_number=p.group_number where checks.value='true' and p.is_active=true and p.role='boy' on conflict (person_id,week_start) do nothing", connection, transaction))
     {
         saveCalls.Parameters.AddWithValue(week);
         saveCalls.Parameters.AddWithValue(JsonSerializer.Serialize(checks));

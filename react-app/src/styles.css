@@ -260,6 +260,7 @@ tbody tr:hover td { background: #f5f8ff; }
 .servant-bar > i b.activity { background: #d7a629; }
 .servant-bar strong { min-width: 20px; color: var(--blue-dark); text-align: end; }
 .servant-chart-caption { margin: -6px 0 14px; color: var(--muted); font-size: 12px; }
+.attendance-fraction { color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
 .servant-attendance-chart-row { display: grid; grid-template-columns: minmax(70px, .8fr) 2fr; align-items: start; gap: 10px; margin: 12px 0; font-size: 12px; }
 .servant-attendance-chart-row > span { overflow: hidden; padding-top: 2px; text-overflow: ellipsis; white-space: nowrap; }
 .servant-attendance-chart-row > div { display: grid; grid-template-columns: minmax(40px, 1fr) auto; align-items: center; gap: 5px 8px; }
