@@ -170,6 +170,10 @@ tbody tr:hover td { background: #f5f8ff; }
 .report-summary { display: flex; gap: 12px; margin: 22px 0 16px; color: var(--muted); font-size: 13px; }
 .report-summary span { padding: 10px 12px; border: 1px solid #dbe3f5; border-radius: 9px; background: var(--blue-soft); }
 .report-summary strong { color: var(--blue-dark); font-size: 17px; }
+.report-period { margin: 18px 0 8px; color: var(--muted); font-size: 13px; }
+.attendance-report-summary { margin-top: 8px; }
+.attendance-report-summary span { display: grid; gap: 4px; }
+.attendance-report-summary small { color: var(--muted); }
 .report-table-wrap { overflow-x: auto; }
 .report-table { min-width: 560px; }
 .people-layout { display: grid; grid-template-columns: minmax(320px, .78fr) minmax(0, 1.6fr); gap: 18px; align-items: start; }

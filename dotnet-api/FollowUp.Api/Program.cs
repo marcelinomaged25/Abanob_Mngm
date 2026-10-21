@@ -44,6 +44,8 @@ app.MapGet("/api/health", async (NpgsqlDataSource db) =>
 
 app.MapGet("/api/public/qr/{token}", async (string token, NpgsqlDataSource db) =>
 {
+    var attendanceStart = new DateOnly(2026, 10, 2);
+    var attendanceThrough = CairoToday();
     await using var connection = await db.OpenConnectionAsync();
     await using var personCommand = new NpgsqlCommand("select id,record_key,name,group_number from people where qr_token=$1 and is_active=true and role='boy'", connection);
     personCommand.Parameters.AddWithValue(token);
@@ -54,34 +56,29 @@ app.MapGet("/api/public/qr/{token}", async (string token, NpgsqlDataSource db) =
     await personReader.CloseAsync();
 
     var attendance = new List<PublicAttendanceItem>();
-    await using (var attendanceCommand = new NpgsqlCommand("select a.attendance_type,a.attendance_date::text,to_char(a.recorded_at at time zone 'Africa/Cairo','YYYY-MM-DD\"T\"HH24:MI:SS'),coalesce(c.comment,'') from attendance_records a left join attendance_comments c on c.person_id=a.person_id and c.attendance_type=a.attendance_type and c.attendance_date=a.attendance_date where a.person_id=$1 order by a.attendance_date desc,a.recorded_at desc", connection))
+    await using (var attendanceCommand = new NpgsqlCommand("select a.attendance_type,a.attendance_date::text,to_char(a.recorded_at at time zone 'Africa/Cairo','YYYY-MM-DD\"T\"HH24:MI:SS'),coalesce(c.comment,'') from attendance_records a left join attendance_comments c on c.person_id=a.person_id and c.attendance_type=a.attendance_type and c.attendance_date=a.attendance_date where a.person_id=$1 and a.attendance_date >= $2 and a.attendance_date <= $3 order by a.attendance_date desc,a.recorded_at desc", connection))
     {
         attendanceCommand.Parameters.AddWithValue(personId);
+        attendanceCommand.Parameters.AddWithValue(attendanceStart);
+        attendanceCommand.Parameters.AddWithValue(attendanceThrough);
         await using var attendanceReader = await attendanceCommand.ExecuteReaderAsync();
         while (await attendanceReader.ReadAsync()) attendance.Add(new PublicAttendanceItem(attendanceReader.GetString(0), attendanceReader.GetString(1), $"{attendanceReader.GetString(2)}|{attendanceReader.GetString(3)}", attendanceReader.GetString(3)));
     }
-    var sessionTotals = new Dictionary<(string Type, string Month), int>();
-    await using (var sessionsCommand = new NpgsqlCommand("select attendance_type,to_char(date_trunc('month',attendance_date),'YYYY-MM'),count(distinct attendance_date) from attendance_records group by attendance_type,date_trunc('month',attendance_date)", connection))
-    await using (var sessionsReader = await sessionsCommand.ExecuteReaderAsync())
-    {
-    while (await sessionsReader.ReadAsync()) sessionTotals[(sessionsReader.GetString(0), sessionsReader.GetString(1))] = sessionsReader.GetInt64(2) > int.MaxValue ? int.MaxValue : (int)sessionsReader.GetInt64(2);
-    }
-    var firstAttendance = attendance.Count == 0 ? (DateOnly?)null : DateOnly.Parse(attendance.Min(item => item.Date)!);
-    var fridaySessions = 0;
-    if (firstAttendance is not null)
-    {
-        await using var fridayCommand = new NpgsqlCommand("select count(*) from generate_series(date_trunc('week',$1::date)::date + 4, current_date, interval '7 days') d", connection);
-        fridayCommand.Parameters.AddWithValue(firstAttendance.Value);
-        fridaySessions = Convert.ToInt32(await fridayCommand.ExecuteScalarAsync());
-    }
+    var sessionTotals = new Dictionary<string, int>();
+    for (var session = attendanceStart; session <= attendanceThrough; session = session.AddDays(7))
+        sessionTotals[session.ToString("yyyy-MM")] = sessionTotals.GetValueOrDefault(session.ToString("yyyy-MM")) + 1;
+    var fridaySessions = sessionTotals.Values.Sum();
     var choirCount = attendance.Count(item => item.Type == "choir");
     var massCount = attendance.Count(item => item.Type == "mass");
-    var ratedPerson = new { person.recordKey, person.name, person.group, choirRate = fridaySessions == 0 ? 0 : (int)Math.Round(choirCount * 100d / fridaySessions), massRate = fridaySessions == 0 ? 0 : (int)Math.Round(massCount * 100d / fridaySessions), fridaySessions };
-    var monthly = attendance.GroupBy(item => new { Month = item.Date[..7], Type = item.Type })
-        .GroupBy(group => group.Key.Month)
-        .OrderByDescending(group => group.Key)
-        .Select(group => { var choir = group.Where(item => item.Key.Type == "choir").Sum(item => item.Count()); var mass = group.Where(item => item.Key.Type == "mass").Sum(item => item.Count()); var choirSessions = sessionTotals.GetValueOrDefault(("choir", group.Key)); var massSessions = sessionTotals.GetValueOrDefault(("mass", group.Key)); return new { month = group.Key, choir, mass, choirRate = choirSessions == 0 ? 0 : (int)Math.Round(choir * 100d / choirSessions), massRate = massSessions == 0 ? 0 : (int)Math.Round(mass * 100d / massSessions) }; })
-        .ToArray();
+    var choirAbsent = Math.Max(0, fridaySessions - choirCount);
+    var massAbsent = Math.Max(0, fridaySessions - massCount);
+    var ratedPerson = new { person.recordKey, person.name, person.group, attendanceStart = attendanceStart.ToString("yyyy-MM-dd"), fridaySessions, choirCount, choirAbsent, choirRate = fridaySessions == 0 ? 0 : (int)Math.Round(choirCount * 100d / fridaySessions), massCount, massAbsent, massRate = fridaySessions == 0 ? 0 : (int)Math.Round(massCount * 100d / fridaySessions) };
+    var monthlyAttendance = attendance.GroupBy(item => item.Date![..7]).ToDictionary(group => group.Key, group => new { choir = group.Count(item => item.Type == "choir"), mass = group.Count(item => item.Type == "mass") });
+    var monthly = sessionTotals.OrderByDescending(item => item.Key).Select(item =>
+    {
+        var counts = monthlyAttendance.GetValueOrDefault(item.Key, new { choir = 0, mass = 0 });
+        return new { month = item.Key, choir = counts.choir, choirAbsent = Math.Max(0, item.Value - counts.choir), mass = counts.mass, massAbsent = Math.Max(0, item.Value - counts.mass), choirRate = item.Value == 0 ? 0 : (int)Math.Round(counts.choir * 100d / item.Value), massRate = item.Value == 0 ? 0 : (int)Math.Round(counts.mass * 100d / item.Value) };
+    }).ToArray();
     var requests = new List<object>();
     await using (var requestCommand = new NpgsqlCommand("select id,request_type,status,created_at::text,message from followup_requests where person_id=$1 order by created_at desc limit 10", connection))
     {
@@ -389,6 +386,8 @@ api.MapGet("/visit-reports", async (int? year, string? month, NpgsqlDataSource d
 
 api.MapGet("/history/{personId:long}", async (long personId, NpgsqlDataSource db) =>
 {
+    var attendanceStart = new DateOnly(2026, 10, 2);
+    var attendanceThrough = CairoToday();
     await using var connection = await db.OpenConnectionAsync();
     await using var personCommand = new NpgsqlCommand("select id, record_key, name, note, phone1, group_number, address from people where id=$1", connection);
     personCommand.Parameters.AddWithValue(personId);
@@ -396,12 +395,26 @@ api.MapGet("/history/{personId:long}", async (long personId, NpgsqlDataSource db
     if (!await reader.ReadAsync()) return Results.NotFound(new { error = "الاسم غير موجود" });
     var person = new { id = reader.GetInt64(0), recordKey = reader.GetInt32(1), name = reader.GetString(2), note = reader.IsDBNull(3) ? "" : reader.GetString(3), phone1 = reader.GetString(4), group = reader.IsDBNull(5) ? "" : reader.GetString(5), address = reader.GetString(6) };
     await reader.CloseAsync();
-    await using var eventsCommand = new NpgsqlCommand("select event_date::text, bool_or(kind='visit'), bool_or(kind='call'), bool_or(kind='choir'), bool_or(kind='mass'), max(servant) filter(where kind='call'), string_agg(nullif(comment,''), ' / ' order by comment) filter(where comment is not null) from (select visit_date event_date, 'visit' kind, '' servant, null::text comment from visit_records where person_id=$1 union all select (recorded_at at time zone 'Africa/Cairo')::date, 'call', servant, null::text from call_records where person_id=$1 union all select a.attendance_date, a.attendance_type, '', c.comment from attendance_records a left join attendance_comments c on c.person_id=a.person_id and c.attendance_type=a.attendance_type and c.attendance_date=a.attendance_date where a.person_id=$1) events group by event_date order by event_date", connection);
+    await using var eventsCommand = new NpgsqlCommand("select event_date::text, bool_or(kind='visit'), bool_or(kind='call'), bool_or(kind='choir'), bool_or(kind='mass'), max(servant) filter(where kind='call'), string_agg(nullif(comment,''), ' / ' order by comment) filter(where comment is not null) from (select visit_date event_date, 'visit' kind, '' servant, null::text comment from visit_records where person_id=$1 union all select (recorded_at at time zone 'Africa/Cairo')::date, 'call', servant, null::text from call_records where person_id=$1 union all select a.attendance_date, a.attendance_type, '', c.comment from attendance_records a left join attendance_comments c on c.person_id=a.person_id and c.attendance_type=a.attendance_type and c.attendance_date=a.attendance_date where a.person_id=$1 and a.attendance_date >= $2 and a.attendance_date <= $3) events group by event_date order by event_date", connection);
     eventsCommand.Parameters.AddWithValue(personId);
+    eventsCommand.Parameters.AddWithValue(attendanceStart);
+    eventsCommand.Parameters.AddWithValue(attendanceThrough);
     await using var eventsReader = await eventsCommand.ExecuteReaderAsync();
     var events = new List<object>();
     while (await eventsReader.ReadAsync()) events.Add(new { date = eventsReader.GetString(0), visited = eventsReader.GetBoolean(1), called = eventsReader.GetBoolean(2), choir = eventsReader.GetBoolean(3), mass = eventsReader.GetBoolean(4), caller = eventsReader.IsDBNull(5) ? "" : eventsReader.GetString(5), comment = eventsReader.IsDBNull(6) ? "" : eventsReader.GetString(6) });
-    return Results.Ok(new { person, events });
+    await eventsReader.CloseAsync();
+    var expectedFridays = 0;
+    for (var session = attendanceStart; session <= attendanceThrough; session = session.AddDays(7)) expectedFridays++;
+    await using var attendanceSummaryCommand = new NpgsqlCommand("select count(distinct attendance_date) filter(where attendance_type='choir'),count(distinct attendance_date) filter(where attendance_type='mass') from attendance_records where person_id=$1 and attendance_date >= $2 and attendance_date <= $3", connection);
+    attendanceSummaryCommand.Parameters.AddWithValue(personId);
+    attendanceSummaryCommand.Parameters.AddWithValue(attendanceStart);
+    attendanceSummaryCommand.Parameters.AddWithValue(attendanceThrough);
+    await using var attendanceSummaryReader = await attendanceSummaryCommand.ExecuteReaderAsync();
+    await attendanceSummaryReader.ReadAsync();
+    var choir = attendanceSummaryReader.GetInt64(0);
+    var mass = attendanceSummaryReader.GetInt64(1);
+    var attendanceSummary = new { start = attendanceStart.ToString("yyyy-MM-dd"), expectedFridays, choirPresent = choir, choirAbsent = Math.Max(0, expectedFridays - choir), choirRate = expectedFridays == 0 ? 0 : (int)Math.Round(choir * 100d / expectedFridays), massPresent = mass, massAbsent = Math.Max(0, expectedFridays - mass), massRate = expectedFridays == 0 ? 0 : (int)Math.Round(mass * 100d / expectedFridays) };
+    return Results.Ok(new { person, events, attendanceSummary });
 });
 
 api.MapGet("/attendance", async (string? type, string? date, NpgsqlDataSource db) =>
