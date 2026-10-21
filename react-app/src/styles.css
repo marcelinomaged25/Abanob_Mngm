@@ -1321,7 +1321,7 @@ body { background: #eef5f8; }
   .sidebar-brand > div { min-width: 0; }
   .sidebar-brand strong { display: block; overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
   .sidebar-brand span { font-size: 9px; }
-  .sidebar-nav { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); width: 100%; gap: 4px; overflow: hidden; }
+  .sidebar-nav { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); width: 100%; gap: 4px; overflow: hidden; }
   .sidebar-item { min-width: 0; min-height: 40px; width: 100%; padding: 8px 2px; }
   .sidebar-item svg, .sidebar-item .sheep-icon { flex: 0 0 auto; width: 17px; height: 17px; }
   .sidebar-footer { display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin-top: 10px; padding: 10px 4px 0; }
