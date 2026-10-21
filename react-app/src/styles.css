@@ -340,7 +340,10 @@ tbody tr:hover td { background: #f5f8ff; }
 .report-bar-column span { max-width: 76px; overflow: hidden; color: #71809a; font-size: 10px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .month-filter-button { white-space: nowrap; }
 .activity-page table { min-width: 620px; }
-.qr-page, .qr-scan-page { margin-top: 18px; }
+.qr-management-page { display: grid; gap: 18px; margin-top: 18px; }
+.qr-management-tabs { justify-self: start; gap: 6px; }
+.qr-management-tabs button { min-width: 142px; justify-content: center; }
+.qr-page, .qr-scan-page { margin-top: 0; }
 .qr-page-actions { display: flex; align-items: center; gap: 10px; }
 .qr-search { width: min(270px, 100%); }
 .qr-print-button { width: auto; margin: 0; }
@@ -840,11 +843,13 @@ body { background: #eef5f8; }
   .qr-scan-panel { padding: 16px; }
   .qr-page-actions { width: 100%; align-items: stretch; flex-direction: column; }
   .qr-search { width: 100%; }
+  .qr-management-tabs { display: flex; width: 100%; }
+  .qr-management-tabs button { flex: 1; min-width: 0; padding-inline: 9px; }
 }
 
 @media print {
   body { background: white; }
-  .app-sidebar, .topbar, .qr-page > .section-title-row, .toast { display: none !important; }
+  .app-sidebar, .topbar, .qr-management-tabs, .qr-page > .section-title-row, .toast { display: none !important; }
   .app-shell { display: block; min-height: 0; }
   .app-content { padding: 0; }
   .qr-page { margin: 0; }
