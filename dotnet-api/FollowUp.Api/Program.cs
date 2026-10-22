@@ -1031,11 +1031,11 @@ static async Task<string> SelectLeastFilledGroupAsync(NpgsqlConnection connectio
 
     await using var command = new NpgsqlCommand(@"select g.number
         from groups g
-        left join people p on p.group_number = g.number and p.is_active = true and p.role = 'boy' and ($1 is null or p.id <> $1)
+        left join people p on p.group_number = g.number and p.is_active = true and p.role = 'boy' and ($1::bigint is null or p.id <> $1::bigint)
         group by g.number, g.display_order
         order by count(p.id), g.display_order
         limit 1", connection);
-    command.Parameters.AddWithValue(excludedPersonId is null ? DBNull.Value : excludedPersonId.Value);
+    command.Parameters.Add("excludedPersonId", NpgsqlTypes.NpgsqlDbType.Bigint).Value = excludedPersonId.HasValue ? excludedPersonId.Value : DBNull.Value;
     var result = await command.ExecuteScalarAsync();
     var selectedGroup = result is null || result is DBNull ? "1" : result.ToString()!;
     await using var ensureSelected = new NpgsqlCommand("insert into groups(number, display_order) values($1, $2) on conflict (number) do nothing", connection);
