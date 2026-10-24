@@ -2033,14 +2033,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 @media (max-width: 680px) and (orientation: portrait) {
-  .mobile-app-header { display: flex; align-items: center; justify-content: flex-start; min-height: 48px; margin-bottom: 12px; gap: 10px; direction: rtl; }
+  .mobile-app-header { display: flex; align-items: center; justify-content: space-between; min-height: 48px; margin-bottom: 12px; gap: 10px; direction: rtl; }
   .mobile-brand { display: flex; align-items: center; min-width: 0; gap: 10px; }
   .mobile-brand img { width: 40px; height: 40px; flex: 0 0 auto; border: 2px solid #dcae2d; border-radius: 50%; background: #fff; object-fit: cover; }
   .mobile-brand strong, .mobile-brand span { display: block; }
   .mobile-brand strong { color: #172137; font-size: 14px; line-height: 1.35; }
   .mobile-brand span { margin-top: 2px; color: #738197; font-size: 10px; }
   .mobile-menu-button, .mobile-sidebar-close { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 auto; border: 1px solid rgba(220, 174, 45, .62); border-radius: 9px; background: rgba(255, 255, 255, .12); color: #f4c947; cursor: pointer; }
-  .mobile-menu-button { order: -1; }
   .mobile-sidebar-backdrop { position: fixed; inset: 0; z-index: 109; border: 0; background: rgba(5, 13, 26, .6); }
   .app-sidebar { position: fixed; inset-block: 0; right: 0; left: auto; z-index: 110; display: flex; width: min(84vw, 320px); height: 100dvh; min-height: 0; padding: 22px 16px 16px; overflow-y: auto; overscroll-behavior: contain; transform: translateX(105%); visibility: hidden; transition: transform .22s ease, visibility .22s ease; box-shadow: -16px 0 36px rgba(4, 18, 42, .22); }
   .app-sidebar.mobile-open { transform: translateX(0); visibility: visible; }
@@ -2065,4 +2064,50 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 @media (max-width: 680px) and (orientation: landscape) {
   .mobile-app-header, .mobile-sidebar-close { display: none !important; }
+}
+
+.public-home-brand { justify-content: space-between; gap: 11px; }
+.public-home-identity { display: flex; min-width: 0; align-items: center; gap: 11px; }
+.public-menu-toggle { display: grid; place-items: center; width: 44px; height: 44px; margin-inline-start: 10px; border: 1px solid rgba(16, 47, 95, .18); border-radius: 9px; background: #fffdf7; color: #102f5f; cursor: pointer; }
+.public-menu-toggle:hover { border-color: #dcae2d; background: #fff8df; }
+.public-menu-backdrop { position: fixed; inset: 0; z-index: 129; border: 0; background: rgba(5, 13, 26, .56); }
+.public-menu-drawer { position: fixed; inset-block: 0; right: 0; z-index: 130; display: flex; width: min(86vw, 340px); flex-direction: column; gap: 20px; padding: 22px 18px; background: #082c58 url("/dashboard-pattern.png") center / cover no-repeat; color: #f8f2df; box-shadow: -18px 0 42px rgba(5, 13, 26, .28); transform: translateX(105%); visibility: hidden; transition: transform .22s ease, visibility .22s ease; }
+.public-menu-drawer.open { transform: translateX(0); visibility: visible; }
+.public-menu-heading { display: flex; align-items: center; justify-content: space-between; padding-bottom: 18px; border-bottom: 1px solid rgba(255, 255, 255, .18); font-size: 15px; }
+.public-menu-heading button { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid rgba(255, 255, 255, .25); border-radius: 8px; background: rgba(255, 255, 255, .08); color: inherit; cursor: pointer; }
+.public-menu-section { display: grid; gap: 8px; }
+.public-menu-section p { margin: 0; color: #e5bd4a; font-size: 11px; font-weight: 800; }
+.public-menu-section a { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 12px; border: 1px solid rgba(255, 255, 255, .14); border-radius: 8px; background: rgba(255, 255, 255, .08); color: #f8f2df; font-size: 13px; font-weight: 700; text-decoration: none; }
+.public-menu-section a span { flex: 1; }
+.public-menu-section a:hover { border-color: rgba(229, 184, 75, .7); background: rgba(255, 255, 255, .14); }
+.saint-story-page { min-height: 100vh; background: #f2f6f6; color: #172137; direction: rtl; }
+.saint-story-header { display: flex; align-items: center; justify-content: space-between; min-height: 76px; padding: 12px max(20px, calc((100% - 1000px) / 2)); border-bottom: 1px solid #e0e5e6; background: #fffdf7; }
+.saint-story-header > div { display: grid; gap: 3px; text-align: right; }
+.saint-story-header strong { font-size: 15px; }
+.saint-story-header span { color: #738197; font-size: 11px; }
+.saint-story-back { display: inline-flex; align-items: center; gap: 5px; color: #123c70; font-size: 12px; font-weight: 700; text-decoration: none; }
+.saint-story-article { width: min(780px, calc(100% - 40px)); margin: 0 auto; padding: 56px 0 68px; }
+.saint-story-kicker { margin: 0 0 10px; color: #9b741b; font-size: 12px; font-weight: 800; }
+.saint-story-article h1 { margin: 0; color: #102f5f; font-size: 38px; line-height: 1.35; }
+.saint-story-intro { margin: 16px 0 34px; color: #526378; font-size: 17px; line-height: 1.95; }
+.saint-story-article section { margin-top: 26px; }
+.saint-story-article h2 { margin: 0 0 8px; color: #173c68; font-size: 18px; }
+.saint-story-article section p { margin: 0; color: #354459; font-size: 15px; line-height: 2.05; }
+.saint-story-illustration { display: block; width: min(420px, 100%); max-height: 620px; margin: 24px auto 38px; border: 3px solid #e0b83f; border-radius: 12px; object-fit: contain; box-shadow: 0 14px 34px rgba(16, 47, 95, .13); }
+.saint-story-video { display: inline-flex; align-items: center; gap: 10px; min-height: 48px; margin-top: 20px; padding: 0 18px; border: 1px solid #dcae2d; border-radius: 9px; background: #dcae2d; color: #102f5f; font-size: 13px; font-weight: 800; text-decoration: none; transition: background .16s ease, transform .16s ease; }
+.saint-story-video:hover { background: #edc344; transform: translateY(-1px); }
+.saint-story-play { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 50%; background: #102f5f; color: #fffdf7; font-size: 10px; }
+@media (max-width: 620px) {
+  .public-home-brand { gap: 9px; }
+  .public-home-identity { gap: 8px; }
+  .public-menu-toggle { width: 42px; height: 42px; margin-inline-start: 2px; }
+  .saint-story-header { min-height: 66px; padding: 10px 15px; }
+  .saint-story-header strong { font-size: 13px; }
+  .saint-story-header span { font-size: 10px; }
+  .saint-story-back { gap: 2px; font-size: 10px; white-space: nowrap; }
+  .saint-story-article { width: calc(100% - 36px); padding: 38px 0 52px; }
+  .saint-story-article h1 { font-size: 30px; }
+  .saint-story-intro { margin: 13px 0 27px; font-size: 15px; }
+  .saint-story-article h2 { font-size: 16px; }
+  .saint-story-article section p { font-size: 14px; }
 }
