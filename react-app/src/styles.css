@@ -2210,3 +2210,35 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .saint-story-article h2 { font-size: 16px; }
   .saint-story-article section p { font-size: 14px; }
 }
+
+/* Shared navy, gold and motion language across the public and servant areas. */
+:root {
+  --brand-navy: #102f5f;
+  --brand-navy-hover: #183f76;
+  --brand-gold: #dcae2d;
+  --brand-gold-hover: #edc344;
+  --brand-focus: rgba(220, 174, 45, .3);
+}
+:where(.primary-button, .secondary-button, .public-call-button, .public-scan-button, .public-admin-link, .saint-story-video, .public-menu-toggle, .sidebar-item, .theme-toggle, .logout-button, .public-menu-section a, .league-back, .saint-story-back, .notification-open-button) {
+  transition: color .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+:where(.primary-button, .secondary-button, .public-call-button, .public-scan-button, .public-admin-link, .saint-story-video, .public-menu-toggle, .sidebar-item, .theme-toggle, .logout-button, .public-menu-section a, .league-back, .saint-story-back, .notification-open-button):focus-visible {
+  outline: 3px solid var(--brand-focus);
+  outline-offset: 2px;
+}
+:where(.primary-button, .secondary-button, .public-call-button, .public-scan-button, .public-admin-link, .saint-story-video):active { transform: translateY(1px) scale(.99); }
+:where(input, select, textarea):focus-visible { outline: 3px solid var(--brand-focus); outline-offset: 1px; }
+.public-call-button, .public-scan-button { background: var(--brand-navy); border-color: var(--brand-navy); }
+.public-call-button:hover, .public-scan-button:hover { background: var(--brand-navy-hover); border-color: var(--brand-navy-hover); }
+.primary-button, .secondary-button { border-color: var(--brand-navy); background: var(--brand-navy); color: #fffdf7; }
+.primary-button:hover, .secondary-button:hover { background: var(--brand-navy-hover); }
+.public-admin-link, .saint-story-video { border-color: var(--brand-gold); background: var(--brand-gold); color: var(--brand-navy); }
+.public-admin-link:hover, .saint-story-video:hover { border-color: var(--brand-gold-hover); background: var(--brand-gold-hover); }
+.public-menu-toggle:hover { border-color: var(--brand-gold); background: #fff8df; color: var(--brand-navy); }
+.league-page, .public-report-page { background-color: #eef5f8; }
+.league-header, .public-student-heading, .league-table-section, .evaluation-panel { background-color: #fffdf7; }
+.league-rank-badge, .monthly-champion { transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.league-rank-1:hover .league-rank-badge { transform: translateY(-2px); box-shadow: 0 5px 12px rgba(145, 104, 10, .2); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
