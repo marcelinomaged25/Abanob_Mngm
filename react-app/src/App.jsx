@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, Church, CircleAlert, Copy, Home, LayoutDashboard, LoaderCircle, LogOut, Moon, Pencil, Phone, Plus, QrCode, Search, Sun, Trash2, UserCheck, Users, X } from "lucide-react";
+import { BarChart3, Bell, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, Church, CircleAlert, Copy, Home, LayoutDashboard, LoaderCircle, LogOut, Moon, Pencil, Phone, Plus, QrCode, Search, Sun, Trash2, UserCheck, Users, X } from "lucide-react";
 import QRCode from "qrcode";
 import { Html5Qrcode } from "html5-qrcode";
 
@@ -77,6 +77,19 @@ function findDuplicateNames(people) {
   return [...groups.values()].filter((list) => list.length > 1).sort((a, b) => b.length - a.length || a[0].name.localeCompare(b[0].name, "ar"));
 }
 
+function parentRequestNotifications(requests = []) {
+  return requests.map((item) => ({
+    id: `parent-request-${item.id}`,
+    eventType: "parent_followup_request",
+    title: "طلب متابعة جديد من ولي أمر",
+    body: `${item.name} طلب ${item.type === "call" ? "اتصالًا" : "زيارة"}${item.message ? `: ${item.message}` : ""}`,
+    createdAt: item.createdAt,
+    sourceLabel: "طلبات الأهالي",
+    targetMode: "requests",
+    sourceId: item.id,
+  }));
+}
+
 export default function App() {
   const [username, setUsername] = useState(() => sessionStorage.getItem("choir-username") || "");
   const [password, setPassword] = useState(() => sessionStorage.getItem("choir-password") || "");
@@ -103,6 +116,9 @@ export default function App() {
   const [visitReports, setVisitReports] = useState(emptyVisitReports);
   const [followUpNotes, setFollowUpNotes] = useState([]);
   const [followUpRequests, setFollowUpRequests] = useState([]);
+  const [notificationItems, setNotificationItems] = useState([]);
+  const [notificationReadMap, setNotificationReadMap] = useState({});
+  const [notificationPermission, setNotificationPermission] = useState(() => "Notification" in window ? Notification.permission : "unsupported");
   const [reportMonth, setReportMonth] = useState(today().slice(0, 7));
   const [includeVisitedThisMonth, setIncludeVisitedThisMonth] = useState(false);
   const [dashboardDate, setDashboardDate] = useState(() => stored("choir-dashboard-date", today()));
@@ -141,6 +157,7 @@ export default function App() {
       if (nextMode === "reports") { const selectedMonth = monthOverride || reportMonth; const selectedYear = selectedMonth.slice(0, 4); setVisitReports(await request(`/api/visit-reports?year=${selectedYear}&month=${selectedMonth}`, {}, auth)); return; }
       if (nextMode === "notes") { setFollowUpNotes(await request("/api/followup-notes", {}, auth)); return; }
       if (nextMode === "requests") { setFollowUpRequests(await request("/api/followup-requests", {}, auth)); return; }
+      if (nextMode === "notifications") return;
       if (nextMode === "attendance") {
         const result = await request(`/api/attendance?type=${attendanceTypeOverride}&date=${date || today()}`, {}, auth);
         const directory = await request("/api/state?mode=visit", {}, auth);
@@ -162,6 +179,71 @@ export default function App() {
 
   useEffect(() => { if (password && username) { load(mode, mode === "attendance" ? attendanceDate : selectedDate, password); } }, [password, username]);
 
+  useEffect(() => {
+    if (!password || !username) return undefined;
+    let stopped = false;
+    const storageKey = `choir-notification-read-state-${username}`;
+    let readMap = {};
+    let initialized = false;
+    try {
+      const savedState = localStorage.getItem(storageKey);
+      if (savedState !== null) {
+        readMap = JSON.parse(savedState);
+        initialized = true;
+      }
+    } catch { /* Ignore invalid notification state and establish a fresh baseline. */ }
+
+    const pollRequests = async () => {
+      try {
+        const requests = await request("/api/followup-requests");
+        if (stopped) return;
+        setFollowUpRequests(requests);
+        const notifications = parentRequestNotifications(requests);
+        setNotificationItems(notifications);
+        try {
+          const savedState = localStorage.getItem(storageKey);
+          if (savedState !== null) readMap = JSON.parse(savedState);
+        } catch { /* Keep the last valid notification state. */ }
+        const incoming = initialized ? notifications.filter((item) => !(item.id in readMap)) : [];
+        const nextReadMap = { ...readMap };
+        notifications.forEach((item) => {
+          if (!(item.id in nextReadMap)) nextReadMap[item.id] = !initialized;
+        });
+        if (incoming.length) {
+          const newest = incoming[0];
+          if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+            incoming.forEach((item) => {
+              const alert = new Notification(item.title, {
+                body: item.body,
+                icon: "/saint-abanoub.png",
+                tag: item.id,
+              });
+              alert.onclick = () => { window.focus(); openNotification(item); alert.close(); };
+            });
+          } else {
+            setNotice(incoming.length === 1
+              ? `${newest.title}: ${newest.body}`
+              : `وصلت ${incoming.length} تنبيهات جديدة`);
+          }
+        }
+        readMap = nextReadMap;
+        setNotificationReadMap(readMap);
+        localStorage.setItem(storageKey, JSON.stringify(readMap));
+        initialized = true;
+      } catch { /* Keep the last badge count; retry on the next poll. */ }
+    };
+
+    pollRequests();
+    const interval = window.setInterval(pollRequests, 30000);
+    const onVisibilityChange = () => { if (!document.hidden) pollRequests(); };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [password, request, username]);
+
   const searchIndex = useMemo(() => state.rows.map((row) => ({ row, text: searchableRowText(row) })), [state.rows]);
   const searchTerm = useMemo(() => normalizeArabic(query).trim().toLocaleLowerCase("ar"), [query]);
   const rows = useMemo(() => searchIndex.filter(({ text }) => searchMatches(text, searchTerm)).map(({ row }) => row), [searchIndex, searchTerm]);
@@ -172,6 +254,7 @@ export default function App() {
   const checkedCount = followUpRows.filter((row) => mode === "visit" ? row.visited : row.called).length;
   const percent = followUpRows.length ? Math.round(checkedCount * 100 / followUpRows.length) : 0;
   const followUpMode = mode === "visit" || mode === "call";
+  const unreadNotificationCount = notificationItems.filter((item) => !notificationReadMap[item.id]).length;
 
   async function login(event) {
     event.preventDefault();
@@ -194,7 +277,42 @@ export default function App() {
   function switchMode(nextMode) {
     setMode(nextMode); sessionStorage.setItem("choir-mode", nextMode); setQuery(""); setReport(null);
     if (nextMode === "people") { setEditingPerson(null); setPersonDraft(emptyPerson); }
+    if (nextMode === "notifications") return;
     if (nextMode === "attendance") load(nextMode, attendanceDate); else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate); else if (nextMode === "reports") load(nextMode); else if (nextMode === "qr") { /* scanner saves attendance incrementally */ } else if (nextMode === "qr-print") load("people"); else load(nextMode, nextMode === "visit" ? selectedDate : undefined);
+  }
+
+  function openNotifications() {
+    switchMode("notifications");
+    if (!("Notification" in window)) {
+      setNotice("الإشعارات غير مدعومة في هذا المتصفح؛ التنبيهات ستظهر داخل الصفحة");
+      return;
+    }
+    if (Notification.permission === "default") {
+      Notification.requestPermission().then((permission) => {
+        setNotificationPermission(permission);
+        if (permission === "granted") setNotice("تم تفعيل إشعارات النظام");
+        else if (permission === "denied") setNotice("السماح بالإشعارات مرفوض من إعدادات المتصفح");
+      });
+    } else if (Notification.permission === "denied") {
+      setNotice("فعّل إشعارات الموقع من إعدادات المتصفح لتصلك التنبيهات بالخلفية");
+    }
+  }
+
+  function markNotificationRead(notificationId) {
+    const nextReadMap = { ...notificationReadMap, [notificationId]: true };
+    setNotificationReadMap(nextReadMap);
+    localStorage.setItem(`choir-notification-read-state-${username}`, JSON.stringify(nextReadMap));
+  }
+
+  function openNotification(item) {
+    markNotificationRead(item.id);
+    switchMode(item.targetMode);
+  }
+
+  function markAllNotificationsRead() {
+    const nextReadMap = { ...notificationReadMap, ...Object.fromEntries(notificationItems.map((item) => [item.id, true])) };
+    setNotificationReadMap(nextReadMap);
+    localStorage.setItem(`choir-notification-read-state-${username}`, JSON.stringify(nextReadMap));
   }
 
   async function markAttendance(recordKey, present, type = attendanceType, date = attendanceDate) {
@@ -280,7 +398,7 @@ export default function App() {
 
   const navItem = (nextMode, icon, label) => <button className={`sidebar-item ${mode === nextMode ? "active" : ""}`} onClick={() => switchMode(nextMode)}>{icon}<span>{label}</span></button>;
   return <main className={`app-shell mode-${mode} ${darkMode ? "dark-mode" : ""}`}>
-    <aside className="app-sidebar"><div className="sidebar-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>خورس القديس أبانوب</strong><span>إدارة الخدمة</span></div></div><p className="sidebar-label">أقسام لوحة الإدارة</p><nav className="sidebar-nav">{navItem("home", <LayoutDashboard size={17} />, "نظرة عامة")}{navItem("attendance", <UserCheck size={17} />, "الحضور والغياب")}{navItem("visit", <Home size={17} />, "الافتقاد")}{navItem("stray", <img className="sheep-icon" src="/sheep-icon.svg" alt="" />, "الخروف الضال")}{navItem("history", <Users size={17} />, "أفراد الخورس")}{navItem("people", <Pencil size={17} />, "إدارة الخورس")}{navItem("qr-print", <QrCode size={17} />, "QR الأولاد")}</nav><div className="sidebar-footer"><div className="sidebar-footer-actions"><button className="theme-toggle" type="button" onClick={() => setDarkMode((value) => !value)}><span>{darkMode ? "الوضع الفاتح" : "الوضع الداكن"}</span>{darkMode ? <Sun size={16} /> : <Moon size={16} />}</button><button className="logout-button" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={() => { sessionStorage.removeItem("choir-password"); sessionStorage.removeItem("choir-username"); setPassword(""); setUsername(""); setPasswordDraft(""); setUsernameDraft(""); }}><LogOut size={15} /><span>خروج</span></button></div></div></aside>
+    <aside className="app-sidebar"><div className="sidebar-brand"><img src="/saint-abanoub.png" alt="القديس أبانوب" /><div><strong>خورس القديس أبانوب</strong><span>إدارة الخدمة</span></div></div><p className="sidebar-label">أقسام لوحة الإدارة</p><nav className="sidebar-nav">{navItem("home", <LayoutDashboard size={17} />, "نظرة عامة")}{navItem("attendance", <UserCheck size={17} />, "الحضور والغياب")}{navItem("visit", <Home size={17} />, "الافتقاد")}{navItem("stray", <img className="sheep-icon" src="/sheep-icon.svg" alt="" />, "الخروف الضال")}{navItem("history", <Users size={17} />, "أفراد الخورس")}{navItem("people", <Pencil size={17} />, "إدارة الخورس")}{navItem("qr-print", <QrCode size={17} />, "QR الأولاد")}<button className={`sidebar-item notification-item ${mode === "notifications" ? "active" : ""}`} type="button" onClick={openNotifications} title={notificationPermission === "granted" ? "مركز التنبيهات · إشعارات المتصفح مفعّلة" : "مركز التنبيهات · تفعيل إشعارات المتصفح"}><Bell size={17} /><span>التنبيهات</span>{unreadNotificationCount > 0 && <b className="notification-count">{Math.min(99, unreadNotificationCount)}{unreadNotificationCount > 99 ? "+" : ""}</b>}</button></nav><div className="sidebar-footer"><div className="sidebar-footer-actions"><button className="theme-toggle" type="button" onClick={() => setDarkMode((value) => !value)}><span>{darkMode ? "الوضع الفاتح" : "الوضع الداكن"}</span>{darkMode ? <Sun size={16} /> : <Moon size={16} />}</button><button className="logout-button" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={() => { sessionStorage.removeItem("choir-password"); sessionStorage.removeItem("choir-username"); setPassword(""); setUsername(""); setPasswordDraft(""); setUsernameDraft(""); }}><LogOut size={15} /><span>خروج</span></button></div></div></aside>
     <section className="app-content"><header className="topbar"><div className="topbar-verse"><span>«اذْهَبِ انْظُرْ سَلاَمَةَ إِخْوَتِكَ، وَسَلاَمَةَ الْغَنَمِ وَرُدَّ لِي خَبَرًا»</span></div><div className="top-actions">{mode === "reports" && <button className="copy-phone" title="تصدير التقرير" onClick={exportCsv}><Copy size={14} /></button>}<span className="save-state">{loading ? "جاري التحميل" : busy ? "جاري الحفظ" : notice || "جاهز"}</span></div></header>
     {mode === "visit" && state.verse && <section className="verse-band"><p>{state.verse}</p></section>}
     {mode === "visit" || mode === "call" || mode === "reports" || mode === "notes" || mode === "requests" ? <div className="sub-tabs"><button className={mode === "visit" ? "active" : ""} onClick={() => switchMode("visit")}><Home size={15} /> زيارة البيت</button><button className={mode === "call" ? "active" : ""} onClick={() => switchMode("call")}><Phone size={15} /> الاتصال الأسبوعي</button><button className={mode === "reports" ? "active" : ""} onClick={() => switchMode("reports")}><BarChart3 size={15} /> تقارير الافتقاد</button><button className={mode === "notes" ? "active" : ""} onClick={() => switchMode("notes")}><Pencil size={15} /> ملاحظات الافتقاد</button><button className={mode === "requests" ? "active" : ""} onClick={() => switchMode("requests")}><Phone size={15} /> طلبات الأهالي</button></div> : null}
@@ -294,6 +412,7 @@ export default function App() {
     {(mode === "visit" || mode === "call") && <PeopleTable mode={mode} rows={(mode === "visit" ? visitRows : rows).filter((row) => row.role !== "servant")} query={query} setQuery={setQuery} busy={busy} saveFollowUp={saveFollowUp} updateCheck={updateCheck} openReport={openReport} loading={loading} includeVisitedThisMonth={includeVisitedThisMonth} setIncludeVisitedThisMonth={setIncludeVisitedThisMonth} />}
     {mode === "reports" && <VisitReportsPage reports={visitReports} exportCsv={exportCsv} month={reportMonth} setMonth={(month) => { setReportMonth(month); load("reports", undefined, password, month); }} />}
     {mode === "notes" && <FollowUpNotesPage notes={followUpNotes} rows={rows} request={request} password={password} reload={() => load("notes")} />}
+    {mode === "notifications" && <NotificationsPage notifications={notificationItems} readMap={notificationReadMap} onOpen={openNotification} onMarkAllRead={markAllNotificationsRead} />}
     {mode === "requests" && <FollowUpRequestsPage requests={followUpRequests} request={request} password={password} reload={() => load("requests")} />}
     {mode === "history" && <MembersDirectoryByRole rows={rows} query={query} setQuery={setQuery} openReport={openReport} loading={loading} request={request} />}
     {(error || notice) && <div className={`toast visible ${error ? "error" : ""}`} role="status">{error || notice}</div>}
@@ -405,6 +524,28 @@ function FollowUpNotesPage({ notes, rows, request, password, reload }) {
 function FollowUpRequestsPage({ requests, request, password, reload }) {
   const statusLabel = { new: "جديد", in_progress: "قيد المتابعة", done: "تم التنفيذ" };
   return <section className="visit-reports-page"><section className="reports-hero"><div><p className="section-kicker">طلبات الأهالي</p><h2>طلبات المتابعة</h2><p>راجع طلبات الاتصال والزيارة وحدث حالتها.</p></div></section><section className="table-section"><div className="table-wrap"><table><thead><tr><th>التاريخ</th><th>الولد</th><th>النوع</th><th>الرسالة</th><th>الحالة</th></tr></thead><tbody>{requests.map((item) => <tr key={item.id}><td>{dateLabel(item.createdAt.slice(0, 10))}</td><td className="name-cell">{item.name}</td><td>{item.type === "call" ? "اتصال" : "زيارة"}</td><td>{item.message || "بدون رسالة"}</td><td><select value={item.status} onChange={async (event) => { await request(`/api/followup-requests/${item.id}`, { method: "PATCH", body: JSON.stringify({ status: event.target.value }) }, password); await reload(); }}>{Object.entries(statusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></td></tr>)}{!requests.length && <tr><td colSpan="5">لا توجد طلبات متابعة حتى الآن</td></tr>}</tbody></table></div></section></section>;
+}
+
+function NotificationsPage({ notifications, readMap, onOpen, onMarkAllRead }) {
+  const unreadCount = notifications.filter((item) => !readMap[item.id]).length;
+  return <section className="notification-center">
+    <div className="section-title-row notification-center-heading">
+      <div><p className="section-kicker">مركز التنبيهات</p><h1>التنبيهات</h1></div>
+      <button className="secondary-button" type="button" onClick={onMarkAllRead} disabled={!unreadCount}>تحديد الكل كمقروء</button>
+    </div>
+    <div className="notification-feed">
+      {notifications.map((item) => <article className={`notification-entry ${readMap[item.id] ? "read" : "unread"}`} key={item.id}>
+        <span className="notification-entry-mark" aria-hidden="true"><Bell size={17} /></span>
+        <div className="notification-entry-content">
+          <div className="notification-entry-meta"><span>{item.sourceLabel}</span><time>{dateLabel(item.createdAt.slice(0, 10))}</time></div>
+          <h2>{item.title}</h2>
+          <p>{item.body}</p>
+        </div>
+        <button className="notification-open-button" type="button" onClick={() => onOpen(item)}>فتح {item.sourceLabel}</button>
+      </article>)}
+      {!notifications.length && <p className="empty-row">لا توجد تنبيهات حتى الآن</p>}
+    </div>
+  </section>;
 }
 
 function VisitReportsPage({ reports, exportCsv, month, setMonth }) {
