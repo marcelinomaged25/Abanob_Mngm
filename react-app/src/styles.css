@@ -2248,3 +2248,42 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Dark mode surfaces for servant evaluation and the stray-sheep list. */
+.dark-mode .evaluation-page { color: #edf1ef; }
+.dark-mode .evaluation-heading h1,
+.dark-mode .evaluation-panel-heading h2,
+.dark-mode .evaluation-person strong,
+.dark-mode .evaluation-empty strong { color: #edf1ef; }
+.dark-mode .evaluation-heading p,
+.dark-mode .evaluation-panel-heading > span,
+.dark-mode .evaluation-person small,
+.dark-mode .evaluation-score small,
+.dark-mode .evaluation-empty { color: #aab4b1; }
+.dark-mode .evaluation-panel { border-color: #30383d !important; background: #151a1e !important; box-shadow: 0 12px 30px rgba(0, 0, 0, .2); }
+.dark-mode .evaluation-panel-heading { border-color: #30383d; background: #181e22 !important; }
+.dark-mode .evaluation-row { border-color: #30383d; }
+.dark-mode .evaluation-person small.saved { color: #72d5aa; }
+.dark-mode .evaluation-person small.saving { color: #e6bd54; }
+.dark-mode .evaluation-person small.error { color: #ff8d82; }
+.dark-mode .evaluation-score { color: #e6bd54; }
+.dark-mode .evaluation-search { border-color: #39464a; background: #0e1317 !important; color: #aab4b1; }
+.dark-mode .evaluation-search input { background: transparent !important; color: #edf1ef !important; }
+.dark-mode .evaluation-alert.error { background: #3a2022; color: #ffaaa4; }
+.dark-mode .evaluation-alert.success { background: #163328; color: #83d4ae; }
+.dark-mode .evaluation-no-results { color: #aab4b1; }
+
+.dark-mode .stray-page { color: #edf1ef; }
+.dark-mode .stray-hero,
+.dark-mode .stray-note { border-color: #30383d !important; background: #151a1e !important; }
+.dark-mode .stray-note { color: #aab4b1; }
+.dark-mode .stray-note strong,
+.dark-mode .stray-person-info strong { color: #edf1ef; }
+.dark-mode .stray-person { border-color: #30383d; border-right-color: #c89d3c !important; background: #151a1e !important; color: #edf1ef; }
+.dark-mode .stray-person:hover { border-color: #c89d3c; background: #20272a !important; }
+.dark-mode .stray-person-info small,
+.dark-mode .stray-stats small,
+.dark-mode .stray-counts { color: #96a3a5; }
+.dark-mode .stray-stats b { color: #e6bd54; }
+.dark-mode .stray-rank { background: #29251b; color: #e6bd54; }
+.dark-mode .stray-counts { border-color: #30383d; }

@@ -193,20 +193,25 @@ app.MapGet("/api/public/league", async (string? month, NpgsqlDataSource db) =>
                coalesce(a.month_choir,0)+coalesce(a.month_mass,0) as month_attendance,
                coalesce(e.month_points,0) as month_evaluations
         from people p left join attendance a on a.person_id=p.id left join evaluations e on e.person_id=p.id
-        where p.is_active=true and (p.role='boy' or exists(select 1 from attendance_records existing where existing.person_id=p.id))
-        order by points desc,attendance desc,evaluations desc,p.name", connection);
+        where p.is_active=true and p.role='boy'", connection);
     command.Parameters.AddWithValue(selectedMonth);
     command.Parameters.AddWithValue(monthEnd);
     await using (var reader = await command.ExecuteReaderAsync())
         while (await reader.ReadAsync()) rows.Add((reader.GetInt32(0),reader.GetString(1),reader.GetInt64(2),reader.GetInt64(3),reader.GetInt64(4),reader.GetInt64(5),reader.GetInt64(6),reader.GetInt64(7)));
-    var monthlyLeader = rows.OrderByDescending(row => row.MonthPoints).ThenByDescending(row => row.MonthAttendance).ThenByDescending(row => row.MonthEvaluations).ThenBy(row => row.Name, StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("ar"), false)).FirstOrDefault();
+    var rankedRows = rows
+        .OrderByDescending(row => row.MonthPoints)
+        .ThenByDescending(row => row.MonthAttendance)
+        .ThenByDescending(row => row.MonthEvaluations)
+        .ThenBy(row => row.Name, StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("ar"), false))
+        .ToArray();
+    var monthlyLeader = rankedRows.FirstOrDefault(row => row.MonthPoints > 0);
     return Results.Ok(new
     {
         month = selectedMonth.ToString("yyyy-MM"),
         lastFriday = lastFriday.ToString("yyyy-MM-dd"),
         isFinalized = lastFriday <= CairoToday(),
         monthlyLeader = monthlyLeader.Name is null ? null : new { name = monthlyLeader.Name, points = monthlyLeader.MonthPoints },
-        rows = rows.Select((row, index) => new { rank = index + 1, recordKey = row.RecordKey, name = row.Name, points = row.Points })
+        rows = rankedRows.Select((row, index) => new { rank = index + 1, recordKey = row.RecordKey, name = row.Name, points = row.MonthPoints })
     });
 });
 
