@@ -457,12 +457,13 @@ function ServantBoyEvaluationPage({ request }) {
   const [date, setDate] = useState(today());
   const [people, setPeople] = useState([]);
   const [scores, setScores] = useState({});
+  const [query, setQuery] = useState("");
+  const [saveStates, setSaveStates] = useState({});
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const saveQueue = useRef({});
   const reload = useCallback(async () => {
-    setLoading(true); setError(""); setNotice("");
+    setLoading(true); setError(""); setSaveStates({});
     try {
       const result = await request(`/api/evaluations?date=${encodeURIComponent(date)}`);
       setPeople(result.people || []);
@@ -471,15 +472,21 @@ function ServantBoyEvaluationPage({ request }) {
     finally { setLoading(false); }
   }, [date, request]);
   useEffect(() => { reload(); }, [reload]);
-  async function save() {
-    setSaving(true); setError(""); setNotice("");
-    try {
-      await request("/api/evaluations", { method: "POST", body: JSON.stringify({ date, scores }) });
-      setNotice("تم حفظ تقييمات الحضور");
-    } catch (saveError) { setError(saveError.message); }
-    finally { setSaving(false); }
+  function updateScore(recordKey, value) {
+    const key = String(recordKey);
+    setScores((current) => ({ ...current, [key]: value }));
+    setSaveStates((current) => ({ ...current, [key]: "saving" }));
+    setError("");
+    const previous = saveQueue.current[key] || Promise.resolve();
+    const next = previous.catch(() => {}).then(() => request("/api/evaluations", { method: "POST", body: JSON.stringify({ date, scores: { [key]: value } }) }));
+    saveQueue.current[key] = next;
+    next.then(() => { if (saveQueue.current[key] === next) setSaveStates((current) => current[key] === "saving" && scoresRef.current[key] === value ? { ...current, [key]: "saved" } : current); })
+      .catch((saveError) => { if (saveQueue.current[key] === next) { setError(saveError.message); setSaveStates((current) => ({ ...current, [key]: "error" })); } });
   }
-  return <main className="evaluation-page" dir="rtl"><header className="evaluation-heading"><div><span className="section-kicker">متابعة أداء الأبناء</span><h1>تقييم الخورس</h1><p>يظهر هنا من سُجل حضوره في الخورس في التاريخ المختار.</p></div><label>تاريخ الحضور<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label></header>{error && <p className="evaluation-alert error">{error}</p>}{notice && <p className="evaluation-alert success">{notice}</p>}<section className="evaluation-panel"><div className="evaluation-panel-heading"><div><h2>تقييم الحاضرين</h2><span>{loading ? "جاري التحميل..." : `${people.length} ولد`}</span></div><button className="primary-button" type="button" onClick={save} disabled={saving || loading || people.length === 0}>{saving ? "جاري الحفظ..." : "حفظ التقييمات"}</button></div>{!loading && people.length === 0 ? <div className="evaluation-empty"><Users size={25} /><strong>لا يوجد حضور خورس مسجل لهذا اليوم</strong><span>سجّل حضور الخورس أولًا، ثم أضف التقييمات هنا.</span></div> : <div className="evaluation-list">{people.map((person) => <label className="evaluation-row" key={person.recordKey}><span className="evaluation-person"><strong>{person.name}</strong><small>{person.points === null ? "لم يُقيّم بعد" : "تقييم محفوظ"}</small></span><input aria-label={`تقييم ${person.name}`} type="range" min="0" max="10" step="1" value={scores[String(person.recordKey)] ?? 0} onChange={(event) => setScores((current) => ({ ...current, [String(person.recordKey)]: Number(event.target.value) }))} /><output className="evaluation-score">{scores[String(person.recordKey)] ?? 0}<small>/ 10</small></output></label>)}</div>}</section></main>;
+  const scoresRef = useRef(scores);
+  scoresRef.current = scores;
+  const filteredPeople = people.filter((person) => normalizeArabic(person.name).toLocaleLowerCase("ar").includes(normalizeArabic(query).trim().toLocaleLowerCase("ar")));
+  return <main className="evaluation-page" dir="rtl"><header className="evaluation-heading"><div><span className="section-kicker">متابعة أداء الأبناء</span><h1>تقييم الخورس</h1><p>يظهر هنا من سُجل حضوره في الخورس في التاريخ المختار.</p></div><label>تاريخ الحضور<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label></header>{error && <p className="evaluation-alert error">{error}</p>}<section className="evaluation-panel"><div className="evaluation-panel-heading"><div><h2>تقييم الحاضرين</h2><span>{loading ? "جاري التحميل..." : `${filteredPeople.length} من ${people.length} ولد`}</span></div>{people.length > 0 && <label className="evaluation-search"><Search size={17} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث باسم الولد" aria-label="ابحث باسم الولد" /></label>}</div>{!loading && people.length === 0 ? <div className="evaluation-empty"><Users size={25} /><strong>لا يوجد حضور خورس مسجل لهذا اليوم</strong><span>سجّل حضور الخورس أولًا، ثم أضف التقييمات هنا.</span></div> : filteredPeople.length === 0 ? <p className="evaluation-no-results">لا يوجد ولد بهذا الاسم</p> : <div className="evaluation-list">{filteredPeople.map((person) => { const key = String(person.recordKey); const score = scores[key] ?? 0; const saveState = saveStates[key]; return <label className="evaluation-row" key={person.recordKey}><span className="evaluation-person"><strong>{person.name}</strong><small className={saveState || "idle"}>{saveState === "saving" ? "جارٍ الحفظ..." : saveState === "saved" ? "تم الحفظ تلقائيًا" : saveState === "error" ? "تعذر الحفظ" : person.points === null ? "لم يُقيّم بعد" : "تقييم محفوظ"}</small></span><input aria-label={`تقييم ${person.name}`} type="range" min="0" max="10" step="1" value={score} onChange={(event) => updateScore(person.recordKey, Number(event.target.value))} /><output className="evaluation-score">{score}<small>/ 10</small></output></label>; })}</div>}</section></main>;
 }
 
 function PublicParentHome() {
