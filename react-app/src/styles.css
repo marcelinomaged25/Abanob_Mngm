@@ -2130,7 +2130,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .evaluation-panel-heading h2 { margin: 0 0 4px; font-size: 16px; }
 .evaluation-panel-heading span { color: var(--muted); font-size: 12px; }
 .evaluation-search { display: flex; align-items: center; gap: 8px; width: min(320px, 48%); min-height: 40px; padding: 0 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--muted); }
-.evaluation-search:focus-within { border-color: #4e9b7b; box-shadow: 0 0 0 3px rgba(28, 128, 95, .1); }
+.evaluation-search:focus-within { border-color: #c89a1d; box-shadow: 0 0 0 3px rgba(220, 174, 45, .15); }
 .evaluation-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: 13px; }
 .evaluation-list { padding: 0 19px; }
 .evaluation-row { display: grid; grid-template-columns: minmax(140px,1fr) minmax(160px,2fr) 56px; align-items: center; gap: 20px; min-height: 68px; border-bottom: 1px solid var(--line); }
@@ -2140,7 +2140,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .evaluation-person small.saved { color: #18734f; }
 .evaluation-person small.saving { color: #9a6c08; }
 .evaluation-person small.error { color: #b42318; }
-.evaluation-row input[type="range"] { width: 100%; accent-color: #1c805f; cursor: pointer; }
+.evaluation-row input[type="range"] { width: 100%; accent-color: #c28f16; cursor: pointer; }
+.evaluation-row input[type="range"]:focus-visible { outline: 3px solid var(--brand-focus); outline-offset: 3px; }
 .evaluation-score { color: #155d49; font-size: 18px; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; }
 .evaluation-score small { margin-inline-start: 3px; color: #83918d; font-size: 10px; font-weight: 500; }
 .evaluation-empty { display: grid; justify-items: center; gap: 9px; padding: 40px 16px; color: #7a8790; text-align: center; }
@@ -2228,17 +2229,22 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 :where(.primary-button, .secondary-button, .public-call-button, .public-scan-button, .public-admin-link, .saint-story-video):active { transform: translateY(1px) scale(.99); }
 :where(input, select, textarea):focus-visible { outline: 3px solid var(--brand-focus); outline-offset: 1px; }
-.public-call-button, .public-scan-button { background: var(--brand-navy); border-color: var(--brand-navy); }
-.public-call-button:hover, .public-scan-button:hover { background: var(--brand-navy-hover); border-color: var(--brand-navy-hover); }
-.primary-button, .secondary-button { border-color: var(--brand-navy); background: var(--brand-navy); color: #fffdf7; }
-.primary-button:hover, .secondary-button:hover { background: var(--brand-navy-hover); }
+.public-call-button, .public-scan-button, .primary-button { border-color: var(--brand-gold); background: var(--brand-gold); color: var(--brand-navy); box-shadow: 0 5px 14px rgba(166, 124, 22, .2); }
+.public-call-button:hover, .public-scan-button:hover, .primary-button:hover { border-color: var(--brand-gold-hover); background: var(--brand-gold-hover); color: var(--brand-navy); box-shadow: 0 8px 20px rgba(166, 124, 22, .27); transform: translateY(-2px); }
+.secondary-button { border-color: var(--brand-navy); background: var(--brand-navy); color: #fffdf7; }
+.secondary-button:hover { border-color: var(--brand-navy-hover); background: var(--brand-navy-hover); }
 .public-admin-link, .saint-story-video { border-color: var(--brand-gold); background: var(--brand-gold); color: var(--brand-navy); }
 .public-admin-link:hover, .saint-story-video:hover { border-color: var(--brand-gold-hover); background: var(--brand-gold-hover); }
+.logout-button { text-decoration: none; }
 .public-menu-toggle:hover { border-color: var(--brand-gold); background: #fff8df; color: var(--brand-navy); }
-.league-page, .public-report-page { background-color: #eef5f8; }
+.league-page, .public-report-page, .saint-story-page { background-color: #eef5f8; }
 .league-header, .public-student-heading, .league-table-section, .evaluation-panel { background-color: #fffdf7; }
 .league-rank-badge, .monthly-champion { transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
 .league-rank-1:hover .league-rank-badge { transform: translateY(-2px); box-shadow: 0 5px 12px rgba(145, 104, 10, .2); }
+.dark-mode .primary-button { border-color: var(--brand-gold); background: var(--brand-gold); color: var(--brand-navy); box-shadow: 0 5px 14px rgba(0, 0, 0, .25); }
+.dark-mode .primary-button:hover { border-color: var(--brand-gold-hover); background: var(--brand-gold-hover); color: var(--brand-navy); }
+.app-shell:not(.dark-mode) .app-sidebar .logout-button { border-color: rgba(220, 174, 45, .58); background: rgba(255, 255, 255, .1); color: #fffdf7; }
+.app-shell:not(.dark-mode) .app-sidebar .logout-button:hover { border-color: var(--brand-gold); background: var(--brand-gold); color: var(--brand-navy); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
