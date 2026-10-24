@@ -2067,7 +2067,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 .public-home-brand { justify-content: space-between; gap: 11px; }
-.public-home-identity { display: flex; min-width: 0; align-items: center; gap: 11px; }
+.public-home-brand > .public-home-identity { display: flex; min-width: 0; align-items: center; gap: 11px; }
+.public-home-identity > div { display: grid; gap: 3px; }
 .public-menu-toggle { display: grid; place-items: center; width: 44px; height: 44px; margin-inline-start: 10px; border: 1px solid rgba(16, 47, 95, .18); border-radius: 9px; background: #fffdf7; color: #102f5f; cursor: pointer; }
 .public-menu-toggle:hover { border-color: #dcae2d; background: #fff8df; }
 .public-menu-backdrop { position: fixed; inset: 0; z-index: 129; border: 0; background: rgba(5, 13, 26, .56); }
