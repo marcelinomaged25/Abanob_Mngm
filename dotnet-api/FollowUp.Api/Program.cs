@@ -161,6 +161,55 @@ app.MapGet("/api/public/people", async (string? query, NpgsqlDataSource db) =>
     return Results.Ok(people);
 });
 
+app.MapGet("/api/public/league", async (string? month, NpgsqlDataSource db) =>
+{
+    var selectedMonth = DateOnly.TryParseExact($"{month}-01", "yyyy-MM-dd", out var parsedMonth)
+        ? new DateOnly(parsedMonth.Year, parsedMonth.Month, 1)
+        : new DateOnly(CairoToday().Year, CairoToday().Month, 1);
+    var monthEnd = selectedMonth.AddMonths(1);
+    var lastFriday = LastFridayOfMonth(selectedMonth);
+    var rows = new List<(int RecordKey, string Name, long Points, long Attendance, long Evaluations, long MonthPoints, long MonthAttendance, long MonthEvaluations)>();
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand(@"
+        with attendance as (
+            select person_id,
+                   count(*) filter(where attendance_type='choir') as choir_count,
+                   count(*) filter(where attendance_type='mass') as mass_count,
+                   count(*) filter(where attendance_type='choir' and attendance_date >= $1 and attendance_date < $2) as month_choir,
+                   count(*) filter(where attendance_type='mass' and attendance_date >= $1 and attendance_date < $2) as month_mass
+            from attendance_records group by person_id
+        ), evaluations as (
+            select e.person_id, sum(e.points) as points,
+                   sum(e.points) filter(where e.attendance_date >= $1 and e.attendance_date < $2) as month_points
+            from choir_evaluations e
+            join attendance_records a on a.person_id=e.person_id and a.attendance_type='choir' and a.attendance_date=e.attendance_date
+            group by e.person_id
+        )
+        select p.record_key,p.name,
+               coalesce(a.choir_count,0)+coalesce(a.mass_count,0)+coalesce(e.points,0) as points,
+               coalesce(a.choir_count,0)+coalesce(a.mass_count,0) as attendance,
+               coalesce(e.points,0) as evaluations,
+               coalesce(a.month_choir,0)+coalesce(a.month_mass,0)+coalesce(e.month_points,0) as month_points,
+               coalesce(a.month_choir,0)+coalesce(a.month_mass,0) as month_attendance,
+               coalesce(e.month_points,0) as month_evaluations
+        from people p left join attendance a on a.person_id=p.id left join evaluations e on e.person_id=p.id
+        where p.is_active=true and (p.role='boy' or exists(select 1 from attendance_records existing where existing.person_id=p.id))
+        order by points desc,attendance desc,evaluations desc,p.name", connection);
+    command.Parameters.AddWithValue(selectedMonth);
+    command.Parameters.AddWithValue(monthEnd);
+    await using (var reader = await command.ExecuteReaderAsync())
+        while (await reader.ReadAsync()) rows.Add((reader.GetInt32(0),reader.GetString(1),reader.GetInt64(2),reader.GetInt64(3),reader.GetInt64(4),reader.GetInt64(5),reader.GetInt64(6),reader.GetInt64(7)));
+    var monthlyLeader = rows.OrderByDescending(row => row.MonthPoints).ThenByDescending(row => row.MonthAttendance).ThenByDescending(row => row.MonthEvaluations).ThenBy(row => row.Name, StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("ar"), false)).FirstOrDefault();
+    return Results.Ok(new
+    {
+        month = selectedMonth.ToString("yyyy-MM"),
+        lastFriday = lastFriday.ToString("yyyy-MM-dd"),
+        isFinalized = lastFriday <= CairoToday(),
+        monthlyLeader = monthlyLeader.Name is null ? null : new { name = monthlyLeader.Name, points = monthlyLeader.MonthPoints },
+        rows = rows.Select((row, index) => new { rank = index + 1, recordKey = row.RecordKey, name = row.Name, points = row.Points })
+    });
+});
+
 var api = app.MapGroup("/api");
 api.AddEndpointFilter(async (context, next) =>
 {
@@ -473,6 +522,45 @@ api.MapPost("/attendance", async (AttendanceSave payload, NpgsqlDataSource db) =
     { delete.Parameters.AddWithValue(attendanceType); delete.Parameters.AddWithValue(attendanceDate); delete.Parameters.AddWithValue(checksJson); await delete.ExecuteNonQueryAsync(); }
     await transaction.CommitAsync();
     return Results.Ok(new { type = attendanceType, date = attendanceDate.ToString("yyyy-MM-dd") });
+});
+
+api.MapGet("/evaluations", async (string? date, NpgsqlDataSource db) =>
+{
+    var evaluationDate = ParseDate(date, CairoToday());
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand(@"
+        select p.record_key,p.name,e.points
+        from attendance_records a
+        join people p on p.id=a.person_id
+        left join choir_evaluations e on e.person_id=a.person_id and e.attendance_date=a.attendance_date
+        where a.attendance_type='choir' and a.attendance_date=$1 and p.is_active=true and p.role='boy'
+        order by p.name", connection);
+    command.Parameters.AddWithValue(evaluationDate);
+    await using var reader = await command.ExecuteReaderAsync();
+    var people = new List<object>();
+    while (await reader.ReadAsync()) people.Add(new { recordKey = reader.GetInt32(0), name = reader.GetString(1), points = reader.IsDBNull(2) ? (int?)null : reader.GetInt32(2) });
+    return Results.Ok(new { date = evaluationDate.ToString("yyyy-MM-dd"), people });
+});
+
+api.MapPost("/evaluations", async (EvaluationSave payload, NpgsqlDataSource db) =>
+{
+    var evaluationDate = ParseDate(payload.Date, CairoToday());
+    var scores = payload.Scores ?? new Dictionary<string, int>();
+    if (scores.Values.Any(score => score is < 0 or > 10)) return Results.BadRequest(new { error = "التقييم يجب أن يكون من صفر إلى 10" });
+    var scoresJson = JsonSerializer.Serialize(scores);
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand(@"
+        insert into choir_evaluations(person_id,attendance_date,points)
+        select p.id,$1,e.value::integer
+        from jsonb_each_text($2::jsonb) e
+        join people p on p.record_key=e.key::integer and p.is_active=true and p.role='boy'
+        join attendance_records a on a.person_id=p.id and a.attendance_type='choir' and a.attendance_date=$1
+        where e.value::integer between 0 and 10
+        on conflict(person_id,attendance_date) do update set points=excluded.points,updated_at=now()", connection);
+    command.Parameters.AddWithValue(evaluationDate);
+    command.Parameters.AddWithValue(scoresJson);
+    var saved = await command.ExecuteNonQueryAsync();
+    return Results.Ok(new { date = evaluationDate.ToString("yyyy-MM-dd"), saved });
 });
 
 api.MapPost("/attendance-comment", async (AttendanceCommentSave payload, NpgsqlDataSource db) =>
@@ -1084,6 +1172,12 @@ static DateOnly CairoToday()
     catch (TimeZoneNotFoundException) { cairo = TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time"); }
     return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, cairo));
 }
+static DateOnly LastFridayOfMonth(DateOnly month)
+{
+    var lastDay = month.AddMonths(1).AddDays(-1);
+    var daysAfterFriday = ((int)lastDay.DayOfWeek - (int)DayOfWeek.Friday + 7) % 7;
+    return lastDay.AddDays(-daysAfterFriday);
+}
 static string ConnectionString(string value)
 {
     if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || (uri.Scheme != "postgres" && uri.Scheme != "postgresql")) return value;
@@ -1124,6 +1218,7 @@ record VisitSave(string Date, Dictionary<string, bool>? Checks);
 record CallSave(string? RotationStart, string[]? Servants, Dictionary<string, bool>? Checks, bool Redistribute = false);
 record PersonInput(string Name, string? Group, string? Phone1, string? Phone2, string? Address, string? Note, string? Role);
 record AttendanceSave(string Type, string Date, Dictionary<string, bool>? Checks);
+record EvaluationSave(string Date, Dictionary<string, int>? Scores);
 record AttendanceCommentSave(string Type, string Date, int RecordKey, string Comment);
 record FollowUpNoteSave(long PersonId, string? Servant, string Type, string Date, string Note);
 record FollowUpRequestSave(string Type, string? Message);

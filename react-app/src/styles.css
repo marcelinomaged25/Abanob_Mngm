@@ -2081,6 +2081,95 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .public-menu-section a { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 12px; border: 1px solid rgba(255, 255, 255, .14); border-radius: 8px; background: rgba(255, 255, 255, .08); color: #f8f2df; font-size: 13px; font-weight: 700; text-decoration: none; }
 .public-menu-section a span { flex: 1; }
 .public-menu-section a:hover { border-color: rgba(229, 184, 75, .7); background: rgba(255, 255, 255, .14); }
+
+.league-page { min-height: 100vh; background: #eef4f5; color: #15233a; }
+.league-header { display: grid; grid-template-columns: 1fr minmax(200px, 1.5fr) 1fr; align-items: center; gap: 20px; padding: 22px max(24px, calc((100% - 1080px) / 2)); border-bottom: 1px solid #d8e1e4; background: #fffdf7; }
+.league-back { display: inline-flex; align-items: center; gap: 5px; color: #53677a; font-size: 13px; text-decoration: none; }
+.league-header > div { text-align: center; }
+.league-kicker { color: #98721c; font-size: 12px; font-weight: 800; }
+.league-header h1 { margin: 3px 0; font-size: 27px; }
+.league-header p { margin: 0; color: #728294; font-size: 13px; }
+.league-month { display: flex; justify-self: end; align-items: center; gap: 10px; color: #617184; font-size: 12px; font-weight: 700; }
+.league-month input { min-height: 40px; padding: 6px 10px; border: 1px solid #d2dce1; border-radius: 8px; background: white; color: #18263a; font: inherit; }
+.league-content { width: min(920px, calc(100% - 36px)); margin: 30px auto; }
+.monthly-champion { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 17px; padding: 23px 26px; border: 1px solid #dfc46d; border-radius: 12px; background: linear-gradient(110deg, #fff9e7, #fffdf7 58%, #f8efd5); box-shadow: 0 10px 28px rgba(36, 56, 64, .08); }
+.monthly-champion.provisional { border-color: #d9e0e4; background: #fffdf7; }
+.monthly-champion-icon { display: grid; place-items: center; width: 54px; aspect-ratio: 1; border: 1px solid #edcd62; border-radius: 50%; background: #fff0bc; color: #bb8d1f; }
+.monthly-champion h2 { margin: 4px 0; color: #18263a; font-size: 23px; }
+.monthly-champion p { margin: 0; color: #738092; font-size: 13px; }
+.monthly-points { min-width: 72px; color: #87650f; font-size: 18px; text-align: center; }
+.league-table-section { margin-top: 23px; overflow: hidden; border: 1px solid #d7e0e3; border-radius: 10px; background: #fffdf7; }
+.league-table-heading { display: flex; justify-content: space-between; align-items: center; padding: 18px 21px; border-bottom: 1px solid #e1e7e8; }
+.league-table-heading h2 { margin: 3px 0 0; font-size: 18px; }
+.league-row-count { color: #798697; font-size: 12px; }
+.league-table-wrap { overflow-x: auto; }
+.league-table { width: 100%; border-collapse: collapse; text-align: center; }
+.league-table th, .league-table td { height: 58px; padding: 9px 15px; border-bottom: 1px solid #e8eceb; }
+.league-table th { height: 44px; background: #f5f1e4; color: #526174; font-size: 12px; }
+.league-table th:nth-child(2), .league-table td:nth-child(2) { text-align: right; }
+.league-table td:nth-child(2) { color: #18263a; }
+.league-table tr:last-child td { border-bottom: 0; }
+.league-rank-badge { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #f1f3f4; color: #788491; font-weight: 800; }
+.league-rank-badge.rank-1 { width: 38px; height: 38px; background: #f8e6a6; color: #91680a; box-shadow: 0 2px 0 #dfbd58; }
+.league-rank-badge.rank-2 { background: #e5eaed; color: #65737c; }
+.league-rank-badge.rank-3 { background: #f2dfd2; color: #9a6041; }
+.league-rank-1 td { background: #fff9e8; }
+.league-rank-2 td { background: #f8faf9; }
+.league-score { color: #18263a; font-size: 17px; font-variant-numeric: tabular-nums; }
+.league-message { padding: 24px; color: #738092; text-align: center; }
+.league-message.error { color: #b42318; }
+.league-footnote { padding: 12px 4px; color: #7c8994; font-size: 11px; }
+.evaluation-page { width: min(980px, calc(100% - 36px)); margin: 26px auto; }
+.evaluation-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 20px; }
+.evaluation-heading h1 { margin: 4px 0; font-size: 24px; }
+.evaluation-heading p { margin: 0; color: #718092; font-size: 13px; }
+.evaluation-heading label { display: grid; gap: 7px; color: #647385; font-size: 12px; font-weight: 700; }
+.evaluation-heading input { min-height: 40px; padding: 6px 10px; border: 1px solid #d2dce1; border-radius: 8px; background: var(--paper); color: var(--ink); font: inherit; }
+.evaluation-panel { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+.evaluation-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 19px; border-bottom: 1px solid var(--line); }
+.evaluation-panel-heading h2 { margin: 0 0 4px; font-size: 16px; }
+.evaluation-panel-heading span { color: var(--muted); font-size: 12px; }
+.evaluation-list { padding: 0 19px; }
+.evaluation-row { display: grid; grid-template-columns: minmax(140px,1fr) minmax(160px,2fr) 56px; align-items: center; gap: 20px; min-height: 68px; border-bottom: 1px solid var(--line); }
+.evaluation-row:last-child { border-bottom: 0; }
+.evaluation-person { display: grid; gap: 4px; color: var(--ink); }
+.evaluation-person small { color: var(--muted); font-size: 10px; }
+.evaluation-row input[type="range"] { width: 100%; accent-color: #1c805f; cursor: pointer; }
+.evaluation-score { color: #155d49; font-size: 18px; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; }
+.evaluation-score small { margin-inline-start: 3px; color: #83918d; font-size: 10px; font-weight: 500; }
+.evaluation-empty { display: grid; justify-items: center; gap: 9px; padding: 40px 16px; color: #7a8790; text-align: center; }
+.evaluation-empty strong { color: var(--ink); }
+.evaluation-empty span { font-size: 12px; }
+.evaluation-alert { margin: 0 0 12px; padding: 10px 13px; border-radius: 8px; font-size: 13px; }
+.evaluation-alert.error { background: #fff0ee; color: #b42318; }
+.evaluation-alert.success { background: #eaf7f0; color: #176b50; }
+@media (max-width: 640px) {
+  .league-header { grid-template-columns: 1fr auto; gap: 12px; padding: 14px 16px; }
+  .league-back { grid-column: 1 / -1; }
+  .league-header > div { text-align: right; }
+  .league-header h1 { font-size: 22px; }
+  .league-header p { font-size: 11px; }
+  .league-month { flex-direction: column; align-items: stretch; gap: 4px; font-size: 10px; }
+  .league-month input { width: 138px; min-height: 36px; font-size: 12px; }
+  .league-content { width: calc(100% - 24px); margin: 18px auto; }
+  .monthly-champion { grid-template-columns: auto minmax(0,1fr); gap: 12px; padding: 16px; }
+  .monthly-champion-icon { width: 44px; }
+  .monthly-champion h2 { font-size: 18px; }
+  .monthly-champion p { font-size: 11px; }
+  .monthly-points { grid-column: 2; justify-self: start; font-size: 14px; }
+  .league-table th, .league-table td { height: 52px; padding: 7px 10px; }
+  .league-table th { height: 40px; }
+  .league-rank-badge { width: 30px; height: 30px; }
+  .league-rank-badge.rank-1 { width: 34px; height: 34px; }
+  .evaluation-page { width: calc(100% - 24px); margin: 16px auto; }
+  .evaluation-heading { align-items: stretch; flex-direction: column; }
+  .evaluation-heading label { width: 100%; }
+  .evaluation-heading input { width: 100%; box-sizing: border-box; }
+  .evaluation-row { grid-template-columns: minmax(95px,1fr) minmax(75px,1.3fr) 48px; gap: 10px; min-height: 68px; }
+  .evaluation-list { padding: 0 12px; }
+  .evaluation-person { font-size: 12px; }
+  .evaluation-score { font-size: 16px; }
+}
 .saint-story-page { min-height: 100vh; background: #f2f6f6; color: #172137; direction: rtl; }
 .saint-story-header { display: flex; align-items: center; justify-content: space-between; min-height: 76px; padding: 12px max(20px, calc((100% - 1000px) / 2)); border-bottom: 1px solid #e0e5e6; background: #fffdf7; }
 .saint-story-header > div { display: grid; gap: 3px; text-align: right; }
