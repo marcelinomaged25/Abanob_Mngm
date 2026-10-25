@@ -16,7 +16,7 @@
 }
 
 * { box-sizing: border-box; }
-.public-followup-request { display: grid; order: 10; width: min(920px, 100%); gap: 14px; margin: 18px auto 0; padding: 22px; border: 1px solid #d9d1bb; border-radius: 14px; background: var(--paper); }
+.public-followup-request { display: grid; width: min(920px, 100%); gap: 14px; margin: 18px auto 0; padding: 22px; border: 1px solid #d9d1bb; border-radius: 14px; background: var(--paper); }
 .public-followup-request form { display: grid; grid-template-columns: 180px 1fr auto; gap: 10px; align-items: end; }
 .public-followup-request select, .public-followup-request textarea { width: 100%; padding: 10px; border: 1px solid #d7dde7; border-radius: 9px; background: white; color: var(--ink); }
 .public-followup-request textarea { min-height: 42px; resize: vertical; }
@@ -1398,6 +1398,22 @@ body { background: #eef5f8; }
   background: #edf4f8;
   background-image: radial-gradient(circle at 90% 0%, rgba(220,174,45,.12), transparent 28%), linear-gradient(180deg, #f8fbfd 0%, #edf4f8 58%, #e5eff5 100%);
 }
+.public-report-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.public-report-actions > button { justify-content: center; min-height: 48px; }
+.public-followup-button { display: inline-flex; align-items: center; gap: 9px; padding: 0 16px; border: 1px solid rgba(255,255,255,.55); border-radius: 11px; background: rgba(255,255,255,.1); color: #fff; font-weight: 800; cursor: pointer; }
+.public-followup-button:hover { border-color: #fff; background: rgba(255,255,255,.18); }
+.public-followup-backdrop { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 18px; background: rgba(9,25,48,.58); backdrop-filter: blur(5px); }
+.public-followup-dialog { width: min(520px, 100%); max-height: min(680px, 90vh); overflow: auto; margin: auto; padding: 22px; border: 1px solid #dbe5ec; border-radius: 16px; background: #fffdf7; box-shadow: 0 24px 70px rgba(9,30,66,.28); direction: rtl; }
+.public-followup-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.public-followup-heading h2 { margin: 3px 0 0; color: #102f5f; font-size: 21px; }
+.public-followup-copy { margin: 8px 0 2px; color: #617184; font-size: 13px; line-height: 1.7; }
+.public-followup-dialog form { display: grid; grid-template-columns: 1fr; gap: 13px; align-items: stretch; }
+.public-followup-dialog form label { display: grid; gap: 6px; color: #526174; font-size: 12px; font-weight: 750; }
+.public-followup-dialog form select, .public-followup-dialog form textarea { background: #fff; color: #172137; }
+.public-followup-dialog form .public-call-button { justify-content: center; min-height: 46px; }
+.public-followup-dialog form > p { margin: 0; font-weight: 750; }
+.public-followup-dialog form > p.success { color: #18734f; }
+.public-followup-dialog form > p.error { color: #b42318; }
 .public-brand { padding: 8px 2px 4px; }
 .public-brand img { width: 54px; height: 54px; padding: 4px; border: 1px solid #e0b536; border-radius: 16px; background: #fff; box-shadow: 0 8px 20px rgba(16,47,95,.1); }
 .public-brand strong { color: #102f5f; font-size: 17px; font-weight: 850; }
@@ -1432,6 +1448,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .public-brand { margin-bottom: 14px; }
   .public-brand img { width: 48px; height: 48px; }
   .public-student-heading { padding: 18px; }
+  .public-report-actions { display: grid; grid-template-columns: 1fr; }
+  .public-report-actions > button { width: 100%; }
   .public-attendance-summary article { padding: 16px 8px; }
   .public-attendance-summary strong { font-size: 24px; }
 }
@@ -2241,7 +2259,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .logout-button { text-decoration: none; }
 .public-menu-toggle:hover { border-color: var(--brand-gold); background: #fff8df; color: var(--brand-navy); }
 .league-page, .public-report-page, .saint-story-page { background-color: #eef5f8; }
-.league-header, .public-student-heading, .league-table-section, .evaluation-panel { background-color: #fffdf7; }
+.league-header, .league-table-section, .evaluation-panel { background-color: #fffdf7; }
 .league-rank-badge, .monthly-champion { transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
 .league-rank-1:hover .league-rank-badge { transform: translateY(-2px); box-shadow: 0 5px 12px rgba(145, 104, 10, .2); }
 .dark-mode .primary-button { border-color: var(--brand-gold); background: var(--brand-gold); color: var(--brand-navy); box-shadow: 0 5px 14px rgba(0, 0, 0, .25); }
