@@ -17,7 +17,19 @@ const fridaySessionsSinceStart = (startDate = "2026-10-16") => {
   return sessions;
 };
 const dateLabel = (value) => value ? new Intl.DateTimeFormat("ar-EG", { day: "numeric", month: "long", year: "numeric" }).format(new Date(`${value}T12:00:00`)) : "—";
-const mapsSearchUrl = (address) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(address || "").trim())}`;
+const isGoogleMapsUrl = (value) => {
+  try {
+    const url = new URL(String(value || "").trim());
+    const host = url.hostname.toLowerCase();
+    return url.protocol === "https:" && (host === "maps.app.goo.gl" || host === "goo.gl" || host === "maps.google.com" || (host === "google.com" || host.endsWith(".google.com")) && url.pathname.startsWith("/maps"));
+  } catch {
+    return false;
+  }
+};
+const mapsSearchUrl = (address) => {
+  const value = String(address || "").trim();
+  return isGoogleMapsUrl(value) ? value : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`;
+};
 const normalizeArabic = (value) => String(value || "").replace(/[إأآ]/g, "ا");
 const canonicalServantName = (value) => {
   const name = String(value || "").trim().replace(/^[أإآا]\s*[/.]\s*/, "");
