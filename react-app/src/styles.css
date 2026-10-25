@@ -167,8 +167,9 @@ tbody tr:hover td { background: #f5f8ff; }
 .person-link:hover { text-decoration: underline; }
 .address-cell, .history-date { color: var(--muted); }
 .address-cell { min-width: 240px; }
-.address-cell.map-address-cell { color: var(--blue); cursor: pointer; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; }
-.address-cell.map-address-cell:hover, .address-cell.map-address-cell:focus-visible { color: var(--blue-dark); text-decoration-color: currentColor; outline: 2px solid var(--brand-focus); outline-offset: 2px; }
+.visit-map-link { display: inline-flex; align-items: center; gap: 5px; color: var(--blue-dark); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.visit-map-link:hover { color: var(--amber); }
+.visit-map-link:focus-visible { outline: 2px solid var(--brand-focus); outline-offset: 3px; }
 .history-date { white-space: nowrap; }
 .servant-cell { color: var(--blue-dark); font-weight: 800; }
 .servant-cell.muted { color: var(--amber); font-weight: 500; }
