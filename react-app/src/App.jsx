@@ -31,6 +31,13 @@ const mapsSearchUrl = (address) => {
   return isGoogleMapsUrl(value) ? value : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`;
 };
 const normalizeArabic = (value) => String(value || "").replace(/[إأآ]/g, "ا");
+const normalizeSearchText = (value) => normalizeArabic(value)
+  .replace(/[ىي]/g, "ي")
+  .replace(/[ةه]/g, "ه")
+  .replace(/[\u064B-\u065F\u0670ـ]/g, "")
+  .replace(/\s+/g, " ")
+  .trim()
+  .toLocaleLowerCase("ar");
 const canonicalServantName = (value) => {
   const name = String(value || "").trim().replace(/^[أإآا]\s*[/.]\s*/, "");
   const normalized = normalizeArabic(name).replace(/\s+/g, "");
@@ -65,17 +72,9 @@ function searchableRowText(row) {
 }
 
 function searchMatches(text, term) {
-  if (!term) return true;
-  if (text.includes(term)) return true;
-  const compactText = text.replace(/[\s،,.\-_/]/g, "");
-  const compactTerm = term.replace(/[\s،,.\-_/]/g, "");
-  if (compactTerm.length < 3) return false;
-  let index = 0;
-  for (const character of compactText) {
-    if (character === compactTerm[index]) index += 1;
-    if (index === compactTerm.length) return true;
-  }
-  return false;
+  const normalizedText = normalizeSearchText(text);
+  const normalizedTerm = normalizeSearchText(term);
+  return !normalizedTerm || normalizedText.includes(normalizedTerm);
 }
 
 function findDuplicateNames(people) {
@@ -277,7 +276,7 @@ export default function App() {
   }, [password, request, username]);
 
   const searchIndex = useMemo(() => state.rows.map((row) => ({ row, text: searchableRowText(row) })), [state.rows]);
-  const searchTerm = useMemo(() => normalizeArabic(query).trim().toLocaleLowerCase("ar"), [query]);
+  const searchTerm = useMemo(() => normalizeSearchText(query), [query]);
   const rows = useMemo(() => searchIndex.filter(({ text }) => searchMatches(text, searchTerm)).map(({ row }) => row), [searchIndex, searchTerm]);
   const visitRows = useMemo(() => searchIndex
     .filter(({ row, text }) => (includeVisitedThisMonth ? row.visitedThisMonth : !row.visitedThisMonth) && searchMatches(text, searchTerm))
@@ -516,7 +515,7 @@ function ServantBoyEvaluationPage({ request }) {
     next.then(() => { if (saveVersion.current[key] === version) setSaveStates((current) => ({ ...current, [key]: "saved" })); })
       .catch((saveError) => { if (saveVersion.current[key] === version) { setError(saveError.message); setSaveStates((current) => ({ ...current, [key]: "error" })); } });
   }
-  const filteredPeople = people.filter((person) => normalizeArabic(person.name).toLocaleLowerCase("ar").includes(normalizeArabic(query).trim().toLocaleLowerCase("ar")));
+  const filteredPeople = people.filter((person) => searchMatches(person.name, query));
   return <main className="evaluation-page" dir="rtl"><header className="evaluation-heading"><div><span className="section-kicker">متابعة أداء الأبناء</span><h1>تقييم الخورس</h1><p>يظهر هنا من سُجل حضوره في الخورس في التاريخ المختار.</p></div><label>تاريخ الحضور<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label></header>{error && <p className="evaluation-alert error">{error}</p>}<section className="evaluation-panel"><div className="evaluation-panel-heading"><div><h2>تقييم الحاضرين</h2><span>{loading ? "جاري التحميل..." : `${filteredPeople.length} من ${people.length} ولد`}</span></div><label className="evaluation-search"><Search size={17} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث باسم الولد" aria-label="ابحث باسم الولد" /></label></div>{!loading && people.length === 0 ? <div className="evaluation-empty"><Users size={25} /><strong>لا يوجد حضور خورس مسجل لهذا اليوم</strong><span>اختر تاريخًا سُجل فيه حضور الخورس لبدء التقييم.</span></div> : filteredPeople.length === 0 ? <p className="evaluation-no-results">لا يوجد ولد بهذا الاسم</p> : <div className="evaluation-list">{filteredPeople.map((person) => { const key = String(person.recordKey); const score = scores[key] ?? 0; const saveState = saveStates[key]; return <label className="evaluation-row" key={person.recordKey}><span className="evaluation-person"><strong>{person.name}</strong><small className={saveState || "idle"}>{saveState === "saving" ? "جارٍ الحفظ..." : saveState === "saved" ? "تم الحفظ تلقائيًا" : saveState === "error" ? "تعذر الحفظ" : person.points === null ? "لم يُقيّم بعد" : "تقييم محفوظ"}</small></span><input aria-label={`تقييم ${person.name}`} type="range" min="0" max="10" step="1" value={score} onChange={(event) => updateScore(person.recordKey, Number(event.target.value))} /><output className="evaluation-score">{score}<small>/ 10</small></output></label>; })}</div>}</section></main>;
 }
 
@@ -813,7 +812,7 @@ function QrCard({ person, onPrint, printTarget }) {
 function QrCardsPage({ rows }) {
   const people = rows.filter((row) => row.role === "boy");
   const [query, setQuery] = useState("");
-  const filteredPeople = people.filter((person) => normalizeArabic(`${person.name} ${person.phone1 || ""} ${person.phone2 || ""}`).toLocaleLowerCase("ar").includes(normalizeArabic(query).toLocaleLowerCase("ar")));
+  const filteredPeople = people.filter((person) => searchMatches(`${person.name} ${person.phone1 || ""} ${person.phone2 || ""}`, query));
   const [printTarget, setPrintTarget] = useState(null);
   const printCards = (target = null) => { setPrintTarget(target); window.setTimeout(() => { window.print(); setPrintTarget(null); }, 80); };
   return <section className="qr-page"><div className="section-title-row table-title-row"><div><p className="section-kicker">بطاقات الحضور</p><h2>QR لكل مخدوم</h2><span className="date-label">اطبع الكل أو اختار كارت واحد واحفظه PDF</span></div><div className="qr-page-actions"><label className="search-box qr-search"><Search size={17} /><input type="search" placeholder="ابحث بالاسم أو الرقم" value={query} onChange={(event) => setQuery(event.target.value)} /></label><button className="primary-button qr-print-button" onClick={() => printCards()}><Copy size={15} /> طباعة الكل / PDF</button></div></div><div className="qr-print-grid">{filteredPeople.map((person) => <QrCard person={person} printTarget={printTarget} onPrint={printCards} key={person.id} />)}{!filteredPeople.length && <p className="empty-row">لا يوجد شخص بهذا البحث</p>}</div></section>;
@@ -872,8 +871,7 @@ function AttendanceManager({ state, rows, attendanceType, setAttendanceType, att
   const scopedRows = rows.filter((row) => (row.role || "boy") === attendanceRole);
   const checked = scopedRows.filter((row) => checks[String(row.recordKey)]).length;
   const sortedRows = [...scopedRows].sort((a, b) => normalizeArabic(a.name).localeCompare(normalizeArabic(b.name), "ar"));
-  const visibleQuery = normalizeArabic(query).trim().toLocaleLowerCase("ar");
-  const visibleRows = sortedRows.filter((row) => normalizeArabic([row.name, row.phone1, row.phone2].filter(Boolean).join(" ")).toLocaleLowerCase("ar").includes(visibleQuery));
+  const visibleRows = sortedRows.filter((row) => searchMatches([row.name, row.phone1, row.phone2].filter(Boolean).join(" "), query));
   const toggle = (recordKey) => {
     const nextValue = !checks[recordKey];
     setChecks({ ...checks, [recordKey]: nextValue });
@@ -932,7 +930,7 @@ function MembersDirectory({ rows, query, setQuery, openReport, loading }) {
 }
 
 function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateCheck, openReport, loading }) {
-  const filtered = rows.filter((row) => normalizeArabic(`${row.name} ${row.group || ""} ${row.servant || ""}`).includes(normalizeArabic(query)));
+  const filtered = rows.filter((row) => searchMatches(`${row.name} ${row.group || ""} ${row.servant || ""}`, query));
   const groups = Object.entries(filtered.reduce((result, row) => {
     const key = row.group || "غير موزع";
     (result[key] ||= []).push(row);

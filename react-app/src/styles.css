@@ -2218,6 +2218,64 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .saint-story-video { display: inline-flex; align-items: center; gap: 10px; min-height: 48px; margin-top: 20px; padding: 0 18px; border: 1px solid #dcae2d; border-radius: 9px; background: #dcae2d; color: #102f5f; font-size: 13px; font-weight: 800; text-decoration: none; transition: background .16s ease, transform .16s ease; }
 .saint-story-video:hover { background: #edc344; transform: translateY(-1px); }
 .saint-story-play { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 50%; background: #102f5f; color: #fffdf7; font-size: 10px; }
+
+/* Mobile sizing for reports and report dialogs. */
+@media (max-width: 620px) {
+  .visit-reports-page { min-width: 0; gap: 12px; }
+  .reports-hero { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 16px 14px; }
+  .reports-hero > *, .reports-hero-actions > * { min-width: 0; max-width: 100%; }
+  .reports-hero h2 { font-size: 19px; line-height: 1.45; overflow-wrap: anywhere; }
+  .reports-hero-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 8px; }
+  .report-month-picker { grid-column: 1 / -1; width: 100%; }
+  .report-month-picker input { width: 100%; min-width: 0; box-sizing: border-box; }
+  .report-period-switch { width: 100%; min-width: 0; box-sizing: border-box; }
+  .report-period-switch button { min-width: 0; padding-inline: 5px; font-size: 11px; }
+  .reports-hero-actions .secondary-button { width: 100%; min-width: 0; padding-inline: 8px; white-space: nowrap; }
+  .report-chart-card { min-width: 0; margin-top: 0; padding: 13px 11px; }
+  .report-chart-card .section-title-row { align-items: flex-start; gap: 8px; }
+  .report-chart-card .section-title-row h2 { font-size: 15px; line-height: 1.4; }
+  .report-chart-card .date-label { flex: 0 0 auto; font-size: 10px; }
+  .report-bar-chart { min-width: 0; min-height: 205px; gap: 5px; padding: 20px 3px 7px; }
+  .report-bar-column { flex-basis: 36px; min-width: 36px; height: 165px; gap: 5px; }
+  .report-bar-column span { max-width: 58px; font-size: 9px; }
+  .report-detail-popover { width: min(220px, calc(100vw - 56px)); max-height: 170px; padding: 10px; }
+
+  .modal { place-items: center; padding: 10px; }
+  .report-dialog { width: 100%; max-width: 100%; max-height: calc(100dvh - 20px); box-sizing: border-box; padding: 54px 14px 16px; border-radius: 14px; }
+  .report-dialog h2 { padding-inline-end: 26px; font-size: 20px; line-height: 1.45; overflow-wrap: anywhere; }
+  .report-meta, .report-period { font-size: 11px; line-height: 1.65; overflow-wrap: anywhere; }
+  .report-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin: 14px 0 10px; font-size: 11px; }
+  .report-summary span { min-width: 0; padding: 9px; overflow-wrap: anywhere; }
+  .report-summary strong { font-size: 15px; }
+  .attendance-report-summary small { font-size: 10px; line-height: 1.5; }
+  .map-address-link { align-items: flex-start; max-width: 100%; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+  .report-table-wrap { max-width: 100%; overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; }
+  .report-table { min-width: 540px; font-size: 11px; }
+
+  .public-report-page { min-width: 0; padding: 16px 10px 30px; }
+  .public-brand, .public-student-heading, .public-attendance-summary, .public-monthly-report, .public-history { min-width: 0; max-width: 100%; box-sizing: border-box; }
+  .public-brand { gap: 9px; }
+  .public-brand strong { font-size: 15px; }
+  .public-brand span { font-size: 11px; }
+  .public-student-heading { gap: 12px; padding: 15px; }
+  .public-student-heading h1 { font-size: 22px; line-height: 1.45; overflow-wrap: anywhere; }
+  .public-report-actions { gap: 7px; }
+  .public-report-actions > button { min-width: 0; padding-inline: 10px; font-size: 13px; }
+  .public-attendance-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .public-attendance-summary article { min-width: 0; padding: 13px 7px; }
+  .public-attendance-summary article:last-child { grid-column: 1 / -1; }
+  .public-attendance-summary span { font-size: 10px; }
+  .public-attendance-summary strong { font-size: 22px; }
+  .public-monthly-report, .public-history { padding: 14px 11px; }
+  .public-section-heading { align-items: flex-start; gap: 7px; }
+  .public-section-heading h2 { font-size: 16px; line-height: 1.45; }
+  .public-section-heading > span { font-size: 10px; white-space: nowrap; }
+  .public-month-list article { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 10px; }
+  .public-month-list article > strong { grid-column: 1 / -1; }
+  .public-month-list article > span { min-width: 0; padding: 8px; border-radius: 9px; background: rgba(16, 47, 95, .04); font-size: 11px; }
+  .public-month-list b { font-size: 14px; }
+}
+
 @media (max-width: 620px) {
   .public-home-brand { gap: 9px; }
   .public-home-identity { gap: 8px; }
