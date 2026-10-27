@@ -16,6 +16,12 @@ const fridaySessionsSinceStart = (startDate = "2026-10-16") => {
   for (let date = start; date <= end; date.setDate(date.getDate() + 7)) sessions += 1;
   return sessions;
 };
+const followUpNeedPercent = (person) => {
+  const attendance = (person.choirCount || 0) + (person.massCount || 0);
+  const followUp = (person.visitCount || 0) + (person.callCount || 0);
+  const activity = attendance * 2 + followUp;
+  return Math.max(0, 100 - Math.min(100, activity * 10));
+};
 const dateLabel = (value) => value ? new Intl.DateTimeFormat("ar-EG", { day: "numeric", month: "long", year: "numeric" }).format(new Date(`${value}T12:00:00`)) : "—";
 const isGoogleMapsUrl = (value) => {
   try {
@@ -46,6 +52,7 @@ const canonicalServantName = (value) => {
 const splitServants = (value = "") => [...new Set(String(value).split(/\r?\n/).map(canonicalServantName).filter(Boolean))];
 const emptyState = { rows: [], groups: [], servants: [], historySummary: [] };
 const emptyVisitReports = { totalPeople: 0, year: new Date().getFullYear(), daily: [], monthly: [], yearly: [], totals: { daily: 0, monthly: 0, yearly: 0 } };
+const defaultWhatsAppTemplate = "أهلاً {{name}}، بنطمن عليك. يا رب تكون بخير.";
 const emptyPerson = { name: "", group: "", phone1: "", phone2: "", address: "", note: "", role: "boy" };
 let attendanceChecksForComments = {};
 let dashboardHistoryPeople = [];
@@ -125,6 +132,7 @@ export default function App() {
   const [attendanceDate, setAttendanceDate] = useState(() => stored("choir-attendance-date", today()));
   const [attendanceChecks, setAttendanceChecks] = useState({});
   const [dashboard, setDashboard] = useState({ summary: {}, people: [] });
+  const [whatsappTemplate, setWhatsappTemplate] = useState(defaultWhatsAppTemplate);
   const [visitReports, setVisitReports] = useState(emptyVisitReports);
   const [followUpNotes, setFollowUpNotes] = useState([]);
   const [followUpRequests, setFollowUpRequests] = useState([]);
@@ -183,7 +191,11 @@ export default function App() {
         const result = await request(`/api/dashboard?date=${date || today()}&month=${monthOverride}`, {}, auth); setDashboard(result); setDashboardDate(result.selectedDate); setTrendMonth(result.trendMonth || monthOverride); return;
       }
       if (nextMode === "stray") {
-        const result = await request(`/api/dashboard?date=${date || today()}&month=${monthOverride}`, {}, auth); setDashboard(result); setDashboardDate(result.selectedDate); setTrendMonth(result.trendMonth || monthOverride); return;
+        const [result, template] = await Promise.all([
+          request(`/api/dashboard?date=${date || today()}&month=${monthOverride}`, {}, auth),
+          request("/api/whatsapp-template", {}, auth),
+        ]);
+        setDashboard(result); setDashboardDate(result.selectedDate); setTrendMonth(result.trendMonth || monthOverride); setWhatsappTemplate(template.message || defaultWhatsAppTemplate); return;
       }
       if (nextMode === "reports") { const selectedMonth = monthOverride || reportMonth; const selectedYear = selectedMonth.slice(0, 4); setVisitReports(await request(`/api/visit-reports?year=${selectedYear}&month=${selectedMonth}`, {}, auth)); return; }
       if (nextMode === "notes") { setFollowUpNotes(await request("/api/followup-notes", {}, auth)); return; }
@@ -451,7 +463,7 @@ export default function App() {
     {mode === "evaluation" && <ServantBoyEvaluationPage request={request} />}
     {(mode === "qr" || mode === "qr-print") && <QrManagementPage rows={state.rows} request={request} scanType={scanType} setScanType={(type) => { setScanType(type); sessionStorage.setItem("choir-scan-type", type); }} scanDate={scanDate} setScanDate={setScanDate} />}
     {mode === "home" && <HomeDashboard dashboard={dashboard} dashboardDate={dashboardDate} setDashboardDate={(date) => { setDashboardDate(date); sessionStorage.setItem("choir-dashboard-date", date); load("home", date); }} trendMonth={trendMonth} setTrendMonth={(month) => { setTrendMonth(month); sessionStorage.setItem("choir-trend-month", month); load("home", dashboardDate, password, month); }} openReport={openReport} />}
-    {mode === "stray" && <StraySheepPage people={dashboard.people || []} openReport={openReport} />}
+    {mode === "stray" && <StraySheepPage people={dashboard.people || []} openReport={openReport} template={whatsappTemplate} saveTemplate={async (message) => { const saved = await request("/api/whatsapp-template", { method: "PUT", body: JSON.stringify({ message }) }); setWhatsappTemplate(saved.message); setNotice("تم حفظ رسالة واتساب"); }} />}
     {(mode === "visit" || mode === "call") && <PeopleTable mode={mode} rows={(mode === "visit" ? visitRows : rows).filter((row) => row.role !== "servant")} query={query} setQuery={setQuery} busy={busy} saveFollowUp={saveFollowUp} updateCheck={updateCheck} openReport={openReport} loading={loading} includeVisitedThisMonth={includeVisitedThisMonth} setIncludeVisitedThisMonth={setIncludeVisitedThisMonth} />}
     {mode === "reports" && <VisitReportsPage reports={visitReports} exportCsv={exportCsv} month={reportMonth} setMonth={(month) => { setReportMonth(month); load("reports", undefined, password, month); }} />}
     {mode === "notes" && <FollowUpNotesPage notes={followUpNotes} rows={rows} request={request} password={password} reload={() => load("notes")} />}
@@ -657,14 +669,21 @@ function PublicBrand() { return <header className="public-brand"><img src="/app-
 function PublicMetric({ label, value, absent, rate }) { return <article><span>{label}</span><strong>{value}</strong>{absent !== undefined && <small className="public-rate">غياب {absent} · حضور {rate}%</small>}</article>; }
 function publicTimeLabel(value) { const [stamp, comment = ""] = String(value || "").split("|"); const [date, time] = stamp.split("T"); if (!time) return comment ? <span className="public-attendance-comment">ملاحظة: {comment}</span> : "—"; const [year, month, day] = date.split("-").map(Number); const [hour, minute] = time.split(":").map(Number); const formatted = new Intl.DateTimeFormat("ar-EG", { hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(year, month - 1, day, hour, minute)); return comment ? <><span>{formatted}</span><em className="public-attendance-comment">ملاحظة: {comment}</em></> : formatted; }
 
-function StraySheepPage({ people, openReport }) {
+function StraySheepPage({ people, openReport, template, saveTemplate }) {
+  const [draft, setDraft] = useState(template || defaultWhatsAppTemplate);
+  const [saving, setSaving] = useState(false);
+  const [templateError, setTemplateError] = useState("");
+  useEffect(() => setDraft(template || defaultWhatsAppTemplate), [template]);
   const rows = people.filter((person) => person.role !== "servant").map((person) => {
     const attendance = (person.choirCount || 0) + (person.massCount || 0);
     const followUp = (person.visitCount || 0) + (person.callCount || 0);
     const activity = attendance * 2 + followUp;
-    return { ...person, attendance, followUp, activity, need: Math.max(0, 100 - Math.min(100, activity * 10)) };
+    return { ...person, attendance, followUp, activity, need: followUpNeedPercent(person) };
   }).sort((a, b) => a.activity - b.activity || a.attendance - b.attendance || a.name.localeCompare(b.name, "ar"));
-  return <section className="stray-page"><section className="stray-hero"><div><p className="section-kicker">متابعة الرعاية</p><h2>الخروف الضال</h2><p>الأسماء الأكثر احتياجًا للمتابعة حسب الحضور والافتقاد.</p></div><img className="sheep-hero-icon" src="/sheep-icon.svg" alt="خروف" /></section><section className="stray-note"><strong>طريقة الترتيب</strong><span>الأعلى في القائمة هو الأقل حضورًا في الخورس والقداس، والأقل افتقادًا بالزيارة والاتصال.</span></section><section className="table-section stray-table"><div className="section-title-row table-title-row"><div><p className="section-kicker">أولوية المتابعة</p><h2>{rows.length} مخدوم</h2></div><span className="date-label">من الأكثر احتياجًا إلى الأقل</span></div><div className="stray-list">{rows.map((row, index) => <button className={`stray-person group-tone-${groupTone(row.group)}`} key={row.id} onClick={() => openReport(row)}><span className="stray-rank">{index + 1}</span><span className="stray-person-info"><strong>{row.name}</strong><small>{row.phone1 || "بدون رقم"}</small></span><span className="stray-stats"><b>{row.need}%</b><small>احتياج متابعة</small></span><span className="stray-counts"><span>خورس {row.choirCount || 0}</span><span>قداس {row.massCount || 0}</span><span>زيارة {row.visitCount || 0}</span><span>اتصال {row.callCount || 0}</span></span></button>)}</div>{!rows.length && <p className="empty-row">لا توجد بيانات مخدومين</p>}</section></section>;
+  const phoneFor = (row) => String(row.phone1 || row.phone2 || "").replace(/\D/g, "").replace(/^0/, "20");
+  const makeMessage = (row) => (draft || defaultWhatsAppTemplate).replace(/\{\{\s*name\s*\}\}/gi, row.name).replace(/\{\{\s*group\s*\}\}/gi, row.group || "");
+  const save = async (event) => { event.preventDefault(); setSaving(true); setTemplateError(""); try { await saveTemplate(draft); } catch (error) { setTemplateError(error.message || "تعذر حفظ الرسالة"); } finally { setSaving(false); } };
+  return <section className="stray-page"><section className="stray-hero"><div><p className="section-kicker">متابعة الرعاية</p><h2>الخروف الضال</h2><p>الأسماء الأكثر احتياجًا للمتابعة حسب الحضور والافتقاد.</p></div><img className="sheep-hero-icon" src="/sheep-icon.svg" alt="خروف" /></section><section className="stray-note"><strong>طريقة الترتيب</strong><span>الأعلى في القائمة هو الأقل حضورًا في الخورس والقداس، والأقل افتقادًا بالزيارة والاتصال.</span></section><form className="table-section stray-whatsapp-template" onSubmit={save}><div><p className="section-kicker">رسالة واتساب جاهزة</p><h2>اكتب الرسالة واحفظها لاستخدامها مع الأولاد</h2><small>استخدم {"{{name}}"} للاسم و{"{{group}}"} للجروب.</small></div><textarea rows="3" maxLength={2000} value={draft} onChange={(event) => setDraft(event.target.value)} aria-label="نص رسالة واتساب" />{templateError && <p className="inline-error">{templateError}</p>}<button className="secondary-button" type="submit" disabled={saving}>{saving ? "جاري الحفظ…" : "حفظ الرسالة"}</button></form><section className="table-section stray-table"><div className="section-title-row table-title-row"><div><p className="section-kicker">أولوية المتابعة</p><h2>{rows.length} مخدوم</h2></div><span className="date-label">من الأكثر احتياجًا إلى الأقل</span></div><div className="stray-list">{rows.map((row, index) => { const phone = phoneFor(row); const href = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(makeMessage(row))}` : ""; return <article className={`stray-person group-tone-${groupTone(row.group)}`} key={row.id}><button type="button" className="stray-open-report" onClick={() => openReport(row)} aria-label={`فتح تقرير ${row.name}`}><span className="stray-rank">{index + 1}</span><span className="stray-person-info"><strong>{row.name}</strong><small>{row.phone1 || row.phone2 || "بدون رقم"}</small></span></button><span className="stray-stats"><b>{row.need}%</b><small>احتياج متابعة</small></span><span className="stray-counts"><span>خورس {row.choirCount || 0}</span><span>قداس {row.massCount || 0}</span><span>زيارة {row.visitCount || 0}</span><span>اتصال {row.callCount || 0}</span></span>{href ? <a className="stray-whatsapp-button" href={href} target="_blank" rel="noreferrer"><MessageCircle size={16} /> واتساب</a> : <span className="stray-whatsapp-unavailable">لا يوجد رقم</span>}</article>; })}</div>{!rows.length && <p className="empty-row">لا توجد بيانات مخدومين</p>}</section></section>;
 }
 
 function FollowUpNotesPage({ notes, rows, request, password, reload }) {
@@ -955,7 +974,7 @@ function MembersDirectory({ rows, query, setQuery, openReport, loading }) {
 }
 
 function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateCheck, openReport, loading }) {
-  const filtered = rows.filter((row) => searchMatches(`${row.name} ${row.group || ""} ${row.servant || ""}`, query));
+  const filtered = rows.filter((row) => row.role !== "servant" && searchMatches(`${row.name} ${row.group || ""} ${row.servant || ""}`, query));
   const groups = Object.entries(filtered.reduce((result, row) => {
     const key = row.group || "غير موزع";
     (result[key] ||= []).push(row);
@@ -965,7 +984,7 @@ function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateChec
     if (b === "غير موزع") return -1;
     return Number(a) - Number(b);
   });
-  return <section className="table-section call-groups-section"><div className="section-title-row table-title-row"><div><p className="section-kicker">بيانات الافتقاد</p><h2>الاتصال الأسبوعي حسب الجروب</h2></div><div className="table-actions"><label className="search-box"><Search size={17} /><input type="search" placeholder="ابحث بالاسم أو الجروب أو الخادم" value={query} onChange={(event) => setQuery(event.target.value)} /></label><button className="secondary-button" disabled={busy} onClick={() => saveFollowUp()}><Check size={16} /> احفظ الكل</button></div></div><div className="call-groups-list">{groups.map(([group, members]) => <section className="call-group" id={`call-group-${group}`} key={group}><header className={`call-group-heading group-tone-${group}`}><div><span>الجروب</span><strong>{group}</strong></div><div><span>مسؤول الاتصال</span><b>{members[0]?.servant || "غير موزع"}</b></div><small>{members.length} أفراد · تم الاتصال بـ {members.filter((row) => row.called).length}</small><button type="button" className="group-save-button" disabled={busy} onClick={() => saveFollowUp(group)}><Check size={14} /> حفظ المجموعة</button></header><div className="call-group-members">{members.map((row) => <div className="call-member" key={row.id}><span className="call-member-info"><button type="button" className="person-link" onClick={() => openReport(row)}>{row.name}</button><span className="phone-copy-row"><small dir="ltr">رقم 1: {row.phone1 || "بدون رقم"}</small>{row.phone1 && <a className="call-phone" href={`tel:${phoneHref(row.phone1)}`}><Phone size={13} /> اتصل</a>}</span>{row.phone2 && <span className="phone-copy-row"><small dir="ltr">رقم 2: {row.phone2}</small><a className="call-phone" href={`tel:${phoneHref(row.phone2)}`}><Phone size={13} /> اتصل</a></span>}</span><input className="status-check" type="checkbox" checked={row.called} onChange={(event) => updateCheck(row.recordKey, "called", event.target.checked)} aria-label={`تم الاتصال بـ ${row.name}`} /></div>)}</div></section>)}{!groups.length && <p className="empty-row">{loading ? "جاري تحميل البيانات" : "لا توجد نتائج"}</p>}</div></section>;
+  return <section className="table-section call-groups-section"><div className="section-title-row table-title-row"><div><p className="section-kicker">بيانات الافتقاد</p><h2>الاتصال الأسبوعي حسب الجروب</h2></div><div className="table-actions"><label className="search-box"><Search size={17} /><input type="search" placeholder="ابحث بالاسم أو الجروب أو الخادم" value={query} onChange={(event) => setQuery(event.target.value)} /></label><button className="secondary-button" disabled={busy} onClick={() => saveFollowUp()}><Check size={16} /> احفظ الكل</button></div></div><div className="call-groups-list">{groups.map(([group, members]) => <section className="call-group" id={`call-group-${group}`} key={group}><header className={`call-group-heading group-tone-${group}`}><div><span>الجروب</span><strong>{group}</strong></div><div><span>مسؤول الاتصال</span><b>{members[0]?.servant || "غير موزع"}</b></div><small>{members.length} أفراد · تم الاتصال بـ {members.filter((row) => row.called).length}</small><button type="button" className="group-save-button" disabled={busy} onClick={() => saveFollowUp(group)}><Check size={14} /> حفظ المجموعة</button></header><div className="call-group-members">{members.map((row) => { const need = followUpNeedPercent(row); return <div className="call-member" key={row.id}><span className="call-member-info"><span className="call-member-name-line"><button type="button" className="person-link" onClick={() => openReport(row)}>{row.name}</button><span className="call-attendance-rate" title="احتياج متابعة حسب الحضور والافتقاد">احتياج متابعة {need}%</span></span><span className="phone-copy-row"><small dir="ltr">رقم 1: {row.phone1 || "بدون رقم"}</small>{row.phone1 && <a className="call-phone" href={`tel:${phoneHref(row.phone1)}`}><Phone size={13} /> اتصل</a>}</span>{row.phone2 && <span className="phone-copy-row"><small dir="ltr">رقم 2: {row.phone2}</small><a className="call-phone" href={`tel:${phoneHref(row.phone2)}`}><Phone size={13} /> اتصل</a></span>}</span><input className="status-check" type="checkbox" checked={row.called} onChange={(event) => updateCheck(row.recordKey, "called", event.target.checked)} aria-label={`تم الاتصال بـ ${row.name}`} /></div>; })}</div></section>)}{!groups.length && <p className="empty-row">{loading ? "جاري تحميل البيانات" : "لا توجد نتائج"}</p>}</div></section>;
 }
 
 function PeopleTable({ mode, rows, query, setQuery, busy, saveFollowUp, updateCheck, openReport, loading, includeVisitedThisMonth, setIncludeVisitedThisMonth }) {

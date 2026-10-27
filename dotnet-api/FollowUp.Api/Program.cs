@@ -229,6 +229,22 @@ api.AddEndpointFilter(async (context, next) =>
 });
 
 api.MapGet("/session", () => Results.Ok(new { role = "user" }));
+api.MapGet("/whatsapp-template", async (NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    var message = await GetSetting<string?>(connection, "strayWhatsAppTemplate") ?? "أهلاً {{name}}، بنطمن عليك. يا رب تكون بخير.";
+    return Results.Ok(new { message });
+});
+api.MapPut("/whatsapp-template", async (WhatsAppTemplateSave payload, NpgsqlDataSource db) =>
+{
+    var message = payload.Message?.Trim();
+    if (string.IsNullOrWhiteSpace(message) || message.Length > 2000) return Results.BadRequest(new { error = "اكتب رسالة من 1 إلى 2000 حرف" });
+    await using var connection = await db.OpenConnectionAsync();
+    await using var transaction = await connection.BeginTransactionAsync();
+    await SetSetting(connection, transaction, "strayWhatsAppTemplate", message);
+    await transaction.CommitAsync();
+    return Results.Ok(new { message });
+});
 api.MapGet("/qr/{token}", async (string token, NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();
@@ -1227,5 +1243,6 @@ record EvaluationSave(string Date, Dictionary<string, int>? Scores);
 record AttendanceCommentSave(string Type, string Date, int RecordKey, string Comment);
 record FollowUpNoteSave(long PersonId, string? Servant, string Type, string Date, string Note);
 record FollowUpRequestSave(string Type, string? Message);
+record WhatsAppTemplateSave(string? Message);
 record FollowUpRequestStatus(string Status);
 record PublicAttendanceItem(string Type, string Date, string RecordedAt, string Comment);
