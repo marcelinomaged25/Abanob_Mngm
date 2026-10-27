@@ -2324,6 +2324,20 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .dark-mode .primary-button:hover { border-color: var(--brand-gold-hover); background: var(--brand-gold-hover); color: var(--brand-navy); }
 .app-shell:not(.dark-mode) .app-sidebar .logout-button { border-color: rgba(220, 174, 45, .58); background: rgba(255, 255, 255, .1); color: #fffdf7; }
 .app-shell:not(.dark-mode) .app-sidebar .logout-button:hover { border-color: var(--brand-gold); background: var(--brand-gold); color: var(--brand-navy); }
+.public-rank-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 16px; border: 1px solid #dcae2d; border-radius: 10px; background: #fff8e2; color: #102f5f; font-weight: 850; text-decoration: none; }
+.public-rank-button:hover { background: #ffefbd; }
+.league-table-heading { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 320px) auto; gap: 14px; }
+.league-search { display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 42px; padding: 0 12px; border: 1px solid #d2dce1; border-radius: 10px; background: #fff; color: #718092; }
+.league-search:focus-within { border-color: #c89a1d; box-shadow: 0 0 0 3px rgba(220, 174, 45, .14); }
+.league-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #18263a; font: inherit; font-size: 12px; }
+.league-row-matched td { background: #fff1bf !important; }
+@media (max-width: 640px) {
+  .league-table-heading { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 14px; }
+  .league-table-heading h2 { font-size: 16px; }
+  .league-search { grid-column: 1 / -1; width: 100%; box-sizing: border-box; }
+  .league-row-count { align-self: end; white-space: nowrap; }
+  .public-rank-button { width: 100%; box-sizing: border-box; }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }

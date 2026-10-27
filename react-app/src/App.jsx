@@ -468,6 +468,9 @@ function PublicLeaguePage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const initialPersonName = useRef(new URLSearchParams(window.location.search).get("name") || "");
+  const [searchQuery, setSearchQuery] = useState(initialPersonName.current);
+  const initialSearchApplied = useRef(false);
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setError("");
@@ -477,9 +480,30 @@ function PublicLeaguePage() {
       .finally(() => setLoading(false));
     return () => controller.abort();
   }, [month]);
+  useEffect(() => {
+    if (!data || !initialPersonName.current || initialSearchApplied.current) return undefined;
+    const target = data.rows?.find((row) => normalizeSearchText(row.name) === normalizeSearchText(initialPersonName.current))
+      || data.rows?.find((row) => searchMatches(row.name, initialPersonName.current));
+    initialSearchApplied.current = true;
+    if (!target) return undefined;
+    const frame = window.requestAnimationFrame(() => document.getElementById(`league-row-${target.recordKey}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [data]);
   const leader = data?.monthlyLeader;
+  const visibleRows = (data?.rows || []).filter((row) => searchMatches(row.name, searchQuery));
   const medalFor = (rank) => rank === 1 ? <Trophy size={18} /> : rank === 2 ? <Medal size={18} /> : rank === 3 ? <Medal size={18} /> : <span>{rank}</span>;
-  return <main className="league-page" dir="rtl"><header className="league-header"><a href="/" className="league-back"><ChevronRight size={17} /> الصفحة الرئيسية</a><div><span className="league-kicker">خورس القديس أبانوب</span><h1>دوري أبانوب</h1><p>ترتيب شهري حسب الحضور والتقييم</p></div><label className="league-month">الشهر<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label></header><div className="league-content"><section className={`monthly-champion ${data?.isFinalized ? "final" : "provisional"}`}><div className="monthly-champion-icon"><Star size={23} fill="currentColor" /></div><div><span className="league-kicker">شماس الشهر</span><h2>{leader?.name || "لم يتحدد المتصدر بعد"}</h2><p>{leader ? (data?.isFinalized ? `شماس خورس شهر ${dateLabel(`${month}-01`).split(" ").slice(1, 3).join(" ")}` : `المتصدر المؤقت · يُحسم بعد الجمعة ${data?.lastFriday ? dateLabel(data.lastFriday) : "الأخيرة"}`) : "لا توجد نقاط مسجلة في هذا الشهر بعد"}</p></div><strong className="monthly-points">{leader ? `${leader.points} نقطة` : "—"}</strong></section>{error && <p className="league-message error">{error}</p>}{loading && <p className="league-message">جاري تحميل الترتيب...</p>}<section className="league-table-section"><div className="league-table-heading"><div><span className="league-kicker">الشهر المختار</span><h2>ترتيب دوري أبانوب</h2></div><span className="league-row-count">{data?.rows?.length || 0} ولد</span></div><div className="league-table-wrap"><table className="league-table"><thead><tr><th>المركز</th><th>الاسم</th><th>النقاط</th></tr></thead><tbody>{(data?.rows || []).map((row) => <tr key={row.recordKey} className={`league-rank-${Math.min(row.rank, 3)}`}><td><span className={`league-rank-badge rank-${Math.min(row.rank, 3)}`}>{medalFor(row.rank)}</span></td><td><strong>{row.name}</strong></td><td><strong className="league-score">{row.points}</strong></td></tr>)}</tbody></table>{!loading && !error && !data?.rows?.length && <p className="league-message">لا يوجد أولاد مسجلون في الترتيب حتى الآن</p>}</div></section><footer className="league-footnote">نقاط الشهر تجمع حضور القداس والخورس والتقييمات المسجلة خلال الشهر المختار.</footer></div></main>;
+  return <main className="league-page" dir="rtl">
+    <header className="league-header"><a href="/" className="league-back"><ChevronRight size={17} /> الصفحة الرئيسية</a><div><span className="league-kicker">خورس القديس أبانوب</span><h1>دوري أبانوب</h1><p>ترتيب شهري حسب الحضور والتقييم</p></div><label className="league-month">الشهر<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label></header>
+    <div className="league-content">
+      <section className={`monthly-champion ${data?.isFinalized ? "final" : "provisional"}`}><div className="monthly-champion-icon"><Star size={23} fill="currentColor" /></div><div><span className="league-kicker">شماس الشهر</span><h2>{leader?.name || "لم يتحدد المتصدر بعد"}</h2><p>{leader ? (data?.isFinalized ? `شماس خورس شهر ${dateLabel(`${month}-01`).split(" ").slice(1, 3).join(" ")}` : `المتصدر المؤقت · يُحسم بعد الجمعة ${data?.lastFriday ? dateLabel(data.lastFriday) : "الأخيرة"}`) : "لا توجد نقاط مسجلة في هذا الشهر بعد"}</p></div><strong className="monthly-points">{leader ? `${leader.points} نقطة` : "—"}</strong></section>
+      {error && <p className="league-message error">{error}</p>}{loading && <p className="league-message">جاري تحميل الترتيب...</p>}
+      <section className="league-table-section">
+        <div className="league-table-heading"><div><span className="league-kicker">الشهر المختار</span><h2>ترتيب دوري أبانوب</h2></div><label className="league-search"><Search size={17} /><input type="search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="ابحث باسم الولد" aria-label="ابحث باسم الولد في دوري أبانوب" /></label><span className="league-row-count">{visibleRows.length} من {data?.rows?.length || 0} ولد</span></div>
+        <div className="league-table-wrap"><table className="league-table"><thead><tr><th>المركز</th><th>الاسم</th><th>النقاط</th></tr></thead><tbody>{visibleRows.map((row) => <tr id={`league-row-${row.recordKey}`} key={row.recordKey} className={`league-rank-${Math.min(row.rank, 3)} ${searchQuery && searchMatches(row.name, searchQuery) ? "league-row-matched" : ""}`}><td><span className={`league-rank-badge rank-${Math.min(row.rank, 3)}`}>{medalFor(row.rank)}</span></td><td><strong>{row.name}</strong></td><td><strong className="league-score">{row.points}</strong></td></tr>)}</tbody></table>{!loading && !error && !visibleRows.length && <p className="league-message">لا يوجد ولد بهذا الاسم في ترتيب هذا الشهر</p>}</div>
+      </section>
+      <footer className="league-footnote">نقاط الشهر تجمع حضور القداس والخورس والتقييمات المسجلة خلال الشهر المختار.</footer>
+    </div>
+  </main>;
 }
 
 function ServantBoyEvaluationPage({ request }) {
@@ -617,6 +641,7 @@ function PublicAttendancePage({ token }) {
         <div className="public-report-actions">
           <button type="button" className="public-call-button" onClick={() => setShowServants(true)} aria-haspopup="dialog"><Phone size={18} /> اتصل بخادم الخورس</button>
           <button type="button" className="public-followup-button" onClick={() => { setRequestNotice(""); setShowFollowUp(true); }}><MessageCircle size={18} /> طلب متابعة</button>
+          <a className="public-rank-button" href={`/league?name=${encodeURIComponent(data.person.name)}`}><Trophy size={18} /> اعرف ترتيبي</a>
         </div>
       </section>
       {showServants && <div className="public-servant-picker-backdrop" role="presentation" onClick={() => setShowServants(false)}><section className="public-servant-picker" role="dialog" aria-modal="true" aria-labelledby="servant-picker-title" onClick={(event) => event.stopPropagation()}><div className="public-servant-picker-heading"><div><p className="section-kicker">الاتصال المباشر</p><h2 id="servant-picker-title">اختر خادمًا للاتصال</h2></div><button type="button" className="public-picker-close" onClick={() => setShowServants(false)} aria-label="إغلاق">×</button></div><div className="public-servant-list">{(data.servants || []).map((servant) => { const phone = servant.phone1 || servant.phone2; return <a className="public-servant-contact" key={servant.id} href={phone ? `tel:${phoneHref(phone)}` : undefined} aria-disabled={!phone} onClick={(event) => { if (!phone) event.preventDefault(); }}><span className={`servant-presence-dot ${servant.choirStatus}`} aria-hidden="true" /><span className="public-servant-contact-info"><strong>{servant.name}</strong><small>{servant.choirStatus === "present" ? "موجود في الخورس" : servant.choirStatus === "absent" ? "غير موجود في خورس اليوم" : "متاح للاتصال"}</small></span><span className="public-servant-contact-action">{phone ? <Phone size={17} /> : "بدون رقم"}</span></a> })}{!(data.servants || []).length && <p className="empty-row">لا يوجد خدام مسجلون للاتصال</p>}</div><p className="public-picker-note">الحالة الخضراء أو الحمراء تظهر يوم الجمعة فقط، وفي باقي الأيام الخادم متاح للاتصال.</p></section></div>}
