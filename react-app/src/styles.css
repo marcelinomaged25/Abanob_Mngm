@@ -2387,7 +2387,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .stray-whatsapp-template small { color: var(--muted); }
 .stray-whatsapp-template textarea { width: 100%; min-height: 76px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); resize: vertical; }
 .stray-whatsapp-template .section-kicker { margin: 0 0 4px; }
-.stray-person { cursor: default; }
+.stray-person { grid-template-columns: minmax(180px, 1.15fr) 100px minmax(180px, 1.4fr) auto; cursor: default; }
 .stray-open-report { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; text-align: right; cursor: pointer; }
 .stray-open-report .stray-person-info { min-width: 0; }
 .stray-whatsapp-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 7px 12px; border: 1px solid #1d9a63; border-radius: 9px; background: #e9f7ef; color: #087648; font-size: 12px; font-weight: 700; text-decoration: none; white-space: nowrap; }
@@ -2401,8 +2401,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @media (max-width: 720px) {
   .stray-whatsapp-template { grid-template-columns: 1fr; }
   .stray-whatsapp-template .secondary-button { width: 100%; }
-  .stray-person { grid-template-columns: 30px minmax(0, 1fr) auto; }
-  .stray-open-report { grid-column: 1 / 3; }
+  .stray-person { grid-template-columns: minmax(0, 1fr) auto; }
+  .stray-open-report { grid-column: 1; }
   .stray-stats { grid-column: 3; grid-row: 1; }
   .stray-counts { grid-column: 1 / -1; }
   .stray-whatsapp-button, .stray-whatsapp-unavailable { grid-column: 1 / -1; justify-self: stretch; }
