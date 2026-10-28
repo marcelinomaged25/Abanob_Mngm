@@ -2449,11 +2449,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .learning-material-card.has-background::after { position: absolute; z-index: -1; inset: 0; background: linear-gradient(145deg, rgba(6,24,48,.82), rgba(9,39,69,.56)); content: ""; }
 .learning-material-card.has-background h2, .learning-material-card.has-background p { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.45); }
 .learning-material-card.has-background .learning-category-badge { background: rgba(255,248,224,.94); color: #64480d; }
-.learning-material-card.has-background > a { background: #e2b42d; color: #102b4a; }
+.learning-material-card.has-background .learning-resource-links a { background: #e2b42d; color: #102b4a; }
 .learning-category-badge { display: inline-flex; width: fit-content; padding: 5px 10px; border-radius: 999px; background: #f8efd8; color: #805b12; font-size: 11px; font-weight: 800; }
 .learning-material-card h2 { margin: 0; color: #153b68; font-size: 17px; }
 .learning-material-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.8; }
-.learning-material-card > a { display: inline-flex; align-items: center; gap: 7px; align-self: end; margin-top: auto; padding: 8px 12px; border-radius: 8px; background: #102f59; color: white; font-size: 12px; font-weight: 700; text-decoration: none; }
+.learning-resource-links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; align-self: end; margin-top: auto; }
+.learning-resource-links a { display: inline-flex; align-items: center; gap: 7px; padding: 9px 12px; border: 1px solid rgba(16,47,89,.12); border-radius: 9px; background: #102f59; color: white; font-size: 12px; font-weight: 700; text-decoration: none; transition: transform .16s ease, filter .16s ease; }
+.learning-resource-links a:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.learning-resource-links a:focus-visible { outline: 3px solid #e5b72e; outline-offset: 2px; }
 .learning-empty { padding: 24px; color: var(--muted); text-align: center; }
 .learning-empty.error { color: var(--danger); }
 .learning-empty-card { display: grid; justify-items: center; gap: 10px; padding: 38px 20px; border: 1px solid #d8dfdf; border-radius: 15px; background: var(--paper); color: var(--muted); text-align: center; }
@@ -2469,6 +2472,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .learning-admin-form input, .learning-admin-form textarea { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink); }
 .learning-admin-form textarea { resize: vertical; }
 .learning-form-wide, .learning-admin-form-title, .learning-form-actions, .learning-form-error, .learning-form-notice { grid-column: 1 / -1; }
+.learning-links-editor { display: grid; gap: 11px; padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: rgba(238,245,247,.55); }
+.learning-links-editor-heading { display: grid; gap: 3px; }
+.learning-links-editor-heading strong { color: var(--ink); font-size: 14px; }
+.learning-links-editor-heading span { color: var(--muted); font-size: 12px; }
+.learning-link-row { display: grid; grid-template-columns: minmax(130px,.8fr) minmax(220px,1.5fr) auto; align-items: end; gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+.learning-link-row label { display: grid; gap: 5px; color: var(--ink); font-size: 12px; font-weight: 700; }
+.learning-link-row input { min-width: 0; }
+.learning-remove-link { min-height: 40px; }
+.learning-add-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: fit-content; }
+.learning-add-link:disabled { cursor: not-allowed; opacity: .55; }
 .learning-admin-form-title { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--line); color: #bc8d17; }
 .learning-admin-form-title div { display: grid; gap: 4px; }
 .learning-admin-form-title strong { color: var(--ink); font-size: 16px; }
@@ -2487,6 +2500,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .learning-admin-item > div { display: grid; gap: 4px; min-width: 0; }
 .learning-admin-item > div strong { overflow-wrap: anywhere; }
 .learning-admin-item > div a { color: #3863a0; font-size: 11px; }
+.learning-admin-link-list { display: flex !important; flex-wrap: wrap; gap: 8px !important; }
+.learning-admin-link-list a { text-decoration: underline; text-underline-offset: 2px; }
 .dark-mode .learning-admin-page { color: var(--ink); }
 .dark-mode .learning-storage-note { background: #14271f; color: #8ee0b2; }
 .dark-mode .learning-admin-day h3 { color: #e6c15c; }
@@ -2499,6 +2514,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .dark-mode .learning-category-tabs button { border-color: #39434d; background: #151a1e; color: #d0d8dc; }
 .dark-mode .learning-category-tabs button.active { border-color: #bc8d17; background: #a37c1d; color: white; }
 .dark-mode .learning-category-badge { background: #2a261b; color: #e4c56b; }
+.dark-mode .learning-links-editor { border-color: #30383d; background: #111820; }
+.dark-mode .learning-link-row { border-color: #30383d; background: #151a1e; }
+.dark-mode .learning-links-editor-heading strong, .dark-mode .learning-link-row label { color: #e6c15c; }
 @media (max-width: 680px) {
   .learning-public-header { min-height: 68px; padding: 10px 14px; }
   .learning-brand img { width: 40px; height: 40px; }
@@ -2510,6 +2528,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .learning-admin-page { padding: 14px 10px 28px; }
   .learning-admin-form { grid-template-columns: 1fr; padding: 15px; }
   .learning-form-wide, .learning-admin-form-title, .learning-form-actions, .learning-form-error, .learning-form-notice { grid-column: 1; }
+  .learning-link-row { grid-template-columns: 1fr; }
+  .learning-remove-link { justify-self: start; }
   .learning-admin-item { grid-template-columns: 1fr auto auto; gap: 8px; }
   .learning-admin-item > .learning-category-badge { grid-column: 1 / -1; }
   .learning-admin-item > div { grid-column: 1; }

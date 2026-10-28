@@ -164,10 +164,10 @@ app.MapGet("/api/public/people", async (string? query, NpgsqlDataSource db) =>
 app.MapGet("/api/public/learning-items", async (NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();
-    await using var command = new NpgsqlCommand("select id,lesson_date::text,category,title,resource_url,description,background_url from learning_items order by lesson_date desc,category,title,id", connection);
+    await using var command = new NpgsqlCommand("select id,lesson_date::text,category,title,resource_url,description,background_url,links::text from learning_items order by lesson_date desc,category,title,id", connection);
     await using var reader = await command.ExecuteReaderAsync();
     var items = new List<object>();
-    while (await reader.ReadAsync()) items.Add(new { id = reader.GetInt64(0), date = reader.GetString(1), category = reader.GetString(2), title = reader.GetString(3), url = reader.GetString(4), description = reader.GetString(5), backgroundUrl = reader.GetString(6) });
+    while (await reader.ReadAsync()) items.Add(new { id = reader.GetInt64(0), date = reader.GetString(1), category = reader.GetString(2), title = reader.GetString(3), url = reader.GetString(4), description = reader.GetString(5), backgroundUrl = reader.GetString(6), links = LearningLinks(reader.GetString(7), reader.GetString(4)) });
     return Results.Ok(items);
 });
 
@@ -258,18 +258,19 @@ api.MapPut("/whatsapp-template", async (WhatsAppTemplateSave payload, NpgsqlData
 api.MapGet("/learning-items", async (NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();
-    await using var command = new NpgsqlCommand("select id,lesson_date::text,category,title,resource_url,description,background_url from learning_items order by lesson_date desc,category,title,id", connection);
+    await using var command = new NpgsqlCommand("select id,lesson_date::text,category,title,resource_url,description,background_url,links::text from learning_items order by lesson_date desc,category,title,id", connection);
     await using var reader = await command.ExecuteReaderAsync();
     var items = new List<object>();
-    while (await reader.ReadAsync()) items.Add(new { id = reader.GetInt64(0), date = reader.GetString(1), category = reader.GetString(2), title = reader.GetString(3), url = reader.GetString(4), description = reader.GetString(5), backgroundUrl = reader.GetString(6) });
+    while (await reader.ReadAsync()) items.Add(new { id = reader.GetInt64(0), date = reader.GetString(1), category = reader.GetString(2), title = reader.GetString(3), url = reader.GetString(4), description = reader.GetString(5), backgroundUrl = reader.GetString(6), links = LearningLinks(reader.GetString(7), reader.GetString(4)) });
     return Results.Ok(items);
 });
 api.MapPost("/learning-items", async (LearningItemSave payload, NpgsqlDataSource db) =>
 {
     if (!ValidLearningItem(payload, out var lessonDate, out var error)) return Results.BadRequest(new { error });
     await using var connection = await db.OpenConnectionAsync();
-    await using var command = new NpgsqlCommand("insert into learning_items(lesson_date,category,title,resource_url,description,background_url) values($1,$2,$3,$4,$5,$6) returning id", connection);
-    command.Parameters.AddWithValue(lessonDate); command.Parameters.AddWithValue(payload.Category.Trim()); command.Parameters.AddWithValue(payload.Title.Trim()); command.Parameters.AddWithValue(payload.Url.Trim()); command.Parameters.AddWithValue(payload.Description?.Trim() ?? ""); command.Parameters.AddWithValue(payload.BackgroundUrl?.Trim() ?? "");
+    var links = NormalizeLearningLinks(payload.Links, payload.Url);
+    await using var command = new NpgsqlCommand("insert into learning_items(lesson_date,category,title,resource_url,description,background_url,links) values($1,$2,$3,$4,$5,$6,$7::jsonb) returning id", connection);
+    command.Parameters.AddWithValue(lessonDate); command.Parameters.AddWithValue(payload.Category.Trim()); command.Parameters.AddWithValue(payload.Title.Trim()); command.Parameters.AddWithValue(links[0].Url); command.Parameters.AddWithValue(payload.Description?.Trim() ?? ""); command.Parameters.AddWithValue(payload.BackgroundUrl?.Trim() ?? ""); command.Parameters.AddWithValue(JsonSerializer.Serialize(links));
     var id = (long)(await command.ExecuteScalarAsync())!;
     return Results.Created($"/api/learning-items/{id}", new { id });
 });
@@ -277,8 +278,9 @@ api.MapPut("/learning-items/{id:long}", async (long id, LearningItemSave payload
 {
     if (!ValidLearningItem(payload, out var lessonDate, out var error)) return Results.BadRequest(new { error });
     await using var connection = await db.OpenConnectionAsync();
-    await using var command = new NpgsqlCommand("update learning_items set lesson_date=$1,category=$2,title=$3,resource_url=$4,description=$5,background_url=$6,updated_at=now() where id=$7", connection);
-    command.Parameters.AddWithValue(lessonDate); command.Parameters.AddWithValue(payload.Category.Trim()); command.Parameters.AddWithValue(payload.Title.Trim()); command.Parameters.AddWithValue(payload.Url.Trim()); command.Parameters.AddWithValue(payload.Description?.Trim() ?? ""); command.Parameters.AddWithValue(payload.BackgroundUrl?.Trim() ?? ""); command.Parameters.AddWithValue(id);
+    var links = NormalizeLearningLinks(payload.Links, payload.Url);
+    await using var command = new NpgsqlCommand("update learning_items set lesson_date=$1,category=$2,title=$3,resource_url=$4,description=$5,background_url=$6,links=$7::jsonb,updated_at=now() where id=$8", connection);
+    command.Parameters.AddWithValue(lessonDate); command.Parameters.AddWithValue(payload.Category.Trim()); command.Parameters.AddWithValue(payload.Title.Trim()); command.Parameters.AddWithValue(links[0].Url); command.Parameters.AddWithValue(payload.Description?.Trim() ?? ""); command.Parameters.AddWithValue(payload.BackgroundUrl?.Trim() ?? ""); command.Parameters.AddWithValue(JsonSerializer.Serialize(links)); command.Parameters.AddWithValue(id);
     return await command.ExecuteNonQueryAsync() == 0 ? Results.NotFound() : Results.Ok(new { id });
 });
 api.MapDelete("/learning-items/{id:long}", async (long id, NpgsqlDataSource db) =>
@@ -973,9 +975,32 @@ static bool ValidLearningItem(LearningItemSave payload, out DateOnly date, out s
     else if (string.IsNullOrWhiteSpace(payload.Category) || payload.Category.Trim().Length > 100) error = "اكتب تصنيفًا من 1 إلى 100 حرف";
     else if (string.IsNullOrWhiteSpace(payload.Title) || payload.Title.Trim().Length > 180) error = "اكتب اسم المادة من 1 إلى 180 حرفًا";
     else if (payload.Description?.Length > 1200) error = "الوصف طويل جدًا (الحد 1200 حرف)";
-    else if (payload.Url?.Length > 2000 || !Uri.TryCreate(payload.Url?.Trim(), UriKind.Absolute, out var resourceUri) || resourceUri.Scheme != Uri.UriSchemeHttps) error = "أضف رابطًا صحيحًا يبدأ بـ https://";
+    else if (payload.Links is { Count: > 10 }) error = "يمكن إضافة 10 روابط كحد أقصى لكل مادة";
+    else if (payload.Links is { Count: > 0 } links && links.Any(link => !ValidLearningLink(link))) error = "راجع أسماء الروابط وتأكد أن كل رابط يبدأ بـ https://";
+    else if ((payload.Links is null || payload.Links.Count == 0) && !ValidLearningLink(new LearningResourceLink("فتح المادة", payload.Url ?? ""))) error = "أضف رابطًا صحيحًا يبدأ بـ https://";
+    else if ((payload.Links?.Any(link => string.Equals(link.Url.Trim(), payload.Url?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? false) == false && payload.Url?.Length > 2000) error = "رابط المادة الرئيسي طويل جدًا";
     else if (!string.IsNullOrWhiteSpace(payload.BackgroundUrl) && (payload.BackgroundUrl.Length > 2000 || !Uri.TryCreate(payload.BackgroundUrl.Trim(), UriKind.Absolute, out var backgroundUri) || backgroundUri.Scheme != Uri.UriSchemeHttps)) error = "رابط الخلفية يجب أن يبدأ بـ https://";
     return error.Length == 0;
+}
+
+static bool ValidLearningLink(LearningResourceLink link) =>
+    !string.IsNullOrWhiteSpace(link.Label) && link.Label.Trim().Length <= 80 && link.Url?.Length <= 2000 &&
+    Uri.TryCreate(link.Url?.Trim(), UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
+
+static List<LearningResourceLink> NormalizeLearningLinks(List<LearningResourceLink>? links, string legacyUrl)
+{
+    var source = links is { Count: > 0 } ? links : [new LearningResourceLink("فتح المادة", legacyUrl)];
+    return source.Select(link => new LearningResourceLink(link.Label.Trim(), link.Url.Trim())).ToList();
+}
+
+static List<LearningResourceLink> LearningLinks(string json, string legacyUrl)
+{
+    try
+    {
+        var links = JsonSerializer.Deserialize<List<LearningResourceLink>>(json);
+        return links is { Count: > 0 } ? links : [new LearningResourceLink("فتح المادة", legacyUrl)];
+    }
+    catch (JsonException) { return [new LearningResourceLink("فتح المادة", legacyUrl)]; }
 }
 
 static async Task<T?> GetSetting<T>(NpgsqlConnection connection, string key)
@@ -1303,6 +1328,7 @@ record AttendanceCommentSave(string Type, string Date, int RecordKey, string Com
 record FollowUpNoteSave(long PersonId, string? Servant, string Type, string Date, string Note);
 record FollowUpRequestSave(string Type, string? Message);
 record WhatsAppTemplateSave(string? Message);
-record LearningItemSave(string Date, string Category, string Title, string Url, string? Description, string? BackgroundUrl);
+record LearningItemSave(string Date, string Category, string Title, string Url, string? Description, string? BackgroundUrl, List<LearningResourceLink>? Links);
+record LearningResourceLink(string Label, string Url);
 record FollowUpRequestStatus(string Status);
 record PublicAttendanceItem(string Type, string Date, string RecordedAt, string Comment);
