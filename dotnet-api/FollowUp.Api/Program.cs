@@ -164,10 +164,10 @@ app.MapGet("/api/public/people", async (string? query, NpgsqlDataSource db) =>
 app.MapGet("/api/public/learning-items", async (NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();
-    await using var command = new NpgsqlCommand("select id,lesson_date::text,category,title,resource_url,description from learning_items order by lesson_date desc,category,title,id", connection);
+    await using var command = new NpgsqlCommand("select id,lesson_date::text,category,title,resource_url,description,background_url from learning_items order by lesson_date desc,category,title,id", connection);
     await using var reader = await command.ExecuteReaderAsync();
     var items = new List<object>();
-    while (await reader.ReadAsync()) items.Add(new { id = reader.GetInt64(0), date = reader.GetString(1), category = reader.GetString(2), title = reader.GetString(3), url = reader.GetString(4), description = reader.GetString(5) });
+    while (await reader.ReadAsync()) items.Add(new { id = reader.GetInt64(0), date = reader.GetString(1), category = reader.GetString(2), title = reader.GetString(3), url = reader.GetString(4), description = reader.GetString(5), backgroundUrl = reader.GetString(6) });
     return Results.Ok(items);
 });
 
@@ -258,18 +258,18 @@ api.MapPut("/whatsapp-template", async (WhatsAppTemplateSave payload, NpgsqlData
 api.MapGet("/learning-items", async (NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();
-    await using var command = new NpgsqlCommand("select id,lesson_date::text,category,title,resource_url,description from learning_items order by lesson_date desc,category,title,id", connection);
+    await using var command = new NpgsqlCommand("select id,lesson_date::text,category,title,resource_url,description,background_url from learning_items order by lesson_date desc,category,title,id", connection);
     await using var reader = await command.ExecuteReaderAsync();
     var items = new List<object>();
-    while (await reader.ReadAsync()) items.Add(new { id = reader.GetInt64(0), date = reader.GetString(1), category = reader.GetString(2), title = reader.GetString(3), url = reader.GetString(4), description = reader.GetString(5) });
+    while (await reader.ReadAsync()) items.Add(new { id = reader.GetInt64(0), date = reader.GetString(1), category = reader.GetString(2), title = reader.GetString(3), url = reader.GetString(4), description = reader.GetString(5), backgroundUrl = reader.GetString(6) });
     return Results.Ok(items);
 });
 api.MapPost("/learning-items", async (LearningItemSave payload, NpgsqlDataSource db) =>
 {
     if (!ValidLearningItem(payload, out var lessonDate, out var error)) return Results.BadRequest(new { error });
     await using var connection = await db.OpenConnectionAsync();
-    await using var command = new NpgsqlCommand("insert into learning_items(lesson_date,category,title,resource_url,description) values($1,$2,$3,$4,$5) returning id", connection);
-    command.Parameters.AddWithValue(lessonDate); command.Parameters.AddWithValue(payload.Category.Trim()); command.Parameters.AddWithValue(payload.Title.Trim()); command.Parameters.AddWithValue(payload.Url.Trim()); command.Parameters.AddWithValue(payload.Description?.Trim() ?? "");
+    await using var command = new NpgsqlCommand("insert into learning_items(lesson_date,category,title,resource_url,description,background_url) values($1,$2,$3,$4,$5,$6) returning id", connection);
+    command.Parameters.AddWithValue(lessonDate); command.Parameters.AddWithValue(payload.Category.Trim()); command.Parameters.AddWithValue(payload.Title.Trim()); command.Parameters.AddWithValue(payload.Url.Trim()); command.Parameters.AddWithValue(payload.Description?.Trim() ?? ""); command.Parameters.AddWithValue(payload.BackgroundUrl?.Trim() ?? "");
     var id = (long)(await command.ExecuteScalarAsync())!;
     return Results.Created($"/api/learning-items/{id}", new { id });
 });
@@ -277,8 +277,8 @@ api.MapPut("/learning-items/{id:long}", async (long id, LearningItemSave payload
 {
     if (!ValidLearningItem(payload, out var lessonDate, out var error)) return Results.BadRequest(new { error });
     await using var connection = await db.OpenConnectionAsync();
-    await using var command = new NpgsqlCommand("update learning_items set lesson_date=$1,category=$2,title=$3,resource_url=$4,description=$5,updated_at=now() where id=$6", connection);
-    command.Parameters.AddWithValue(lessonDate); command.Parameters.AddWithValue(payload.Category.Trim()); command.Parameters.AddWithValue(payload.Title.Trim()); command.Parameters.AddWithValue(payload.Url.Trim()); command.Parameters.AddWithValue(payload.Description?.Trim() ?? ""); command.Parameters.AddWithValue(id);
+    await using var command = new NpgsqlCommand("update learning_items set lesson_date=$1,category=$2,title=$3,resource_url=$4,description=$5,background_url=$6,updated_at=now() where id=$7", connection);
+    command.Parameters.AddWithValue(lessonDate); command.Parameters.AddWithValue(payload.Category.Trim()); command.Parameters.AddWithValue(payload.Title.Trim()); command.Parameters.AddWithValue(payload.Url.Trim()); command.Parameters.AddWithValue(payload.Description?.Trim() ?? ""); command.Parameters.AddWithValue(payload.BackgroundUrl?.Trim() ?? ""); command.Parameters.AddWithValue(id);
     return await command.ExecuteNonQueryAsync() == 0 ? Results.NotFound() : Results.Ok(new { id });
 });
 api.MapDelete("/learning-items/{id:long}", async (long id, NpgsqlDataSource db) =>
@@ -974,6 +974,7 @@ static bool ValidLearningItem(LearningItemSave payload, out DateOnly date, out s
     else if (string.IsNullOrWhiteSpace(payload.Title) || payload.Title.Trim().Length > 180) error = "اكتب اسم المادة من 1 إلى 180 حرفًا";
     else if (payload.Description?.Length > 1200) error = "الوصف طويل جدًا (الحد 1200 حرف)";
     else if (payload.Url?.Length > 2000 || !Uri.TryCreate(payload.Url?.Trim(), UriKind.Absolute, out var resourceUri) || resourceUri.Scheme != Uri.UriSchemeHttps) error = "أضف رابطًا صحيحًا يبدأ بـ https://";
+    else if (!string.IsNullOrWhiteSpace(payload.BackgroundUrl) && (payload.BackgroundUrl.Length > 2000 || !Uri.TryCreate(payload.BackgroundUrl.Trim(), UriKind.Absolute, out var backgroundUri) || backgroundUri.Scheme != Uri.UriSchemeHttps)) error = "رابط الخلفية يجب أن يبدأ بـ https://";
     return error.Length == 0;
 }
 
@@ -1302,6 +1303,6 @@ record AttendanceCommentSave(string Type, string Date, int RecordKey, string Com
 record FollowUpNoteSave(long PersonId, string? Servant, string Type, string Date, string Note);
 record FollowUpRequestSave(string Type, string? Message);
 record WhatsAppTemplateSave(string? Message);
-record LearningItemSave(string Date, string Category, string Title, string Url, string? Description);
+record LearningItemSave(string Date, string Category, string Title, string Url, string? Description, string? BackgroundUrl);
 record FollowUpRequestStatus(string Status);
 record PublicAttendanceItem(string Type, string Date, string RecordedAt, string Comment);

@@ -2431,6 +2431,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .learning-category-tabs button.active { border-color: #d8aa27; background: #e5b72e; color: #102e54; font-weight: 800; }
 .learning-material-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 13px; }
 .learning-material-card { display: grid; align-content: start; justify-items: start; gap: 10px; min-height: 180px; padding: 18px; border: 1px solid #d8dfdf; border-top: 4px solid #d9aa27; border-radius: 14px; background: var(--paper); box-shadow: 0 8px 20px rgba(19,48,73,.06); }
+.learning-material-card.has-background { position: relative; isolation: isolate; overflow: hidden; background: #102f59; color: white; }
+.learning-material-card.has-background::before { position: absolute; z-index: -2; inset: 0; background-image: var(--learning-card-image); background-position: center; background-size: cover; content: ""; }
+.learning-material-card.has-background::after { position: absolute; z-index: -1; inset: 0; background: linear-gradient(145deg, rgba(6,24,48,.82), rgba(9,39,69,.56)); content: ""; }
+.learning-material-card.has-background h2, .learning-material-card.has-background p { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.45); }
+.learning-material-card.has-background .learning-category-badge { background: rgba(255,248,224,.94); color: #64480d; }
+.learning-material-card.has-background > a { background: #e2b42d; color: #102b4a; }
 .learning-category-badge { display: inline-flex; width: fit-content; padding: 5px 10px; border-radius: 999px; background: #f8efd8; color: #805b12; font-size: 11px; font-weight: 800; }
 .learning-material-card h2 { margin: 0; color: #153b68; font-size: 17px; }
 .learning-material-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.8; }
