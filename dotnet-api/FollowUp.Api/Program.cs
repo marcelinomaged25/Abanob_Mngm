@@ -885,6 +885,10 @@ static async Task<object> BuildState(NpgsqlDataSource db, string mode, string? s
     await using (var command = new NpgsqlCommand("select person_id,max(visit_date)::text from visit_records group by person_id", connection))
     await using (var reader = await command.ExecuteReaderAsync())
         while (await reader.ReadAsync()) lastVisit[reader.GetInt64(0)] = reader.GetString(1);
+    var visitCounts = new Dictionary<long, long>();
+    await using (var command = new NpgsqlCommand("select person_id,count(*) from visit_records group by person_id", connection))
+    await using (var reader = await command.ExecuteReaderAsync())
+        while (await reader.ReadAsync()) visitCounts[reader.GetInt64(0)] = reader.GetInt64(1);
     var lastCall = new Dictionary<long, (string Week, string Servant)>();
     await using (var command = new NpgsqlCommand("select distinct on(person_id) person_id,week_start::text,servant from call_records order by person_id,week_start desc", connection))
     await using (var reader = await command.ExecuteReaderAsync())
@@ -911,7 +915,7 @@ static async Task<object> BuildState(NpgsqlDataSource db, string mode, string? s
     {
         lastCall.TryGetValue(person.Id, out var call);
         var group = person.Role == "servant" ? "" : person.Group;
-        return new { id = person.Id, recordKey = person.RecordKey, name = person.Name, note = person.Note, phone1 = person.Phone1, phone2 = person.Phone2, group, address = person.Address, role = person.Role, qrToken = person.QrToken, visited = mode == "visit" && visits.Contains(person.Id), visitedThisMonth = visitedThisMonth.Contains(person.Id), called = calls.ContainsKey(person.Id), servant = calls.GetValueOrDefault(person.Id) ?? savedAssignments.GetValueOrDefault(person.Group) ?? autoAssignments.GetValueOrDefault(person.Group) ?? "", lastVisitedDate = lastVisit.GetValueOrDefault(person.Id) ?? "", lastCalledWeek = call.Week ?? "", lastCaller = call.Servant ?? "", lastChoirDate = lastChoir.GetValueOrDefault(person.Id) ?? "", lastMassDate = lastMass.GetValueOrDefault(person.Id) ?? "", callCount = person.Role == "servant" ? servantCallCounts.GetValueOrDefault(CanonicalServantName(person.Name)) : boyCallCounts.GetValueOrDefault(person.Id), choirCount = choirCounts.GetValueOrDefault(person.Id), massCount = massCounts.GetValueOrDefault(person.Id) };
+        return new { id = person.Id, recordKey = person.RecordKey, name = person.Name, note = person.Note, phone1 = person.Phone1, phone2 = person.Phone2, group, address = person.Address, role = person.Role, qrToken = person.QrToken, visited = mode == "visit" && visits.Contains(person.Id), visitedThisMonth = visitedThisMonth.Contains(person.Id), called = calls.ContainsKey(person.Id), servant = calls.GetValueOrDefault(person.Id) ?? savedAssignments.GetValueOrDefault(person.Group) ?? autoAssignments.GetValueOrDefault(person.Group) ?? "", lastVisitedDate = lastVisit.GetValueOrDefault(person.Id) ?? "", visitCount = visitCounts.GetValueOrDefault(person.Id), lastCalledWeek = call.Week ?? "", lastCaller = call.Servant ?? "", lastChoirDate = lastChoir.GetValueOrDefault(person.Id) ?? "", lastMassDate = lastMass.GetValueOrDefault(person.Id) ?? "", callCount = person.Role == "servant" ? servantCallCounts.GetValueOrDefault(CanonicalServantName(person.Name)) : boyCallCounts.GetValueOrDefault(person.Id), choirCount = choirCounts.GetValueOrDefault(person.Id), massCount = massCounts.GetValueOrDefault(person.Id) };
     }).ToArray();
     var groupStates = groups.Select(group => new { number = group.Number, members = group.Members, recordKeys = group.RecordKeys, servant = savedAssignments.GetValueOrDefault(group.Number) ?? autoAssignments.GetValueOrDefault(group.Number) ?? "" }).ToArray();
     var weekEnd = week.AddDays(6);
