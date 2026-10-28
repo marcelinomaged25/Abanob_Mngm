@@ -7882,9 +7882,9 @@ textarea {
   flex: 1;
 }
 .public-saint-menu-icon {
-  width: 22px;
-  height: 26px;
-  flex: 0 0 22px;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
   object-fit: contain;
 }
 .public-menu-section a:hover {
