@@ -7,6 +7,7 @@ import {
   Camera,
   Check,
   ChevronLeft,
+  ChevronDown,
   Church,
   Copy,
   ExternalLink,
@@ -4027,6 +4028,7 @@ function FollowUpDashboard({
   percent,
 }) {
   const [selectedServant, setSelectedServant] = useState("");
+  const [openCallPanel, setOpenCallPanel] = useState(null);
   const monthVisited = mode === "visit" ? state.monthVisitedCount || 0 : checkedCount;
   const monthTotal =
     mode === "visit"
@@ -4061,9 +4063,44 @@ function FollowUpDashboard({
     setServantsText(splitServants(servantList.filter((item) => item !== name).join("\n")).join("\n"));
   return (
     <>
-      <section className="control-grid">
-        {mode === "call" && (
-          <article className="panel servants-panel">
+      {mode === "call" && (
+        <div className="call-settings-tabs" role="group" aria-label="إعدادات الاتصال الأسبوعي">
+          <button
+            type="button"
+            aria-expanded={openCallPanel === "servants"}
+            aria-controls="call-servants-panel"
+            className={openCallPanel === "servants" ? "active" : ""}
+            onClick={() => setOpenCallPanel((current) => (current === "servants" ? null : "servants"))}
+          >
+            <Users size={17} />
+            <span>
+              <strong>قائمة التوزيع</strong>
+              <small>مسؤولو الاتصال</small>
+            </span>
+            <b>{servantList.length}</b>
+            <ChevronDown size={16} />
+          </button>
+          <button
+            type="button"
+            aria-expanded={openCallPanel === "rotation"}
+            aria-controls="call-rotation-panel"
+            className={openCallPanel === "rotation" ? "active" : ""}
+            onClick={() => setOpenCallPanel((current) => (current === "rotation" ? null : "rotation"))}
+          >
+            <CalendarDays size={17} />
+            <span>
+              <strong>دورة التوزيع</strong>
+              <small>{state.distributionNotStarted ? "لم يبدأ التوزيع" : "الأسبوع الحالي"}</small>
+            </span>
+            <ChevronDown size={16} />
+          </button>
+        </div>
+      )}
+      <section
+        className={`control-grid ${mode === "call" ? `call-control-grid${openCallPanel ? " has-expanded-panel" : ""}` : ""}`}
+      >
+        {mode === "call" && openCallPanel === "servants" && (
+          <article className="panel servants-panel" id="call-servants-panel">
             <div className="panel-heading">
               <div>
                 <p className="section-kicker">قائمة التوزيع</p>
@@ -4110,7 +4147,8 @@ function FollowUpDashboard({
             </div>
           </article>
         )}
-        <article className="panel settings-panel">
+        {(mode === "visit" || (mode === "call" && openCallPanel === "rotation")) && (
+          <article className="panel settings-panel" id={mode === "call" ? "call-rotation-panel" : undefined}>
           <div className="panel-heading">
             <div>
               <p className="section-kicker">{mode === "visit" ? "التاريخ" : "دورة التوزيع"}</p>
@@ -4171,7 +4209,8 @@ function FollowUpDashboard({
               </button>
             </>
           )}
-        </article>
+          </article>
+        )}
         <article className="panel overview-panel">
           <div className="panel-heading">
             <div>

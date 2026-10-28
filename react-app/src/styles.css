@@ -10421,3 +10421,98 @@ textarea {
     max-height: 60vh;
   }
 }
+
+.call-settings-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.call-settings-tabs button {
+  display: flex;
+  min-width: 0;
+  min-height: 58px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  text-align: right;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+.call-settings-tabs button:hover {
+  border-color: var(--brand-gold);
+  transform: translateY(-1px);
+}
+.call-settings-tabs button.active {
+  border-color: var(--brand-gold);
+  background: var(--blue-soft);
+  color: var(--blue-dark);
+}
+.call-settings-tabs button > span {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+.call-settings-tabs strong {
+  font-size: 13px;
+}
+.call-settings-tabs small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.call-settings-tabs button > b {
+  display: grid;
+  min-width: 30px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid #cdd9ff;
+  border-radius: 9px;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: 12px;
+}
+.call-settings-tabs button > svg:last-child {
+  color: var(--muted);
+  transition: transform 0.16s ease;
+}
+.call-settings-tabs button[aria-expanded="true"] > svg:last-child {
+  transform: rotate(180deg);
+}
+.call-control-grid {
+  grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.88fr);
+  align-items: stretch;
+}
+.call-control-grid:not(.has-expanded-panel) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.call-control-grid:not(.has-expanded-panel) > .overview-panel {
+  grid-column: 1 / -1;
+  min-height: 0;
+}
+@media (max-width: 760px) {
+  .call-control-grid.has-expanded-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .call-settings-tabs {
+    gap: 7px;
+  }
+  .call-settings-tabs button {
+    min-height: 56px;
+    gap: 7px;
+    padding: 9px 10px;
+  }
+}
+@media (max-width: 390px) {
+  .call-settings-tabs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
