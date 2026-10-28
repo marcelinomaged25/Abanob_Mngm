@@ -21,8 +21,12 @@ create table if not exists followup_notes (id bigserial primary key, person_id b
 create table if not exists followup_requests (id bigserial primary key, person_id bigint not null references people(id) on delete cascade, request_type text not null check (request_type in ('call','visit')), message text not null default '', status text not null default 'new' check (status in ('new','in_progress','done')), created_at timestamptz not null default now(), updated_at timestamptz not null default now());
 create index if not exists followup_notes_date_idx on followup_notes(note_date desc, person_id);
 create index if not exists people_group_idx on people(group_number, record_key);
-create index if not exists visit_records_person_idx on visit_records(person_id, visit_date desc);
-create index if not exists call_records_person_idx on call_records(person_id, week_start desc);
-create index if not exists attendance_person_idx on attendance_records(person_id, attendance_type, attendance_date desc);
+drop index if exists visit_records_person_idx;
+create index if not exists visit_records_date_idx on visit_records(visit_date, person_id);
+drop index if exists call_records_person_idx;
+create index if not exists call_records_week_idx on call_records(week_start, person_id);
+drop index if exists attendance_person_idx;
+create index if not exists attendance_records_date_idx on attendance_records(attendance_date, attendance_type, person_id);
 create index if not exists choir_evaluations_date_idx on choir_evaluations(attendance_date desc, person_id);
 create index if not exists followup_requests_person_idx on followup_requests(person_id, created_at desc);
+create index if not exists followup_requests_created_idx on followup_requests(created_at desc);

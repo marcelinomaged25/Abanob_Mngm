@@ -27,6 +27,14 @@
 
 تُنشأ جداول قاعدة البيانات تلقائيًا عند بدء الـAPI. استخدم Tab `إدارة الأسماء` لإضافة أو تعديل أو أرشفة أي اسم. قاعدة البيانات المحلية محفوظة في Docker volume.
 
+## تنسيق وفحص التغييرات
+
+- واجهة React: `npm --prefix react-app run format` لتنسيق الملفات، و`npm --prefix react-app run format:check` لمراجعة التنسيق.
+- بناء الواجهة: `npm --prefix react-app run build`.
+- تنسيق API: `dotnet format whitespace dotnet-api/FollowUp.Api/FollowUp.Api.csproj --no-restore`.
+- فحص تنسيق API: `dotnet format whitespace dotnet-api/FollowUp.Api/FollowUp.Api.csproj --no-restore --verify-no-changes`.
+- بناء API: `dotnet build dotnet-api/FollowUp.Api/FollowUp.Api.csproj --no-restore`.
+
 ## النشر
 
 - **Neon:** أنشئ PostgreSQL وانسخ `DATABASE_URL`.
