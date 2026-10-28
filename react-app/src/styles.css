@@ -2423,9 +2423,18 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .learning-public-hero .section-kicker { margin: 4px 0 0; color: #9b6b0c; }
 .learning-public-hero h1 { margin: 0; color: #0b2f5c; font-size: clamp(28px, 5vw, 42px); }
 .learning-public-hero p:last-child { margin: 2px 0 0; color: var(--muted); }
-.learning-date-picker { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 0 auto 18px; padding: 15px 18px; border: 1px solid #d9dfdf; border-radius: 13px; background: var(--paper); box-shadow: var(--shadow); }
-.learning-date-picker label { color: #183a63; font-weight: 800; }
-.learning-date-picker select { min-width: min(360px, 58vw); padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink); }
+.learning-day-list { display: grid; gap: 11px; margin: 0 0 22px; }
+.learning-day-button { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 76px; padding: 14px 20px; border: 1px solid #d9dfdf; border-right: 5px solid #d9aa27; border-radius: 14px; background: var(--paper); color: #173b65; text-align: right; cursor: pointer; box-shadow: var(--shadow); transition: transform .16s ease, border-color .16s ease, background .16s ease; }
+.learning-day-button:hover { transform: translateY(-2px); border-color: #d9aa27; }
+.learning-day-button.active { border-color: #d9aa27; background: #fff8e5; box-shadow: 0 8px 22px rgba(194,145,24,.14); }
+.learning-day-button > svg:first-child { flex: 0 0 auto; color: #b78816; }
+.learning-day-button > svg:last-child { margin-right: auto; color: #8290a0; }
+.learning-day-button > span { display: grid; gap: 5px; }
+.learning-day-button strong { font-size: 16px; }
+.learning-day-button small { color: var(--muted); font-size: 12px; }
+.learning-selected-day { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 14px; padding: 13px 16px; border-radius: 11px; background: #10325d; color: white; }
+.learning-selected-day span { color: #f0cf70; font-size: 12px; font-weight: 700; }
+.learning-selected-day h2 { margin: 0; font-size: 17px; }
 .learning-category-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
 .learning-category-tabs button { padding: 8px 15px; border: 1px solid #d9d1bb; border-radius: 999px; background: var(--paper); color: #45607a; cursor: pointer; }
 .learning-category-tabs button.active { border-color: #d8aa27; background: #e5b72e; color: #102e54; font-weight: 800; }
@@ -2478,8 +2487,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .dark-mode .learning-storage-note { background: #14271f; color: #8ee0b2; }
 .dark-mode .learning-admin-day h3 { color: #e6c15c; }
 .dark-mode .learning-public-page { background: radial-gradient(circle at 50% 5%, #20251f 0, #111820 48%, #0e141a 100%); color: #edf1ef; }
-.dark-mode .learning-public-header, .dark-mode .learning-material-card, .dark-mode .learning-date-picker, .dark-mode .learning-empty-card { border-color: #30383d; background: #151a1e; }
-.dark-mode .learning-home-link, .dark-mode .learning-brand strong, .dark-mode .learning-public-hero h1, .dark-mode .learning-date-picker label, .dark-mode .learning-material-card h2 { color: #e9d28a; }
+.dark-mode .learning-public-header, .dark-mode .learning-material-card, .dark-mode .learning-empty-card { border-color: #30383d; background: #151a1e; }
+.dark-mode .learning-day-button { border-color: #30383d; border-right-color: #bc8d17; background: #151a1e; color: #e9d28a; }
+.dark-mode .learning-day-button.active { border-color: #bc8d17; background: #252319; }
+.dark-mode .learning-home-link, .dark-mode .learning-brand strong, .dark-mode .learning-public-hero h1, .dark-mode .learning-material-card h2 { color: #e9d28a; }
 .dark-mode .learning-category-tabs button { border-color: #39434d; background: #151a1e; color: #d0d8dc; }
 .dark-mode .learning-category-tabs button.active { border-color: #bc8d17; background: #a37c1d; color: white; }
 .dark-mode .learning-category-badge { background: #2a261b; color: #e4c56b; }
@@ -2488,8 +2499,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .learning-brand img { width: 40px; height: 40px; }
   .learning-brand strong { font-size: 14px; }
   .learning-public-content { width: calc(100% - 24px); padding-top: 22px; }
-  .learning-date-picker { align-items: stretch; flex-direction: column; }
-  .learning-date-picker select { width: 100%; min-width: 0; }
+  .learning-day-button { min-height: 68px; padding: 12px 14px; }
+  .learning-day-button strong { font-size: 14px; }
+  .learning-selected-day { align-items: flex-start; flex-direction: column; }
   .learning-admin-page { padding: 14px 10px 28px; }
   .learning-admin-form { grid-template-columns: 1fr; padding: 15px; }
   .learning-form-wide, .learning-admin-form-title, .learning-form-actions, .learning-form-error, .learning-form-notice { grid-column: 1; }
