@@ -161,6 +161,16 @@ app.MapGet("/api/public/people", async (string? query, NpgsqlDataSource db) =>
     return Results.Ok(people);
 });
 
+app.MapGet("/api/public/learning-items", async (NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("select id,lesson_date::text,category,title,resource_url,description from learning_items order by lesson_date desc,category,title,id", connection);
+    await using var reader = await command.ExecuteReaderAsync();
+    var items = new List<object>();
+    while (await reader.ReadAsync()) items.Add(new { id = reader.GetInt64(0), date = reader.GetString(1), category = reader.GetString(2), title = reader.GetString(3), url = reader.GetString(4), description = reader.GetString(5) });
+    return Results.Ok(items);
+});
+
 app.MapGet("/api/public/league", async (string? month, NpgsqlDataSource db) =>
 {
     var selectedMonth = DateOnly.TryParseExact($"{month}-01", "yyyy-MM-dd", out var parsedMonth)
@@ -244,6 +254,39 @@ api.MapPut("/whatsapp-template", async (WhatsAppTemplateSave payload, NpgsqlData
     await SetSetting(connection, transaction, "strayWhatsAppTemplate", message);
     await transaction.CommitAsync();
     return Results.Ok(new { message });
+});
+api.MapGet("/learning-items", async (NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("select id,lesson_date::text,category,title,resource_url,description from learning_items order by lesson_date desc,category,title,id", connection);
+    await using var reader = await command.ExecuteReaderAsync();
+    var items = new List<object>();
+    while (await reader.ReadAsync()) items.Add(new { id = reader.GetInt64(0), date = reader.GetString(1), category = reader.GetString(2), title = reader.GetString(3), url = reader.GetString(4), description = reader.GetString(5) });
+    return Results.Ok(items);
+});
+api.MapPost("/learning-items", async (LearningItemSave payload, NpgsqlDataSource db) =>
+{
+    if (!ValidLearningItem(payload, out var lessonDate, out var error)) return Results.BadRequest(new { error });
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("insert into learning_items(lesson_date,category,title,resource_url,description) values($1,$2,$3,$4,$5) returning id", connection);
+    command.Parameters.AddWithValue(lessonDate); command.Parameters.AddWithValue(payload.Category.Trim()); command.Parameters.AddWithValue(payload.Title.Trim()); command.Parameters.AddWithValue(payload.Url.Trim()); command.Parameters.AddWithValue(payload.Description?.Trim() ?? "");
+    var id = (long)(await command.ExecuteScalarAsync())!;
+    return Results.Created($"/api/learning-items/{id}", new { id });
+});
+api.MapPut("/learning-items/{id:long}", async (long id, LearningItemSave payload, NpgsqlDataSource db) =>
+{
+    if (!ValidLearningItem(payload, out var lessonDate, out var error)) return Results.BadRequest(new { error });
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("update learning_items set lesson_date=$1,category=$2,title=$3,resource_url=$4,description=$5,updated_at=now() where id=$6", connection);
+    command.Parameters.AddWithValue(lessonDate); command.Parameters.AddWithValue(payload.Category.Trim()); command.Parameters.AddWithValue(payload.Title.Trim()); command.Parameters.AddWithValue(payload.Url.Trim()); command.Parameters.AddWithValue(payload.Description?.Trim() ?? ""); command.Parameters.AddWithValue(id);
+    return await command.ExecuteNonQueryAsync() == 0 ? Results.NotFound() : Results.Ok(new { id });
+});
+api.MapDelete("/learning-items/{id:long}", async (long id, NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("delete from learning_items where id=$1", connection);
+    command.Parameters.AddWithValue(id);
+    return await command.ExecuteNonQueryAsync() == 0 ? Results.NotFound() : Results.NoContent();
 });
 api.MapGet("/qr/{token}", async (string token, NpgsqlDataSource db) =>
 {
@@ -923,6 +966,17 @@ static async Task<object> BuildState(NpgsqlDataSource db, string mode, string? s
     return new { rows, groups = groupStates, servants = mode == "call" ? selectedServants : Array.Empty<string>(), monthVisitedCount = visitedThisMonth.Count, monthTotal, rotationStart = rotation.ToString("yyyy-MM-dd"), distributionNotStarted, selectedDate = date.ToString("yyyy-MM-dd"), selectedWeek = week.ToString("yyyy-MM-dd"), weekEnd = weekEnd.ToString("yyyy-MM-dd"), verse, historySummary = rows.Select(row => new { row.recordKey, row.lastVisitedDate, row.lastCalledWeek, row.lastCaller }).ToArray() };
 }
 
+static bool ValidLearningItem(LearningItemSave payload, out DateOnly date, out string error)
+{
+    error = "";
+    if (!DateOnly.TryParse(payload.Date, out date)) error = "اختر تاريخ اللقاء";
+    else if (string.IsNullOrWhiteSpace(payload.Category) || payload.Category.Trim().Length > 100) error = "اكتب تصنيفًا من 1 إلى 100 حرف";
+    else if (string.IsNullOrWhiteSpace(payload.Title) || payload.Title.Trim().Length > 180) error = "اكتب اسم المادة من 1 إلى 180 حرفًا";
+    else if (payload.Description?.Length > 1200) error = "الوصف طويل جدًا (الحد 1200 حرف)";
+    else if (payload.Url?.Length > 2000 || !Uri.TryCreate(payload.Url?.Trim(), UriKind.Absolute, out var resourceUri) || resourceUri.Scheme != Uri.UriSchemeHttps) error = "أضف رابطًا صحيحًا يبدأ بـ https://";
+    return error.Length == 0;
+}
+
 static async Task<T?> GetSetting<T>(NpgsqlConnection connection, string key)
 {
     await using var command = new NpgsqlCommand("select value::text from settings where key=$1", connection);
@@ -1248,5 +1302,6 @@ record AttendanceCommentSave(string Type, string Date, int RecordKey, string Com
 record FollowUpNoteSave(long PersonId, string? Servant, string Type, string Date, string Note);
 record FollowUpRequestSave(string Type, string? Message);
 record WhatsAppTemplateSave(string? Message);
+record LearningItemSave(string Date, string Category, string Title, string Url, string? Description);
 record FollowUpRequestStatus(string Status);
 record PublicAttendanceItem(string Type, string Date, string RecordedAt, string Comment);
