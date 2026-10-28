@@ -196,6 +196,12 @@ button {
   margin: 0;
   font-size: 22px;
 }
+.notification-center-actions,
+.parent-notification-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .notification-feed {
   display: grid;
 }
@@ -267,6 +273,10 @@ button {
 @media (max-width: 680px) {
   .notification-center-heading {
     align-items: center;
+  }
+  .notification-center-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
   .notification-entry {
     grid-template-columns: 34px minmax(0, 1fr);
@@ -10295,6 +10305,10 @@ textarea {
   font-size: 11px;
   cursor: pointer;
 }
+.parent-notification-feed > header button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .parent-notification-item {
   display: grid;
   width: 100%;
@@ -10391,6 +10405,10 @@ textarea {
   border-color: #20272d;
 }
 @media (max-width: 620px) {
+  .parent-notification-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
   .header-parent-notification-center .parent-notification-toggle {
     width: 42px;
     min-width: 42px;

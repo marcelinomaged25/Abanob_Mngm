@@ -117,6 +117,13 @@ const emptyVisitReports = {
 const defaultWhatsAppTemplate = "أهلاً {{name}}، بنطمن عليك. يا رب تكون بخير.";
 const emptyPerson = { name: "", group: "", phone1: "", phone2: "", address: "", note: "", role: "boy" };
 const stored = (key, fallback) => sessionStorage.getItem(key) || fallback;
+const storedMap = (key) => {
+  try {
+    return JSON.parse(localStorage.getItem(key) || "{}");
+  } catch {
+    return {};
+  }
+};
 const publicQrToken = window.location.pathname.match(/^\/qr\/([^/]+)\/?$/)?.[1] || "";
 const isAdminPage = window.location.pathname === "/admin" || window.location.pathname.startsWith("/admin/");
 const isLearningPage = window.location.pathname === "/learning" || window.location.pathname === "/learning/";
@@ -207,6 +214,9 @@ export default function App() {
   const [followUpRequests, setFollowUpRequests] = useState([]);
   const [notificationItems, setNotificationItems] = useState([]);
   const [notificationReadMap, setNotificationReadMap] = useState({});
+  const [notificationDismissedMap, setNotificationDismissedMap] = useState(() =>
+    storedMap(`choir-notification-dismissed-${sessionStorage.getItem("choir-username") || ""}`),
+  );
   const [notificationPermission, setNotificationPermission] = useState(() =>
     "Notification" in window ? Notification.permission : "unsupported",
   );
@@ -476,7 +486,8 @@ export default function App() {
   const checkedCount = followUpRows.filter((row) => (mode === "visit" ? row.visited : row.called)).length;
   const percent = followUpRows.length ? Math.round((checkedCount * 100) / followUpRows.length) : 0;
   const followUpMode = mode === "visit" || mode === "call";
-  const unreadNotificationCount = notificationItems.filter((item) => !notificationReadMap[item.id]).length;
+  const visibleNotificationItems = notificationItems.filter((item) => !notificationDismissedMap[item.id]);
+  const unreadNotificationCount = visibleNotificationItems.filter((item) => !notificationReadMap[item.id]).length;
 
   async function login(event) {
     event.preventDefault();
@@ -489,6 +500,7 @@ export default function App() {
     sessionStorage.setItem("choir-password", candidate);
     setUsername(candidateUsername);
     setPassword(candidate);
+    setNotificationDismissedMap(storedMap(`choir-notification-dismissed-${candidateUsername}`));
     try {
       await request("/api/session", {}, candidate, candidateUsername);
       const result = await request(
@@ -575,6 +587,21 @@ export default function App() {
       ...Object.fromEntries(notificationItems.map((item) => [item.id, true])),
     };
     setNotificationReadMap(nextReadMap);
+    localStorage.setItem(`choir-notification-read-state-${username}`, JSON.stringify(nextReadMap));
+  }
+
+  function clearNotifications() {
+    const nextDismissedMap = {
+      ...notificationDismissedMap,
+      ...Object.fromEntries(notificationItems.map((item) => [item.id, true])),
+    };
+    const nextReadMap = {
+      ...notificationReadMap,
+      ...Object.fromEntries(notificationItems.map((item) => [item.id, true])),
+    };
+    setNotificationDismissedMap(nextDismissedMap);
+    setNotificationReadMap(nextReadMap);
+    localStorage.setItem(`choir-notification-dismissed-${username}`, JSON.stringify(nextDismissedMap));
     localStorage.setItem(`choir-notification-read-state-${username}`, JSON.stringify(nextReadMap));
   }
 
@@ -1162,10 +1189,11 @@ export default function App() {
         )}
         {mode === "notifications" && (
           <NotificationsPage
-            notifications={notificationItems}
+            notifications={visibleNotificationItems}
             readMap={notificationReadMap}
             onOpen={openNotification}
             onMarkAllRead={markAllNotificationsRead}
+            onClear={clearNotifications}
           />
         )}
         {mode === "requests" && (
@@ -2289,6 +2317,15 @@ function PublicNavigation({ subtitle, homeActions }) {
             <span>الألحان</span>
             <ExternalLink size={15} />
           </a>
+          <a
+            href="https://drive.google.com/file/d/1KINWJOvsqfj-I8X7k6cOu1toDTW-SXSu/view?usp=drive_link"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Church size={18} />
+            <span>الطقس</span>
+            <ExternalLink size={15} />
+          </a>
         </section>
       </aside>
       <header className="global-brand-header public-site-header">
@@ -2426,13 +2463,8 @@ function PublicParentHome() {
 
 function ParentNotificationCenter({ childToken, header = false }) {
   const [items, setItems] = useState([]);
-  const [readMap, setReadMap] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("parent-notification-read-map") || "{}");
-    } catch {
-      return {};
-    }
-  });
+  const [readMap, setReadMap] = useState(() => storedMap("parent-notification-read-map"));
+  const [dismissedMap, setDismissedMap] = useState(() => storedMap("parent-notification-dismissed-map"));
   const [open, setOpen] = useState(false);
   const [permission, setPermission] = useState(() =>
     "Notification" in window ? Notification.permission : "unsupported",
@@ -2482,12 +2514,21 @@ function ParentNotificationCenter({ childToken, header = false }) {
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [childToken, permission]);
-  const unreadCount = items.filter((item) => !readMap[item.id]).length;
+  const visibleItems = items.filter((item) => !dismissedMap[item.id]);
+  const unreadCount = visibleItems.filter((item) => !readMap[item.id]).length;
   const openItem = (item) => {
     const next = { ...readMap, [item.id]: true };
     setReadMap(next);
     localStorage.setItem("parent-notification-read-map", JSON.stringify(next));
     window.location.assign(item.targetUrl);
+  };
+  const clearNotifications = () => {
+    const nextDismissedMap = { ...dismissedMap, ...Object.fromEntries(visibleItems.map((item) => [item.id, true])) };
+    const nextReadMap = { ...readMap, ...Object.fromEntries(visibleItems.map((item) => [item.id, true])) };
+    setDismissedMap(nextDismissedMap);
+    setReadMap(nextReadMap);
+    localStorage.setItem("parent-notification-dismissed-map", JSON.stringify(nextDismissedMap));
+    localStorage.setItem("parent-notification-read-map", JSON.stringify(nextReadMap));
   };
   const enableBrowserNotifications = async () => {
     if (!("Notification" in window)) return;
@@ -2516,13 +2557,18 @@ function ParentNotificationCenter({ childToken, header = false }) {
         <div className="parent-notification-feed">
           <header>
             <strong>آخر التحديثات</strong>
-            {permission !== "unsupported" && permission !== "granted" && (
-              <button type="button" onClick={enableBrowserNotifications}>
-                تفعيل إشعارات المتصفح
+            <div className="parent-notification-actions">
+              {permission !== "unsupported" && permission !== "granted" && (
+                <button type="button" onClick={enableBrowserNotifications}>
+                  تفعيل إشعارات المتصفح
+                </button>
+              )}
+              <button type="button" onClick={clearNotifications} disabled={!visibleItems.length}>
+                مسح الكل
               </button>
-            )}
+            </div>
           </header>
-          {items.map((item) => (
+          {visibleItems.map((item) => (
             <button
               type="button"
               className={`parent-notification-item ${readMap[item.id] ? "read" : "unread"}`}
@@ -2540,8 +2586,8 @@ function ParentNotificationCenter({ childToken, header = false }) {
               <ChevronLeft size={17} />
             </button>
           ))}
-          {!items.length && <p className="parent-notification-empty">لا توجد تحديثات جديدة حاليًا.</p>}
-          {!childToken && items.length > 0 && (
+          {!visibleItems.length && <p className="parent-notification-empty">لا توجد تحديثات جديدة حاليًا.</p>}
+          {!childToken && visibleItems.length > 0 && (
             <p className="parent-notification-hint">افتح تقرير ابنك مرة واحدة لتصلك تنبيهات درجاته هنا.</p>
           )}
         </div>
@@ -3367,7 +3413,7 @@ function FollowUpRequestsPage({ requests, request, password, reload }) {
   );
 }
 
-function NotificationsPage({ notifications, readMap, onOpen, onMarkAllRead }) {
+function NotificationsPage({ notifications, readMap, onOpen, onMarkAllRead, onClear }) {
   const unreadCount = notifications.filter((item) => !readMap[item.id]).length;
   return (
     <section className="notification-center">
@@ -3376,9 +3422,14 @@ function NotificationsPage({ notifications, readMap, onOpen, onMarkAllRead }) {
           <p className="section-kicker">مركز التنبيهات</p>
           <h1>التنبيهات</h1>
         </div>
-        <button className="secondary-button" type="button" onClick={onMarkAllRead} disabled={!unreadCount}>
-          تحديد الكل كمقروء
-        </button>
+        <div className="notification-center-actions">
+          <button className="secondary-button" type="button" onClick={onMarkAllRead} disabled={!unreadCount}>
+            تحديد الكل كمقروء
+          </button>
+          <button className="secondary-button" type="button" onClick={onClear} disabled={!notifications.length}>
+            مسح الكل
+          </button>
+        </div>
       </div>
       <div className="notification-feed">
         {notifications.map((item) => (
