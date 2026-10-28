@@ -7,7 +7,6 @@ import {
   Camera,
   Check,
   ChevronLeft,
-  ChevronRight,
   Church,
   Copy,
   ExternalLink,
@@ -121,6 +120,8 @@ const stored = (key, fallback) => sessionStorage.getItem(key) || fallback;
 const publicQrToken = window.location.pathname.match(/^\/qr\/([^/]+)\/?$/)?.[1] || "";
 const isAdminPage = window.location.pathname === "/admin" || window.location.pathname.startsWith("/admin/");
 const isLearningPage = window.location.pathname === "/learning" || window.location.pathname === "/learning/";
+const isMassSchedulePage =
+  window.location.pathname === "/mass-schedule" || window.location.pathname === "/mass-schedule/";
 
 function groupTone(group) {
   const number = Number.parseInt(String(group).replace(/\D/g, ""), 10);
@@ -200,6 +201,7 @@ export default function App() {
   const [dashboard, setDashboard] = useState({ summary: {}, people: [] });
   const [whatsappTemplate, setWhatsappTemplate] = useState(defaultWhatsAppTemplate);
   const [learningItems, setLearningItems] = useState([]);
+  const [massSchedules, setMassSchedules] = useState([]);
   const [visitReports, setVisitReports] = useState(emptyVisitReports);
   const [followUpNotes, setFollowUpNotes] = useState([]);
   const [followUpRequests, setFollowUpRequests] = useState([]);
@@ -318,6 +320,11 @@ export default function App() {
           setLearningItems(await request("/api/learning-items", {}, auth));
           return;
         }
+        if (nextMode === "mass-admin") {
+          setMassSchedules(await request("/api/mass-schedules", {}, auth));
+          return;
+        }
+        if (nextMode === "content-admin") return;
         if (nextMode === "notifications") return;
         if (nextMode === "attendance") {
           const result = await request(
@@ -523,10 +530,11 @@ export default function App() {
       setEditingPerson(null);
       setPersonDraft(emptyPerson);
     }
-    if (nextMode === "notifications" || nextMode === "evaluation") return;
+    if (nextMode === "notifications" || nextMode === "evaluation" || nextMode === "content-admin") return;
     if (nextMode === "attendance") load(nextMode, attendanceDate);
     else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate);
-    else if (nextMode === "reports") load(nextMode);
+    else if (nextMode === "reports" || nextMode === "learning-admin" || nextMode === "mass-admin")
+      load(nextMode);
     else if (nextMode === "qr") {
       /* scanner saves attendance incrementally */
     } else if (nextMode === "qr-print") load("people");
@@ -646,7 +654,6 @@ export default function App() {
       setRotationStart(result.rotationStart || rotationStart);
       setServantsText((result.servants || []).join("\n"));
       if (mode === "call") await load("history");
-      if (mode === "call") await load("history");
       setNotice(assign ? "تم حفظ دورة التوزيع" : "تم حفظ العلامات");
     } catch (saveError) {
       setError(saveError.message);
@@ -741,12 +748,14 @@ export default function App() {
 
   if (publicQrToken) return <PublicAttendancePage token={publicQrToken} />;
   if (isLearningPage) return <PublicLearningPage />;
+  if (isMassSchedulePage) return <PublicMassSchedulePage />;
   if (window.location.pathname === "/life-of-saint-abanoub") return <SaintAbanoubStoryPage />;
   if (window.location.pathname === "/league") return <PublicLeaguePage />;
   if (!isAdminPage) return <PublicParentHome />;
   if (!password || !username)
     return (
       <main className="login-screen">
+        <PublicNavigation subtitle="دخول الخدام" />
         <form className="login-panel" onSubmit={login}>
           <div className="login-brand">
             <img src="/saint-abanoub.png" alt="القديس أبانوب" />
@@ -786,7 +795,7 @@ export default function App() {
 
   const navItem = (nextMode, icon, label) => (
     <button
-      className={`sidebar-item ${mode === nextMode ? "active" : ""}`}
+      className={`sidebar-item ${mode === nextMode || (nextMode === "content-admin" && ["learning-admin", "mass-admin"].includes(mode)) ? "active" : ""}`}
       onClick={() => {
         setMobileNavOpen(false);
         switchMode(nextMode);
@@ -834,7 +843,7 @@ export default function App() {
           {navItem("stray", <img className="sheep-icon" src="/sheep-icon.svg" alt="" />, "الخروف الضال")}
           {navItem("history", <Users size={17} />, "أفراد الخورس")}
           {navItem("people", <Pencil size={17} />, "إدارة الخورس")}
-          {navItem("learning-admin", <BookOpen size={17} />, "إدارة المناهج")}
+          {navItem("content-admin", <BookOpen size={17} />, "إدارة المناهج والقداسات")}
           {navItem("evaluation", <Star size={17} />, "تقييم الأولاد")}
           {navItem("qr-print", <QrCode size={17} />, "QR الأولاد")}
           <button
@@ -891,16 +900,22 @@ export default function App() {
               <span>إدارة الخدمة</span>
             </div>
           </div>
-          <button
-            className="mobile-menu-button"
-            type="button"
-            aria-label="فتح القائمة"
-            aria-controls="mobile-app-sidebar"
-            aria-expanded={mobileNavOpen}
-            onClick={() => setMobileNavOpen(true)}
-          >
-            <Menu size={23} />
-          </button>
+          <div className="global-header-actions">
+            <a className="global-home-link" href="/" aria-label="العودة للصفحة الرئيسية">
+              <Home size={17} />
+              <span>الرئيسية</span>
+            </a>
+            <button
+              className="global-menu-button"
+              type="button"
+              aria-label="فتح القائمة"
+              aria-controls="mobile-app-sidebar"
+              aria-expanded={mobileNavOpen}
+              onClick={() => setMobileNavOpen(true)}
+            >
+              <Menu size={22} />
+            </button>
+          </div>
         </div>
         <header className="topbar">
           <div className="topbar-verse">
@@ -1093,11 +1108,21 @@ export default function App() {
             }}
           />
         )}
+        {mode === "content-admin" && <ContentManagementChooser onChoose={switchMode} />}
         {mode === "learning-admin" && (
           <LearningManagementPage
             items={learningItems}
             request={request}
             reload={() => load("learning-admin")}
+            onBack={() => switchMode("content-admin")}
+          />
+        )}
+        {mode === "mass-admin" && (
+          <MassScheduleManagementPage
+            items={massSchedules}
+            request={request}
+            reload={() => load("mass-admin")}
+            onBack={() => switchMode("content-admin")}
           />
         )}
         {(mode === "visit" || mode === "call") && (
@@ -1226,11 +1251,9 @@ function PublicLeaguePage() {
     );
   return (
     <main className="league-page" dir="rtl">
+      <PublicNavigation subtitle="دوري أبانوب" />
       <header className="league-header">
-        <a href="/" className="league-back">
-          <ChevronRight size={17} /> الصفحة الرئيسية
-        </a>
-        <div>
+        <div className="league-page-title">
           <span className="league-kicker">خورس القديس أبانوب</span>
           <h1>دوري أبانوب</h1>
           <p>ترتيب شهري حسب الحضور والتقييم</p>
@@ -1473,7 +1496,9 @@ function ServantBoyEvaluationPage({ request }) {
 
 function PublicLearningPage() {
   const [items, setItems] = useState([]);
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState(
+    () => new URLSearchParams(window.location.search).get("date") || "",
+  );
   const [selectedCategory, setSelectedCategory] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -1483,7 +1508,6 @@ function PublicLearningPage() {
         const body = await response.json().catch(() => []);
         if (!response.ok) throw new Error(body.error || "تعذر تحميل المناهج");
         setItems(body);
-        setSelectedDate("");
       })
       .catch((loadError) => setError(loadError.message))
       .finally(() => setLoading(false));
@@ -1498,18 +1522,7 @@ function PublicLearningPage() {
   };
   return (
     <main className="learning-public-page" dir="rtl">
-      <header className="learning-public-header">
-        <a className="learning-home-link" href="/">
-          العودة للرئيسية
-        </a>
-        <div className="learning-brand">
-          <img src="/saint-abanoub.png" alt="القديس أبانوب" />
-          <div>
-            <strong>خورس القديس أبانوب</strong>
-            <span>إحنا اتعلمنا إيه؟</span>
-          </div>
-        </div>
-      </header>
+      <PublicNavigation subtitle="مناهج الخورس" />
       <section className="learning-public-content">
         <div className="learning-public-hero">
           <BookOpen size={30} />
@@ -1623,7 +1636,317 @@ function PublicLearningPage() {
   );
 }
 
-function LearningManagementPage({ items, request, reload }) {
+function PublicMassSchedulePage() {
+  const [items, setItems] = useState([]);
+  const [selectedMonth, setSelectedMonth] = useState(
+    () => new URLSearchParams(window.location.search).get("month") || "",
+  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    fetch(`${apiUrl}/api/public/mass-schedules`)
+      .then(async (response) => {
+        const body = await response.json().catch(() => []);
+        if (!response.ok) throw new Error(body.error || "تعذر تحميل مواعيد القداسات");
+        setItems(body);
+      })
+      .catch((loadError) => setError(loadError.message))
+      .finally(() => setLoading(false));
+  }, []);
+  const months = [...new Set(items.map((item) => item.date.slice(0, 7)))].sort().reverse();
+  const monthName = (month) =>
+    new Intl.DateTimeFormat("ar-EG", { month: "long", year: "numeric" }).format(
+      new Date(`${month}-01T12:00:00`),
+    );
+  return (
+    <main className="learning-public-page mass-public-page" dir="rtl">
+      <PublicNavigation subtitle="مواعيد القداسات" />
+      <section className="learning-public-content">
+        <div className="learning-public-hero">
+          <Church size={30} />
+          <p className="section-kicker">مواعيد الخورس</p>
+          <h1>اعرف قداسك إمتى</h1>
+          <p>اختار الشهر عشان تشوف مواعيد القداسات وأماكنها.</p>
+        </div>
+        {loading ? (
+          <p className="learning-empty">جاري تحميل المواعيد…</p>
+        ) : error ? (
+          <p className="learning-empty error">{error}</p>
+        ) : !months.length ? (
+          <section className="learning-empty-card">
+            <CalendarDays size={30} />
+            <strong>لسه مفيش مواعيد قداسات مضافة</strong>
+            <span>هنعرض المواعيد هنا أول ما الخدام يضيفوها.</span>
+          </section>
+        ) : (
+          <section className="learning-day-list mass-month-list" aria-label="مواعيد القداسات حسب الشهر">
+            {months.map((month) => {
+              const monthItems = items
+                .filter((item) => item.date.startsWith(month))
+                .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+              const expanded = selectedMonth === month;
+              return (
+                <div className={`learning-day-accordion ${expanded ? "expanded" : ""}`} key={month}>
+                  <button
+                    type="button"
+                    className={`learning-day-button mass-month-button ${expanded ? "active" : ""}`}
+                    aria-expanded={expanded}
+                    onClick={() => setSelectedMonth((current) => (current === month ? "" : month))}
+                  >
+                    <CalendarDays size={20} />
+                    <span>
+                      <strong>{monthName(month)}</strong>
+                      <small>{monthItems.length} قداس</small>
+                    </span>
+                    <ChevronLeft size={20} />
+                  </button>
+                  {expanded && (
+                    <div className="learning-day-panel mass-month-panel">
+                      <div className="mass-schedule-table-wrap">
+                        <table className="mass-schedule-table">
+                          <thead>
+                            <tr>
+                              <th scope="col">التاريخ</th>
+                              <th scope="col">الساعة</th>
+                              <th scope="col">المكان</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {monthItems.map((item) => (
+                              <tr key={item.id}>
+                                <td>{dateLabel(item.date)}</td>
+                                <td dir="ltr">{item.time}</td>
+                                <td>{item.location}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </section>
+        )}
+      </section>
+    </main>
+  );
+}
+
+function ContentManagementChooser({ onChoose }) {
+  return (
+    <section className="content-management-page">
+      <header className="section-title-row content-management-heading">
+        <div>
+          <p className="section-kicker">إدارة الخدمة</p>
+          <h1>إدارة المحتوى</h1>
+          <p>اختار القسم اللي عايز تديره.</p>
+        </div>
+      </header>
+      <div className="content-management-options">
+        <button
+          type="button"
+          className="content-management-option"
+          onClick={() => onChoose("learning-admin")}
+        >
+          <BookOpen size={27} />
+          <strong>إدارة المناهج</strong>
+          <span>إضافة مواد وروابط لقاءات الجمعة.</span>
+          <ChevronLeft size={19} />
+        </button>
+        <button type="button" className="content-management-option" onClick={() => onChoose("mass-admin")}>
+          <Church size={27} />
+          <strong>إدارة القداسات</strong>
+          <span>إضافة مواعيد القداسات وأماكنها لكل شهر.</span>
+          <ChevronLeft size={19} />
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function MassScheduleManagementPage({ items, request, reload, onBack }) {
+  const initialMonth = today().slice(0, 7);
+  const [selectedMonth, setSelectedMonth] = useState(initialMonth);
+  const [draft, setDraft] = useState({ date: `${initialMonth}-01`, time: "09:00", location: "" });
+  const [editingId, setEditingId] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const monthItems = items.filter((item) => item.date.startsWith(selectedMonth));
+  const resetForm = () => {
+    setDraft({ date: `${selectedMonth}-01`, time: "09:00", location: "" });
+    setEditingId(null);
+  };
+  const changeMonth = (month) => {
+    setSelectedMonth(month);
+    setDraft((current) => ({
+      ...current,
+      date: current.date.startsWith(month) ? current.date : `${month}-01`,
+    }));
+    setEditingId(null);
+    setError("");
+    setNotice("");
+  };
+  const save = async (event) => {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+    if (!draft.date.startsWith(selectedMonth)) {
+      setError("تاريخ القداس لازم يكون داخل الشهر المختار.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await request(editingId ? `/api/mass-schedules/${editingId}` : "/api/mass-schedules", {
+        method: editingId ? "PUT" : "POST",
+        body: JSON.stringify(draft),
+      });
+      setNotice(editingId ? "تم تعديل موعد القداس" : "تمت إضافة موعد القداس");
+      resetForm();
+      await reload();
+    } catch (saveError) {
+      setError(saveError.message || "تعذر حفظ موعد القداس");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const edit = (item) => {
+    setSelectedMonth(item.date.slice(0, 7));
+    setDraft({ date: item.date, time: item.time, location: item.location });
+    setEditingId(item.id);
+    setError("");
+    setNotice("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const remove = async (item) => {
+    if (!window.confirm(`حذف موعد قداس ${dateLabel(item.date)}؟`)) return;
+    setError("");
+    try {
+      await request(`/api/mass-schedules/${item.id}`, { method: "DELETE" });
+      if (editingId === item.id) resetForm();
+      await reload();
+    } catch (removeError) {
+      setError(removeError.message || "تعذر حذف الموعد");
+    }
+  };
+  return (
+    <section className="learning-admin-page mass-admin-page">
+      <header className="section-title-row learning-admin-heading">
+        <div>
+          <p className="section-kicker">إدارة الخدمة</p>
+          <h1>إدارة القداسات</h1>
+          <p>أضف كل موعد في الشهر، وحدد اليوم والساعة والمكان.</p>
+        </div>
+        <button type="button" className="secondary-button" onClick={onBack}>
+          <ChevronLeft size={16} /> إدارة المحتوى
+        </button>
+      </header>
+      <form className="table-section learning-admin-form" onSubmit={save}>
+        <div className="learning-admin-form-title">
+          <Church size={21} />
+          <div>
+            <strong>{editingId ? "تعديل موعد قداس" : "إضافة موعد قداس"}</strong>
+            <span>المواعيد المسجلة ستظهر للأولاد في صفحة «اعرف قداسك إمتى».</span>
+          </div>
+        </div>
+        <label>
+          الشهر
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={(event) => changeMonth(event.target.value)}
+            required
+          />
+        </label>
+        <label>
+          التاريخ
+          <input
+            type="date"
+            value={draft.date}
+            min={`${selectedMonth}-01`}
+            max={`${selectedMonth}-${new Date(Number(selectedMonth.slice(0, 4)), Number(selectedMonth.slice(5, 7)), 0).getDate()}`}
+            onChange={(event) => setDraft({ ...draft, date: event.target.value })}
+            required
+          />
+        </label>
+        <label>
+          الساعة
+          <input
+            type="time"
+            value={draft.time}
+            onChange={(event) => setDraft({ ...draft, time: event.target.value })}
+            required
+          />
+        </label>
+        <label>
+          المكان
+          <input
+            type="text"
+            maxLength={250}
+            value={draft.location}
+            onChange={(event) => setDraft({ ...draft, location: event.target.value })}
+            placeholder="مثال: كنيسة مارجرجس — قاعة القديس أبانوب"
+            required
+          />
+        </label>
+        {error && <p className="learning-form-error">{error}</p>}
+        {notice && <p className="learning-form-notice">{notice}</p>}
+        <div className="learning-form-actions">
+          <button className="primary-button" type="submit" disabled={saving}>
+            {saving ? "جارٍ الحفظ…" : editingId ? "حفظ التعديل" : "إضافة القداس"}
+          </button>
+          {editingId && (
+            <button className="cancel-button" type="button" onClick={resetForm}>
+              إلغاء التعديل
+            </button>
+          )}
+        </div>
+      </form>
+      <section className="learning-admin-list">
+        <div className="section-title-row">
+          <div>
+            <p className="section-kicker">مواعيد الشهر</p>
+            <h2>{monthItems.length} قداس</h2>
+          </div>
+          <a href="/mass-schedule" target="_blank" rel="noreferrer">
+            معاينة صفحة الأولاد <ExternalLink size={15} />
+          </a>
+        </div>
+        {monthItems.length ? (
+          <div className="mass-admin-schedule-list">
+            {[...monthItems]
+              .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
+              .map((item) => (
+                <article className="mass-admin-schedule-item" key={item.id}>
+                  <CalendarDays size={19} />
+                  <div>
+                    <strong>
+                      {dateLabel(item.date)} · <span dir="ltr">{item.time}</span>
+                    </strong>
+                    <span>
+                      <MapPin size={14} /> {item.location}
+                    </span>
+                  </div>
+                  <button className="secondary-button" type="button" onClick={() => edit(item)}>
+                    تعديل
+                  </button>
+                  <button className="cancel-button" type="button" onClick={() => remove(item)}>
+                    حذف
+                  </button>
+                </article>
+              ))}
+          </div>
+        ) : (
+          <p className="learning-empty">لا توجد مواعيد مسجلة لهذا الشهر.</p>
+        )}
+      </section>
+    </section>
+  );
+}
+
+function LearningManagementPage({ items, request, reload, onBack }) {
   const emptyDraft = () => ({
     date: today(),
     category: "",
@@ -1711,6 +2034,9 @@ function LearningManagementPage({ items, request, reload }) {
           <h1>إدارة المناهج</h1>
           <p>أضف روابط متعددة للمادة، مثل رابط السلايدز والفيديو.</p>
         </div>
+        <button type="button" className="secondary-button" onClick={onBack}>
+          <ChevronLeft size={16} /> إدارة المحتوى
+        </button>
         <span className="learning-storage-note">الملفات تظل على Drive</span>
       </header>
       <form className="table-section learning-admin-form" onSubmit={save}>
@@ -1885,13 +2211,10 @@ function LearningManagementPage({ items, request, reload }) {
   );
 }
 
-function PublicParentHome() {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [showScanner, setShowScanner] = useState(false);
+function PublicNavigation({ subtitle, homeActions }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const isHome = window.location.pathname === "/";
+
   useEffect(() => {
     if (!menuOpen) return undefined;
     const closeOnEscape = (event) => {
@@ -1900,41 +2223,9 @@ function PublicParentHome() {
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [menuOpen]);
-  useEffect(() => {
-    const search = query.trim();
-    if (search.length < 2) {
-      setResults([]);
-      setError("");
-      return undefined;
-    }
-    const controller = new AbortController();
-    const timer = window.setTimeout(async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const response = await fetch(`${apiUrl}/api/public/people?query=${encodeURIComponent(search)}`, {
-          signal: controller.signal,
-        });
-        const body = await response.json().catch(() => []);
-        if (!response.ok) throw new Error(body.error || "تعذر البحث الآن");
-        setResults(body);
-      } catch (searchError) {
-        if (searchError.name !== "AbortError") {
-          setResults([]);
-          setError(searchError.message);
-        }
-      } finally {
-        setLoading(false);
-      }
-    }, 250);
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [query]);
+
   return (
-    <main className="public-parent-home">
-      <div className="public-home-glow" />
+    <>
       {menuOpen && (
         <button
           className="public-menu-backdrop"
@@ -1971,59 +2262,115 @@ function PublicParentHome() {
             <ChevronLeft size={17} />
           </a>
           <a href="/life-of-saint-abanoub">
-            <BookOpen size={18} />
+            <img className="public-saint-menu-icon" src="/saint-abanoub-menu-icon.png" alt="" />
             <span>حياة القديس أبانوب</span>
             <ChevronLeft size={17} />
           </a>
-          <a href="/learning" onClick={() => setMenuOpen(false)}>
+          <a href="/learning">
             <BookOpen size={18} />
             <span>إحنا اتعلمنا إيه؟</span>
+            <ChevronLeft size={17} />
+          </a>
+          <a href="/mass-schedule">
+            <Church size={18} />
+            <span>اعرف قداسك إمتى</span>
             <ChevronLeft size={17} />
           </a>
         </section>
         <section className="public-menu-section">
           <p>التعليم</p>
-          <a
-            href="https://stgeorgesaman.com/coptic/"
-            target="_blank"
-            rel="noreferrer"
-            onClick={() => setMenuOpen(false)}
-          >
+          <a href="https://stgeorgesaman.com/coptic/" target="_blank" rel="noreferrer">
             <Languages size={18} />
             <span>اللغة القبطية</span>
             <ExternalLink size={15} />
           </a>
-          <a
-            href="https://stgeorgesaman.com/libraries/hymns-library/"
-            target="_blank"
-            rel="noreferrer"
-            onClick={() => setMenuOpen(false)}
-          >
+          <a href="https://stgeorgesaman.com/libraries/hymns-library/" target="_blank" rel="noreferrer">
             <Music2 size={18} />
             <span>الألحان</span>
             <ExternalLink size={15} />
           </a>
         </section>
       </aside>
-      <header className="public-home-brand">
-        <div className="public-home-identity">
-          <img src="/saint-abanoub.png" alt="القديس أبانوب" />
-          <div>
+      <header className="global-brand-header public-site-header">
+        <a className="global-brand" href="/" aria-label="العودة للصفحة الرئيسية">
+          <img src="/saint-abanoub.png" alt="" />
+          <span>
             <strong>خورس القديس أبانوب</strong>
-            <span>متابعة حضور الأبناء</span>
-          </div>
+            <small>{subtitle}</small>
+          </span>
+        </a>
+        <div className="global-header-actions">
+          {homeActions}
+          {!isHome && (
+            <a className="global-home-link" href="/">
+              <Home size={17} />
+              <span>الصفحة الرئيسية</span>
+            </a>
+          )}
+          <button
+            type="button"
+            className="global-menu-button"
+            aria-label="فتح القائمة"
+            aria-controls="public-main-menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen(true)}
+          >
+            <Menu size={22} />
+          </button>
         </div>
-        <button
-          type="button"
-          className="public-menu-toggle"
-          aria-label="فتح القائمة"
-          aria-controls="public-main-menu"
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen(true)}
-        >
-          <Menu size={22} />
-        </button>
       </header>
+    </>
+  );
+}
+
+function PublicParentHome() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [showScanner, setShowScanner] = useState(false);
+  const [childToken, setChildToken] = useState(
+    () => sessionStorage.getItem("parent-notification-child-token") || "",
+  );
+  useEffect(() => {
+    const search = query.trim();
+    if (search.length < 2) {
+      setResults([]);
+      setError("");
+      return undefined;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const response = await fetch(`${apiUrl}/api/public/people?query=${encodeURIComponent(search)}`, {
+          signal: controller.signal,
+        });
+        const body = await response.json().catch(() => []);
+        if (!response.ok) throw new Error(body.error || "تعذر البحث الآن");
+        setResults(body);
+      } catch (searchError) {
+        if (searchError.name !== "AbortError") {
+          setResults([]);
+          setError(searchError.message);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }, 250);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query]);
+  return (
+    <main className="public-parent-home">
+      <div className="public-home-glow" />
+      <PublicNavigation
+        subtitle="متابعة حضور الأبناء"
+        homeActions={<ParentNotificationCenter childToken={childToken} header />}
+      />
       <section className="public-home-content">
         <img className="public-home-saint" src="/saint-abanoub.png" alt="القديس أبانوب" />
         <p className="section-kicker">أهلًا بكم</p>
@@ -2058,7 +2405,14 @@ function PublicParentHome() {
         {results.length > 0 && (
           <div className="public-home-results">
             {results.map((person) => (
-              <a key={person.token} href={`/qr/${person.token}`}>
+              <a
+                key={person.token}
+                href={`/qr/${person.token}`}
+                onClick={() => {
+                  sessionStorage.setItem("parent-notification-child-token", person.token);
+                  setChildToken(person.token);
+                }}
+              >
                 <span>{person.name}</span>
                 <ChevronLeft size={19} />
               </a>
@@ -2070,18 +2424,136 @@ function PublicParentHome() {
   );
 }
 
+function ParentNotificationCenter({ childToken, header = false }) {
+  const [items, setItems] = useState([]);
+  const [readMap, setReadMap] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("parent-notification-read-map") || "{}");
+    } catch {
+      return {};
+    }
+  });
+  const [open, setOpen] = useState(false);
+  const [permission, setPermission] = useState(() =>
+    "Notification" in window ? Notification.permission : "unsupported",
+  );
+  const knownIds = useRef(null);
+  useEffect(() => {
+    let stopped = false;
+    const refresh = async () => {
+      try {
+        const query = childToken ? `?token=${encodeURIComponent(childToken)}` : "";
+        const response = await fetch(`${apiUrl}/api/public/notifications${query}`);
+        const body = await response.json().catch(() => []);
+        if (!response.ok) throw new Error("تعذر تحميل التنبيهات");
+        if (stopped) return;
+        const incoming = knownIds.current
+          ? body.filter((item) => !knownIds.current.has(String(item.id)))
+          : [];
+        knownIds.current = new Set(body.map((item) => String(item.id)));
+        setItems(body);
+        if (document.hidden && permission === "granted") {
+          incoming.forEach((item) => {
+            const alert = new Notification(item.title, {
+              body: item.body,
+              icon: "/saint-abanoub.png",
+              tag: `parent-${item.id}`,
+            });
+            alert.onclick = () => {
+              window.focus();
+              window.location.assign(item.targetUrl);
+              alert.close();
+            };
+          });
+        }
+      } catch {
+        /* The in-page feed remains available and retries on the next poll. */
+      }
+    };
+    refresh();
+    const interval = window.setInterval(refresh, 30000);
+    const onVisibilityChange = () => {
+      if (!document.hidden) refresh();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [childToken, permission]);
+  const unreadCount = items.filter((item) => !readMap[item.id]).length;
+  const openItem = (item) => {
+    const next = { ...readMap, [item.id]: true };
+    setReadMap(next);
+    localStorage.setItem("parent-notification-read-map", JSON.stringify(next));
+    window.location.assign(item.targetUrl);
+  };
+  const enableBrowserNotifications = async () => {
+    if (!("Notification" in window)) return;
+    const nextPermission = await Notification.requestPermission();
+    setPermission(nextPermission);
+  };
+  return (
+    <section
+      className={`parent-notification-center ${header ? "header-parent-notification-center" : ""}`}
+      aria-label="تنبيهات الخورس"
+    >
+      <button
+        type="button"
+        className="parent-notification-toggle"
+        aria-label={`تنبيهات الخورس${unreadCount ? `، ${unreadCount} غير مقروءة` : ""}`}
+        title="تنبيهات الخورس"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <Bell size={19} />
+        {unreadCount > 0 && <b>{unreadCount}</b>}
+        {!header && <span>تنبيهات الخورس</span>}
+        {!header && <small>{open ? "إخفاء" : "عرض الجديد"}</small>}
+      </button>
+      {open && (
+        <div className="parent-notification-feed">
+          <header>
+            <strong>آخر التحديثات</strong>
+            {permission !== "unsupported" && permission !== "granted" && (
+              <button type="button" onClick={enableBrowserNotifications}>
+                تفعيل إشعارات المتصفح
+              </button>
+            )}
+          </header>
+          {items.map((item) => (
+            <button
+              type="button"
+              className={`parent-notification-item ${readMap[item.id] ? "read" : "unread"}`}
+              key={item.id}
+              onClick={() => openItem(item)}
+            >
+              <span className="parent-notification-icon">
+                <Bell size={16} />
+              </span>
+              <span className="parent-notification-copy">
+                <strong>{item.title}</strong>
+                <small>{item.body}</small>
+                <time>{dateLabel(item.date)}</time>
+              </span>
+              <ChevronLeft size={17} />
+            </button>
+          ))}
+          {!items.length && <p className="parent-notification-empty">لا توجد تحديثات جديدة حاليًا.</p>}
+          {!childToken && items.length > 0 && (
+            <p className="parent-notification-hint">افتح تقرير ابنك مرة واحدة لتصلك تنبيهات درجاته هنا.</p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function SaintAbanoubStoryPage() {
   return (
     <main className="saint-story-page">
-      <header className="saint-story-header">
-        <a href="/" className="saint-story-back">
-          <ChevronRight size={17} /> العودة للصفحة الرئيسية
-        </a>
-        <div>
-          <strong>خورس القديس أبانوب</strong>
-          <span>سيرة القديس</span>
-        </div>
-      </header>
+      <PublicNavigation subtitle="سيرة القديس" />
       <article className="saint-story-article">
         <p className="saint-story-kicker">قصة من تاريخ الكنيسة</p>
         <h1>حياة القديس أبانوب</h1>
@@ -2259,6 +2731,9 @@ function PublicAttendancePage({ token }) {
   const [showServants, setShowServants] = useState(false);
   const [showFollowUp, setShowFollowUp] = useState(false);
   useEffect(() => {
+    sessionStorage.setItem("parent-notification-child-token", token);
+  }, [token]);
+  useEffect(() => {
     fetch(`${apiUrl}/api/public/qr/${encodeURIComponent(token)}`)
       .then(async (response) => {
         const body = await response.json().catch(() => ({}));
@@ -2277,7 +2752,7 @@ function PublicAttendancePage({ token }) {
   if (error)
     return (
       <main className="public-report-page">
-        <PublicBrand />
+        <PublicNavigation subtitle="تقرير حضور الخورس والقداس" />
         <section className="public-report-error">
           <h1>تعذر فتح التقرير</h1>
           <p>{error}</p>
@@ -2287,7 +2762,7 @@ function PublicAttendancePage({ token }) {
   if (!data)
     return (
       <main className="public-report-page">
-        <PublicBrand />
+        <PublicNavigation subtitle="تقرير حضور الخورس والقداس" />
         <section className="public-report-loading">جاري تحميل تقرير الحضور...</section>
       </main>
     );
@@ -2315,7 +2790,7 @@ function PublicAttendancePage({ token }) {
   }
   return (
     <main className="public-report-page">
-      <PublicBrand />
+      <PublicNavigation subtitle="تقرير حضور الخورس والقداس" />
       <section className="public-student-heading">
         <div>
           <p className="section-kicker">تقرير حضور المخدوم</p>
@@ -2547,17 +3022,6 @@ function PublicAttendancePage({ token }) {
   );
 }
 
-function PublicBrand() {
-  return (
-    <header className="public-brand">
-      <img src="/app-icon.png" alt="القديس أبانوب" />
-      <div>
-        <strong>خورس القديس أبانوب</strong>
-        <span>تقرير حضور الخورس والقداس</span>
-      </div>
-    </header>
-  );
-}
 function PublicMetric({ label, value, absent, rate }) {
   return (
     <article>

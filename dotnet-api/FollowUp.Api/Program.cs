@@ -172,6 +172,33 @@ app.MapGet("/api/public/learning-items", async (NpgsqlDataSource db) =>
     return Results.Ok(items);
 });
 
+app.MapGet("/api/public/mass-schedules", async (NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("select id,service_date::text,to_char(service_time,'HH24:MI'),location from mass_schedules order by service_date desc,service_time,id", connection);
+    await using var reader = await command.ExecuteReaderAsync();
+    var schedules = new List<object>();
+    while (await reader.ReadAsync()) schedules.Add(new { id = reader.GetInt64(0), date = reader.GetString(1), time = reader.GetString(2), location = reader.GetString(3) });
+    return Results.Ok(schedules);
+});
+
+app.MapGet("/api/public/notifications", async (string? token, NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand(@"
+        select n.id,n.title,n.body,n.target_url,
+               to_char(n.created_at at time zone 'Africa/Cairo','YYYY-MM-DD'),
+               n.person_id is not null
+        from parent_notifications n
+        where n.person_id is null or n.person_id=(select id from people where qr_token=$1 and is_active=true and role='boy')
+        order by n.created_at desc,n.id desc limit 50", connection);
+    command.Parameters.AddWithValue(token ?? "");
+    await using var reader = await command.ExecuteReaderAsync();
+    var notifications = new List<object>();
+    while (await reader.ReadAsync()) notifications.Add(new { id = reader.GetInt64(0), title = reader.GetString(1), body = reader.GetString(2), targetUrl = reader.GetString(3), date = reader.GetString(4), isPersonal = reader.GetBoolean(5) });
+    return Results.Ok(notifications);
+});
+
 app.MapGet("/api/public/league", async (string? month, NpgsqlDataSource db) =>
 {
     var selectedMonth = DateOnly.TryParseExact($"{month}-01", "yyyy-MM-dd", out var parsedMonth)
@@ -269,10 +296,19 @@ api.MapPost("/learning-items", async (LearningItemSave payload, NpgsqlDataSource
 {
     if (!ValidLearningItem(payload, out var lessonDate, out var error)) return Results.BadRequest(new { error });
     await using var connection = await db.OpenConnectionAsync();
+    await using var transaction = await connection.BeginTransactionAsync();
     var links = NormalizeLearningLinks(payload.Links, payload.Url);
-    await using var command = new NpgsqlCommand("insert into learning_items(lesson_date,category,title,resource_url,description,background_url,links) values($1,$2,$3,$4,$5,$6,$7::jsonb) returning id", connection);
+    await using var command = new NpgsqlCommand("insert into learning_items(lesson_date,category,title,resource_url,description,background_url,links) values($1,$2,$3,$4,$5,$6,$7::jsonb) returning id", connection, transaction);
     command.Parameters.AddWithValue(lessonDate); command.Parameters.AddWithValue(payload.Category.Trim()); command.Parameters.AddWithValue(payload.Title.Trim()); command.Parameters.AddWithValue(links[0].Url); command.Parameters.AddWithValue(payload.Description?.Trim() ?? ""); command.Parameters.AddWithValue(payload.BackgroundUrl?.Trim() ?? ""); command.Parameters.AddWithValue(JsonSerializer.Serialize(links));
     var id = (long)(await command.ExecuteScalarAsync())!;
+    await using (var notice = new NpgsqlCommand("insert into parent_notifications(title,body,target_url) values($1,$2,$3)", connection, transaction))
+    {
+        notice.Parameters.AddWithValue("مادة جديدة في المناهج");
+        notice.Parameters.AddWithValue($"أُضيفت مادة {payload.Title.Trim()} ضمن {payload.Category.Trim()} للقاء يوم {lessonDate:yyyy-MM-dd}.");
+        notice.Parameters.AddWithValue($"/learning?date={lessonDate:yyyy-MM-dd}");
+        await notice.ExecuteNonQueryAsync();
+    }
+    await transaction.CommitAsync();
     return Results.Created($"/api/learning-items/{id}", new { id });
 });
 api.MapPut("/learning-items/{id:long}", async (long id, LearningItemSave payload, NpgsqlDataSource db) =>
@@ -288,6 +324,48 @@ api.MapDelete("/learning-items/{id:long}", async (long id, NpgsqlDataSource db) 
 {
     await using var connection = await db.OpenConnectionAsync();
     await using var command = new NpgsqlCommand("delete from learning_items where id=$1", connection);
+    command.Parameters.AddWithValue(id);
+    return await command.ExecuteNonQueryAsync() == 0 ? Results.NotFound() : Results.NoContent();
+});
+api.MapGet("/mass-schedules", async (NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("select id,service_date::text,to_char(service_time,'HH24:MI'),location from mass_schedules order by service_date desc,service_time,id", connection);
+    await using var reader = await command.ExecuteReaderAsync();
+    var schedules = new List<object>();
+    while (await reader.ReadAsync()) schedules.Add(new { id = reader.GetInt64(0), date = reader.GetString(1), time = reader.GetString(2), location = reader.GetString(3) });
+    return Results.Ok(schedules);
+});
+api.MapPost("/mass-schedules", async (MassScheduleSave payload, NpgsqlDataSource db) =>
+{
+    if (!ValidMassSchedule(payload, out var serviceDate, out var serviceTime, out var error)) return Results.BadRequest(new { error });
+    await using var connection = await db.OpenConnectionAsync();
+    await using var transaction = await connection.BeginTransactionAsync();
+    await using var command = new NpgsqlCommand("insert into mass_schedules(service_date,service_time,location) values($1,$2,$3) returning id", connection, transaction);
+    command.Parameters.AddWithValue(serviceDate); command.Parameters.AddWithValue(serviceTime); command.Parameters.AddWithValue(payload.Location.Trim());
+    var id = (long)(await command.ExecuteScalarAsync())!;
+    await using (var notice = new NpgsqlCommand("insert into parent_notifications(title,body,target_url) values($1,$2,$3)", connection, transaction))
+    {
+        notice.Parameters.AddWithValue("موعد قداس جديد");
+        notice.Parameters.AddWithValue($"أُضيف قداس يوم {serviceDate:yyyy-MM-dd} الساعة {serviceTime:HH\\:mm} في {payload.Location.Trim()}.");
+        notice.Parameters.AddWithValue($"/mass-schedule?month={serviceDate:yyyy-MM}");
+        await notice.ExecuteNonQueryAsync();
+    }
+    await transaction.CommitAsync();
+    return Results.Created($"/api/mass-schedules/{id}", new { id });
+});
+api.MapPut("/mass-schedules/{id:long}", async (long id, MassScheduleSave payload, NpgsqlDataSource db) =>
+{
+    if (!ValidMassSchedule(payload, out var serviceDate, out var serviceTime, out var error)) return Results.BadRequest(new { error });
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("update mass_schedules set service_date=$1,service_time=$2,location=$3,updated_at=now() where id=$4", connection);
+    command.Parameters.AddWithValue(serviceDate); command.Parameters.AddWithValue(serviceTime); command.Parameters.AddWithValue(payload.Location.Trim()); command.Parameters.AddWithValue(id);
+    return await command.ExecuteNonQueryAsync() == 0 ? Results.NotFound() : Results.Ok(new { id });
+});
+api.MapDelete("/mass-schedules/{id:long}", async (long id, NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("delete from mass_schedules where id=$1", connection);
     command.Parameters.AddWithValue(id);
     return await command.ExecuteNonQueryAsync() == 0 ? Results.NotFound() : Results.NoContent();
 });
@@ -617,13 +695,22 @@ api.MapPost("/evaluations", async (EvaluationSave payload, NpgsqlDataSource db) 
     var scoresJson = JsonSerializer.Serialize(scores);
     await using var connection = await db.OpenConnectionAsync();
     await using var command = new NpgsqlCommand(@"
-        insert into choir_evaluations(person_id,attendance_date,points)
+        with changed as (
+          insert into choir_evaluations(person_id,attendance_date,points)
         select p.id,$1,e.value::integer
         from jsonb_each_text($2::jsonb) e
         join people p on p.record_key=e.key::integer and p.is_active=true and p.role='boy'
         join attendance_records a on a.person_id=p.id and a.attendance_type='choir' and a.attendance_date=$1
         where e.value::integer between 0 and 10
-        on conflict(person_id,attendance_date) do update set points=excluded.points,updated_at=now()", connection);
+          on conflict(person_id,attendance_date) do update set points=excluded.points,updated_at=now()
+          where choir_evaluations.points is distinct from excluded.points
+          returning person_id,points
+        )
+        insert into parent_notifications(person_id,title,body,target_url,event_key)
+        select p.id,'تمت إضافة تقييم جديد',p.name || ' حصل على ' || changed.points::text || ' من 10 نقاط في تقييم الخورس.', '/qr/' || p.qr_token || '#grades', 'evaluation:' || p.id::text || ':' || $1::text
+        from changed join people p on p.id=changed.person_id
+        on conflict(event_key) where event_key is not null do update
+        set title=excluded.title,body=excluded.body,target_url=excluded.target_url,created_at=now()", connection);
     command.Parameters.AddWithValue(evaluationDate);
     command.Parameters.AddWithValue(scoresJson);
     var saved = await command.ExecuteNonQueryAsync();
@@ -875,5 +962,6 @@ record FollowUpRequestSave(string Type, string? Message);
 record WhatsAppTemplateSave(string? Message);
 record LearningItemSave(string Date, string Category, string Title, string Url, string? Description, string? BackgroundUrl, List<LearningResourceLink>? Links);
 record LearningResourceLink(string Label, string Url);
+record MassScheduleSave(string Date, string Time, string Location);
 record FollowUpRequestStatus(string Status);
 record PublicAttendanceItem(string Type, string Date, string RecordedAt, string Comment);

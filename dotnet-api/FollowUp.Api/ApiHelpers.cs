@@ -114,6 +114,17 @@ internal static class ApiHelpers
         return error.Length == 0;
     }
 
+    internal static bool ValidMassSchedule(MassScheduleSave payload, out DateOnly date, out TimeOnly time, out string error)
+    {
+        date = default;
+        time = default;
+        error = "";
+        if (!DateOnly.TryParseExact(payload.Date, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out date)) error = "اختر تاريخ القداس";
+        else if (!TimeOnly.TryParseExact(payload.Time, "HH:mm", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out time)) error = "أدخل موعدًا صحيحًا للقداس";
+        else if (string.IsNullOrWhiteSpace(payload.Location) || payload.Location.Trim().Length > 250) error = "اكتب مكان القداس (حتى 250 حرفًا)";
+        return error.Length == 0;
+    }
+
     internal static bool ValidLearningLink(LearningResourceLink link) =>
         !string.IsNullOrWhiteSpace(link.Label) && link.Label.Trim().Length <= 80 && link.Url?.Length <= 2000 &&
         Uri.TryCreate(link.Url?.Trim(), UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
