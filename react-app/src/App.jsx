@@ -87,6 +87,19 @@ const mapsSearchUrl = (address) => {
     ? value
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`;
 };
+const learningImageUrl = (value) => {
+  const source = String(value || "").trim();
+  try {
+    const url = new URL(source);
+    if (url.hostname === "drive.google.com") {
+      const fileId = url.pathname.match(/\/file\/d\/([^/]+)/)?.[1] || url.searchParams.get("id");
+      if (fileId) return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1600`;
+    }
+  } catch {
+    return source;
+  }
+  return source;
+};
 const normalizeArabic = (value) => String(value || "").replace(/[إأآ]/g, "ا");
 const normalizeSearchText = (value) =>
   normalizeArabic(value)
@@ -1630,7 +1643,7 @@ function PublicLearningPage() {
                               style={
                                 item.backgroundUrl
                                   ? {
-                                      "--learning-card-image": `url("${item.backgroundUrl.replace(/["\\]/g, "")}")`,
+                                      "--learning-card-image": `url("${learningImageUrl(item.backgroundUrl).replace(/["\\]/g, "")}")`,
                                     }
                                   : undefined
                               }
@@ -2155,7 +2168,7 @@ function LearningManagementPage({ items, request, reload, onBack }) {
           </button>
         </div>
         <label className="learning-form-wide">
-          رابط صورة خلفية للمربع <small>(اختياري — رابط مباشر للصورة)</small>
+          رابط صورة خلفية للمربع <small>(اختياري — يقبل رابط صورة أو Google Drive)</small>
           <input
             type="url"
             value={draft.backgroundUrl}
@@ -2163,6 +2176,7 @@ function LearningManagementPage({ items, request, reload, onBack }) {
             placeholder="https://.../image.jpg"
             dir="ltr"
           />
+          <small className="learning-image-hint">تأكد أن مشاركة ملف Drive تسمح بالعرض لأي شخص لديه الرابط.</small>
         </label>
         <label className="learning-form-wide">
           وصف مختصر <small>(اختياري)</small>
