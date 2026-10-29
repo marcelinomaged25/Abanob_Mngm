@@ -1164,6 +1164,7 @@ export default function App() {
             updateCheck={updateCheck}
             openReport={openReport}
             loading={loading}
+            notes={followUpNotes}
             includeVisitedThisMonth={includeVisitedThisMonth}
             setIncludeVisitedThisMonth={setIncludeVisitedThisMonth}
           />
@@ -5174,7 +5175,8 @@ function MembersDirectoryByRole({ rows, query, setQuery, openReport, loading }) 
     </section>
   );
 }
-function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateCheck, openReport, loading }) {
+function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateCheck, openReport, loading, notes = [] }) {
+  const [selectedNotes, setSelectedNotes] = useState(null);
   const filtered = rows.filter(
     (row) =>
       row.role !== "servant" && searchMatches(`${row.name} ${row.group || ""} ${row.servant || ""}`, query),
@@ -5249,6 +5251,12 @@ function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateChec
                         <span className="call-attendance-rate" title="احتياج متابعة حسب الحضور والافتقاد">
                           احتياج متابعة {need}%
                         </span>
+                        <button type="button" className="call-notes-link" onClick={() => setSelectedNotes({
+                          name: row.name,
+                          entries: notes.filter((item) => Number(item.personId) === Number(row.id)),
+                        })}>
+                          ملاحظاتي
+                        </button>
                       </span>
                       <span className="phone-copy-row">
                         <small dir="ltr">رقم 1: {row.phone1 || "بدون رقم"}</small>
@@ -5282,6 +5290,16 @@ function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateChec
         ))}
         {!groups.length && <p className="empty-row">{loading ? "جاري تحميل البيانات" : "لا توجد نتائج"}</p>}
       </div>
+      {selectedNotes && (
+        <div className="call-notes-backdrop" onClick={() => setSelectedNotes(null)}>
+          <section className="call-notes-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <header><h3>ملاحظات {selectedNotes.name}</h3><button type="button" onClick={() => setSelectedNotes(null)}>إغلاق</button></header>
+            {selectedNotes.entries.length ? selectedNotes.entries.map((item) => (
+              <article key={item.id}><small>{dateLabel(item.date)} · {item.servant} · {item.type === "call" ? "اتصال" : "زيارة"}</small><p>{item.note}</p></article>
+            )) : <p>لا توجد ملاحظات مسجلة لهذا الولد.</p>}
+          </section>
+        </div>
+      )}
     </section>
   );
 }
@@ -5296,6 +5314,7 @@ function PeopleTable({
   updateCheck,
   openReport,
   loading,
+  notes = [],
   includeVisitedThisMonth,
   setIncludeVisitedThisMonth,
 }) {
@@ -5310,6 +5329,7 @@ function PeopleTable({
         updateCheck={updateCheck}
         openReport={openReport}
         loading={loading}
+        notes={notes}
       />
     );
   return (
