@@ -9356,7 +9356,7 @@ textarea {
 }
 .learning-material-card.has-background::before {
   position: absolute;
-  z-index: -2;
+  z-index: 0;
   inset: 0;
   background-image: var(--learning-card-image);
   background-position: center;
@@ -9365,10 +9365,14 @@ textarea {
 }
 .learning-material-card.has-background::after {
   position: absolute;
-  z-index: -1;
+  z-index: 1;
   inset: 0;
   background: linear-gradient(145deg, rgba(6, 24, 48, 0.82), rgba(9, 39, 69, 0.56));
   content: "";
+}
+.learning-material-card.has-background > * {
+  position: relative;
+  z-index: 2;
 }
 .learning-material-card.has-background h2,
 .learning-material-card.has-background p {
