@@ -10734,3 +10734,15 @@ textarea {
     overflow-y: auto;
   }
 }
+
+/* Override the older, more specific staff-sidebar pattern rule. */
+.app-shell:not(.dark-mode) .app-sidebar {
+  background: #0b2341 !important;
+  background-image: none !important;
+  color: #f8f5ec;
+}
+.app-shell.dark-mode .app-sidebar {
+  background: #111d2a !important;
+  background-image: none !important;
+  color: #f2f4f6;
+}
