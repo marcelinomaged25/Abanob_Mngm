@@ -10746,3 +10746,16 @@ textarea {
   background-image: none !important;
   color: #f2f4f6;
 }
+
+/* Keep only the footer buttons visible; remove the oversized backing panel. */
+.app-sidebar .sidebar-footer {
+  border-top: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+@media (max-width: 680px) {
+  .app-sidebar .sidebar-footer {
+    margin-top: auto;
+    padding: 10px 0 max(8px, env(safe-area-inset-bottom));
+  }
+}
