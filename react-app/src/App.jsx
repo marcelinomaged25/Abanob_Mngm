@@ -3497,13 +3497,18 @@ function VisitReportsPage({ reports, exportCsv, month, setMonth }) {
       week.details.push(...(detailsMap[item.date] || []));
       weeks.set(key, week);
     });
+    const weekNames = ["الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس"];
     return [...weeks.values()]
       .sort((a, b) => a.start - b.start)
-      .map((week) => {
+      .map((week, index) => {
         const end = new Date(week.start);
         end.setDate(end.getDate() + 6);
         const endKey = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
-        return { ...week, label: `${dateLabel(week.key)} – ${dateLabel(endKey)}` };
+        return {
+          ...week,
+          label: `الأسبوع ${weekNames[index] || index + 1}`,
+          dateRange: `${dateLabel(week.key)} – ${dateLabel(endKey)}`,
+        };
       });
   };
   const chart = (title, icon, daily, monthly, yearly, empty) => {
@@ -3579,6 +3584,7 @@ function VisitReportsPage({ reports, exportCsv, month, setMonth }) {
                     <b>
                       {title} {label}
                     </b>
+                    {period === "week" && <small>{item.dateRange}</small>}
                     {details.length ? (
                       <ul>
                         {details.map((detail) => (
