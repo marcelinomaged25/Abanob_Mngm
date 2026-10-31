@@ -848,6 +848,14 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
     await EnsureGroupSeriesAsync(connection, transaction, Math.Max(1, servants.Length));
     var groups = await LoadGroupNumbersAsync(connection, transaction);
     var existingAssignments = await LoadWeekAssignmentsAsync(connection, transaction, week);
+    // Saving the rotation start is an explicit request to recalculate this week's
+    // rotation. Previously persisted assignments otherwise masked the new offset.
+    if (payload.Redistribute && existingAssignments.Count > 0)
+    {
+        foreach (var groupNumber in existingAssignments.Keys.ToArray())
+            await DeleteWeekAssignmentAsync(connection, transaction, week, groupNumber);
+        existingAssignments.Clear();
+    }
     if (existingAssignments.Count == 0)
     {
         var assignment = Assignments(groups, servants, week, rotationStart);
