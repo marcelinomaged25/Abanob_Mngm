@@ -6700,19 +6700,26 @@ textarea {
   min-height: 38px;
   align-items: center;
   gap: 8px;
-  padding: 8px 13px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--paper);
-  color: var(--ink);
+  padding: 8px 15px;
+  border: 1px solid rgba(201, 157, 60, 0.5);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fffdf7, #f7efd9);
+  color: #17375f;
   font-size: 12px;
   font-weight: 750;
   cursor: pointer;
-  box-shadow: var(--shadow);
+  box-shadow: 0 5px 14px rgba(16, 47, 89, 0.08);
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
 }
 .attendance-comment-toggle:hover {
-  border-color: var(--brand-gold);
-  color: var(--brand-navy);
+  border-color: #c99d3c;
+  background: #f7edcf;
+  box-shadow: 0 7px 18px rgba(16, 47, 89, 0.12);
+  transform: translateY(-1px);
+}
+.attendance-comment-toggle[aria-expanded="true"] {
+  border-color: #c99d3c;
+  background: #f2e4bd;
 }
 .attendance-comment-toggle .expanded {
   transform: rotate(180deg);
@@ -8593,11 +8600,12 @@ textarea {
   }
   .report-bar-chart {
     min-width: 0;
-    min-height: 205px;
+    min-height: 225px;
     gap: 5px;
     padding: 20px 3px 7px;
   }
   .report-bar-column {
+    flex: 1 0 36px;
     flex-basis: 36px;
     min-width: 36px;
     height: 165px;
@@ -8606,6 +8614,23 @@ textarea {
   .report-bar-column span {
     max-width: 58px;
     font-size: 9px;
+  }
+  .report-bar-chart.has-many {
+    min-height: 250px;
+    justify-content: flex-start;
+    scroll-snap-type: x proximity;
+  }
+  .report-bar-chart.has-many .report-bar-column {
+    flex: 0 0 58px;
+    min-width: 58px;
+    height: 188px;
+  }
+  .report-bar-chart.has-many .report-bar-column > span {
+    width: 58px;
+    max-width: 58px;
+    white-space: normal;
+    line-height: 1.3;
+    text-align: center;
   }
   .report-detail-popover {
     width: min(220px, calc(100vw - 56px));

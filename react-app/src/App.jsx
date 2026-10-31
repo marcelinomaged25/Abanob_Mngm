@@ -3516,7 +3516,7 @@ function VisitReportsPage({ reports, exportCsv, month, setMonth }) {
           </div>
           <span className="date-label">{data.reduce((sum, item) => sum + (item.count || 0), 0)} شخص</span>
         </div>
-        <div className="report-bar-chart">
+        <div className={`report-bar-chart ${data.length > 6 ? "has-many" : ""}`}>
           {data.map((item) => {
             const label =
               period === "day" ? dateLabel(item.date) : period === "month" ? item.month : item.year;
