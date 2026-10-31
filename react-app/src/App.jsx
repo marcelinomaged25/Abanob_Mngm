@@ -3483,9 +3483,30 @@ function VisitReportsPage({ reports, exportCsv, month, setMonth }) {
     document.addEventListener("pointerdown", dismiss);
     return () => document.removeEventListener("pointerdown", dismiss);
   }, [selectedDetail]);
+  const weeksFromDaily = (daily = [], detailsMap = {}) => {
+    const weeks = new Map();
+    daily.forEach((item) => {
+      if (!item.date) return;
+      const date = new Date(`${item.date}T12:00:00`);
+      if (Number.isNaN(date.getTime())) return;
+      const weekStart = new Date(date);
+      weekStart.setDate(date.getDate() - ((date.getDay() + 2) % 7));
+      const key = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, "0")}-${String(weekStart.getDate()).padStart(2, "0")}`;
+      const week = weeks.get(key) || { key, start: weekStart, count: 0, details: [] };
+      week.count += Number(item.count) || 0;
+      week.details.push(...(detailsMap[item.date] || []));
+      weeks.set(key, week);
+    });
+    return [...weeks.values()]
+      .sort((a, b) => a.start - b.start)
+      .map((week) => {
+        const end = new Date(week.start);
+        end.setDate(end.getDate() + 6);
+        const endKey = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
+        return { ...week, label: `${dateLabel(week.key)} – ${dateLabel(endKey)}` };
+      });
+  };
   const chart = (title, icon, daily, monthly, yearly, empty) => {
-    const data = period === "day" ? daily || [] : period === "month" ? monthly || [] : yearly || [];
-    const max = Math.max(1, ...data.map((item) => item.count || 0));
     const detailSources =
       title === "الزيارات"
         ? {
@@ -3498,7 +3519,17 @@ function VisitReportsPage({ reports, exportCsv, month, setMonth }) {
             month: reports.callMonthlyDetails || {},
             year: reports.callYearlyDetails || {},
           };
+    const dailyDetails = detailSources.day;
+    const data =
+      period === "day"
+        ? daily || []
+        : period === "week"
+          ? weeksFromDaily(daily, dailyDetails)
+          : period === "month"
+            ? monthly || []
+            : yearly || [];
     const detailsMap = detailSources[period];
+    const max = Math.max(1, ...data.map((item) => item.count || 0));
     return (
       <section className="table-section report-chart-card">
         <div className="section-title-row table-title-row">
@@ -3509,9 +3540,11 @@ function VisitReportsPage({ reports, exportCsv, month, setMonth }) {
             <h2>
               {period === "day"
                 ? `أيام شهر ${reports.month}`
-                : period === "month"
-                  ? `شهور سنة ${reports.year}`
-                  : "السنوات"}
+                : period === "week"
+                  ? `أسابيع شهر ${reports.month}`
+                  : period === "month"
+                    ? `شهور سنة ${reports.year}`
+                    : "السنوات"}
             </h2>
           </div>
           <span className="date-label">{data.reduce((sum, item) => sum + (item.count || 0), 0)} شخص</span>
@@ -3519,9 +3552,15 @@ function VisitReportsPage({ reports, exportCsv, month, setMonth }) {
         <div className={`report-bar-chart ${data.length > 6 ? "has-many" : ""}`}>
           {data.map((item) => {
             const label =
-              period === "day" ? dateLabel(item.date) : period === "month" ? item.month : item.year;
-            const detailKey = period === "day" ? item.date : String(label);
-            const details = detailsMap[detailKey] || [];
+              period === "week"
+                ? item.label
+                : period === "day"
+                  ? dateLabel(item.date)
+                  : period === "month"
+                    ? item.month
+                    : item.year;
+            const detailKey = period === "week" ? item.key : period === "day" ? item.date : String(label);
+            const details = period === "week" ? item.details : detailsMap[detailKey] || [];
             const selected = selectedDetail?.title === title && selectedDetail.key === detailKey;
             return (
               <div
@@ -3578,6 +3617,9 @@ function VisitReportsPage({ reports, exportCsv, month, setMonth }) {
           <div className="report-period-switch">
             <button className={period === "day" ? "active" : ""} onClick={() => setPeriod("day")}>
               يومي
+            </button>
+            <button className={period === "week" ? "active" : ""} onClick={() => setPeriod("week")}>
+              أسبوعي
             </button>
             <button className={period === "month" ? "active" : ""} onClick={() => setPeriod("month")}>
               شهري
