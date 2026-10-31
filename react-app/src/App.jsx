@@ -4865,54 +4865,52 @@ function AttendanceCommentPanel({ rows, checks, date, type, save, remove, busy }
   const presentRows = rows.filter((row) => checks[String(row.recordKey)]);
   const [personKey, setPersonKey] = useState("");
   const [text, setText] = useState("");
+  const [open, setOpen] = useState(false);
+  const person = presentRows.find((row) => String(row.recordKey) === personKey);
+  const phone = phoneHref(person?.phone1 || person?.phone2).replace(/\D/g, "");
+  const whatsappUrl = phone
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(text.trim())}`
+    : "";
   return (
-    <section className="attendance-comment-panel">
-      <div>
-        <p className="section-kicker">تعليق على الحضور</p>
-        <strong>أضف تعليقًا لولد في هذا اليوم</strong>
-        <small>
-          {dateLabel(date)} · {type === "choir" ? "حضور الخورس" : "حضور القداس"}
-        </small>
-      </div>
-      <select value={personKey} onChange={(event) => setPersonKey(event.target.value)}>
-        <option value="">اختر اسم الولد</option>
-        {presentRows.map((row) => (
-          <option key={row.recordKey} value={row.recordKey}>
-            {row.name}
-          </option>
-        ))}
-      </select>
-      <textarea
-        rows="2"
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-        placeholder="اكتب التعليق هنا"
-      />
-      <div className="form-actions">
-        <button
-          type="button"
-          className="primary-button"
-          disabled={!personKey || !text.trim() || busy}
-          onClick={async () => {
-            await save(personKey, text);
-            setText("");
-          }}
-        >
-          إرسال التعليق
-        </button>
-        <button
-          type="button"
-          className="cancel-button"
-          disabled={!personKey || busy}
-          onClick={async () => {
-            await remove(personKey);
-            setText("");
-          }}
-        >
-          مسح التعليق
-        </button>
-      </div>
-    </section>
+    <div className="attendance-comment-wrap">
+      <button
+        type="button"
+        className="attendance-comment-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <MessageCircle size={16} /> تعليق الحضور
+        <ChevronDown size={15} className={open ? "expanded" : ""} />
+      </button>
+      {open && (
+        <section className="attendance-comment-panel">
+          <div>
+            <p className="section-kicker">تعليق على الحضور</p>
+            <strong>أضف تعليقًا لولد في هذا اليوم</strong>
+            <small>{dateLabel(date)} · {type === "choir" ? "حضور الخورس" : "حضور القداس"}</small>
+          </div>
+          <select value={personKey} onChange={(event) => setPersonKey(event.target.value)}>
+            <option value="">اختر اسم الولد</option>
+            {presentRows.map((row) => (
+              <option key={row.recordKey} value={row.recordKey}>{row.name}</option>
+            ))}
+          </select>
+          <textarea rows="2" value={text} onChange={(event) => setText(event.target.value)} placeholder="اكتب التعليق هنا" />
+          <div className="form-actions">
+            <button type="button" className="primary-button" disabled={!personKey || !text.trim() || busy} onClick={async () => { await save(personKey, text); setText(""); }}>
+              إرسال التعليق
+            </button>
+            <button type="button" className="attendance-whatsapp-button" aria-disabled={!whatsappUrl} onClick={() => whatsappUrl && window.open(whatsappUrl, "_blank", "noopener,noreferrer")}>
+              <MessageCircle size={15} /> واتساب
+            </button>
+            <button type="button" className="cancel-button" disabled={!personKey || busy} onClick={async () => { await remove(personKey); setText(""); }}>
+              مسح التعليق
+            </button>
+          </div>
+          {person && !phone && <small className="attendance-whatsapp-hint">لا يوجد رقم هاتف مسجل لهذا الاسم.</small>}
+        </section>
+      )}
+    </div>
   );
 }
 
