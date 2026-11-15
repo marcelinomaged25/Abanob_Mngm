@@ -602,14 +602,14 @@ api.MapGet("/analytics", async (NpgsqlDataSource db) =>
 
     var groups = new List<object>();
     await using (var command = new NpgsqlCommand(@"
-        with sessions as (select greatest(1,count(distinct attendance_date)) value from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy'), rows as (
-          select coalesce(p.group_number,'غير محدد') group_name,count(*) boys,
-                 count(distinct a.attendance_date) filter(where a.attendance_type='choir') choir,
-                 count(distinct a.attendance_date) filter(where a.attendance_type='mass') mass,
-                 count(distinct v.person_id)+count(distinct c.person_id) followup
-          from people p left join attendance_records a on a.person_id=p.id left join visit_records v on v.person_id=p.id left join call_records c on c.person_id=p.id
-          where p.is_active=true and p.role='boy' group by 1
-        ) select group_name,boys,round(choir*100.0/nullif(boys*(select value from sessions),0)),round(mass*100.0/nullif(boys*(select value from sessions),0)),round(followup*100.0/nullif(boys*2,0)) from rows order by group_name", connection))
+        with sessions as (select greatest(1,count(distinct attendance_date)) value from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy'),
+        attendance as (select person_id,count(distinct attendance_date) filter(where attendance_type='choir') choir,count(distinct attendance_date) filter(where attendance_type='mass') mass from attendance_records group by person_id),
+        visits as (select person_id,count(*) followup from visit_records group by person_id),
+        calls as (select person_id,count(*) followup from call_records group by person_id),
+        rows as (select coalesce(p.group_number,'غير محدد') group_name,count(*) boys,coalesce(sum(a.choir),0) choir,coalesce(sum(a.mass),0) mass,coalesce(sum(v.followup),0)+coalesce(sum(c.followup),0) followup
+          from people p left join attendance a on a.person_id=p.id left join visits v on v.person_id=p.id left join calls c on c.person_id=p.id
+          where p.is_active=true and p.role='boy' group by 1)
+        select group_name,boys,round(choir*100.0/nullif(boys*(select value from sessions),0)),round(mass*100.0/nullif(boys*(select value from sessions),0)),round(followup*100.0/nullif(boys*2,0)) from rows order by group_name", connection))
     await using (var reader = await command.ExecuteReaderAsync())
         while (await reader.ReadAsync()) groups.Add(new { group = reader.GetString(0), boys = reader.GetInt64(1), choirRate = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2), massRate = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3), followUpRate = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4) });
 
@@ -623,13 +623,13 @@ api.MapGet("/analytics", async (NpgsqlDataSource db) =>
 
     var needsAttention = new List<object>();
     await using (var command = new NpgsqlCommand(@"
-        with sessions as (select greatest(1,count(distinct attendance_date)) value from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy')
-        select p.record_key,p.name,coalesce(p.group_number,''),
-               round(count(distinct a.attendance_date) filter(where a.attendance_type='choir')*100.0/(select value from sessions)),
-               round(count(distinct a.attendance_date) filter(where a.attendance_type='mass')*100.0/(select value from sessions)),
-               round((case when count(distinct v.person_id)>0 then 1 else 0 end + case when count(distinct c.person_id)>0 then 1 else 0 end)*50.0)
-        from people p left join attendance_records a on a.person_id=p.id left join visit_records v on v.person_id=p.id left join call_records c on c.person_id=p.id
-        where p.is_active=true and p.role='boy' group by p.id order by (count(distinct a.attendance_date) filter(where a.attendance_type='choir') + count(distinct a.attendance_date) filter(where a.attendance_type='mass') + count(distinct v.person_id) + count(distinct c.person_id)),p.name limit 12", connection))
+        with sessions as (select greatest(1,count(distinct attendance_date)) value from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy'),
+        attendance as (select person_id,count(distinct attendance_date) filter(where attendance_type='choir') choir,count(distinct attendance_date) filter(where attendance_type='mass') mass from attendance_records group by person_id),
+        visits as (select person_id,count(*) visits from visit_records group by person_id),
+        calls as (select person_id,count(*) calls from call_records group by person_id)
+        select p.record_key,p.name,coalesce(p.group_number,''),round(coalesce(a.choir,0)*100.0/(select value from sessions)),round(coalesce(a.mass,0)*100.0/(select value from sessions)),round((case when coalesce(v.visits,0)>0 then 1 else 0 end + case when coalesce(c.calls,0)>0 then 1 else 0 end)*50.0)
+        from people p left join attendance a on a.person_id=p.id left join visits v on v.person_id=p.id left join calls c on c.person_id=p.id
+        where p.is_active=true and p.role='boy' order by (coalesce(a.choir,0)+coalesce(a.mass,0)+coalesce(v.visits,0)+coalesce(c.calls,0)),p.name limit 12", connection))
     await using (var reader = await command.ExecuteReaderAsync())
         while (await reader.ReadAsync()) needsAttention.Add(new { recordKey = reader.GetInt32(0), name = reader.GetString(1), group = reader.GetString(2), choirRate = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3), massRate = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4), followUpRate = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5) });
 
