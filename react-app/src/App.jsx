@@ -290,7 +290,7 @@ export default function App() {
 
   const request = useCallback(
     async (path, options = {}, auth = password, user = username) => {
-      const response = await fetch(`${apiUrl}${path}`, {
+      const requestOptions = {
         ...options,
         headers: {
           ...(options.body ? { "Content-Type": "application/json" } : {}),
@@ -298,7 +298,20 @@ export default function App() {
           ...(user || "admin" ? { "X-App-Username": user || "admin" } : {}),
           ...options.headers,
         },
-      });
+      };
+      let response;
+      let lastNetworkError;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          response = await fetch(`${apiUrl}${path}`, requestOptions);
+          break;
+        } catch (fetchError) {
+          lastNetworkError = fetchError;
+          if (attempt === 2) throw fetchError;
+          await new Promise((resolve) => window.setTimeout(resolve, 700 * (attempt + 1)));
+        }
+      }
+      if (!response) throw lastNetworkError || new Error("تعذر الاتصال بالخادم");
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
         const message =
