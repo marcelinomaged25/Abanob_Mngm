@@ -165,6 +165,14 @@ function PersonAvatar({ person, name, size = "small" }) {
   const label = name || person?.name || "";
   const [open, setOpen] = useState(false);
   const photoUrl = person?.photoUrl;
+  useEffect(() => {
+    if (!open) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
   return (
     <>
       <button
