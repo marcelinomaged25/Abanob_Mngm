@@ -3287,7 +3287,7 @@ function PublicAttendancePage({ token }) {
     sessionStorage.setItem("parent-notification-child-token", token);
   }, [token]);
   useEffect(() => {
-    fetch(`${apiUrl}/api/public/qr/${encodeURIComponent(token)}`)
+    fetch(`${apiUrl}/api/public/qr/${encodeURIComponent(token)}`, { cache: "no-store" })
       .then(async (response) => {
         const body = await response.json().catch(() => ({}));
         if (!response.ok) {
