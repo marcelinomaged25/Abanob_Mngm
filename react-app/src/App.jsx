@@ -6188,7 +6188,7 @@ function ReportModal({ report, close }) {
           <X size={18} />
         </button>
         <p className="section-kicker">التقرير التفصيلي للمخدوم</p>
-        <h2>{report.person.name}</h2>
+        <h2 className="report-person-heading"><PersonAvatar person={report.person} name={report.person.name} size="large" />{report.person.name}</h2>
         <div className="report-meta">
           الجروب {report.person.group || "غير مرتبط"} · {report.person.phone1 || "بدون رقم"}
         </div>
