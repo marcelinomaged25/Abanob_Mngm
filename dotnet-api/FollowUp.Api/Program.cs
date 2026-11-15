@@ -586,7 +586,7 @@ api.MapGet("/analytics", async (NpgsqlDataSource db) =>
     var choirAttendance = await Scalar("select count(*) from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy' and a.attendance_type='choir'");
     var massAttendance = await Scalar("select count(*) from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy' and a.attendance_type='mass'");
     var visits = await Scalar("select count(*) from visit_records v join people p on p.id=v.person_id where p.is_active=true and p.role='boy'");
-    var calls = await Scalar("select count(*) from call_records c join people p on p.id=c.person_id where p.is_active=true and p.role='boy'");
+    var calls = await Scalar("select count(*) from call_records");
     var sessionCount = await Scalar("select count(distinct attendance_date) from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy'");
     var expectedAttendance = Math.Max(1, boys * sessionCount);
 
@@ -595,7 +595,7 @@ api.MapGet("/analytics", async (NpgsqlDataSource db) =>
         select month,to_char(month,'YYYY-MM'),sum(choir),sum(mass),sum(visits),sum(calls) from (
           select date_trunc('month',a.attendance_date)::date month,count(*) filter(where a.attendance_type='choir') choir,count(*) filter(where a.attendance_type='mass') mass,0 visits,0 calls from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy' group by 1
           union all select date_trunc('month',v.visit_date)::date,0,0,count(*),0 from visit_records v join people p on p.id=v.person_id where p.is_active=true and p.role='boy' group by 1
-          union all select date_trunc('month',c.week_start)::date,0,0,0,count(*) from call_records c join people p on p.id=c.person_id where p.is_active=true and p.role='boy' group by 1
+          union all select date_trunc('month',c.week_start)::date,0,0,0,count(*) from call_records c group by 1
         ) activity group by month order by month", connection))
     await using (var reader = await command.ExecuteReaderAsync())
         while (await reader.ReadAsync()) monthly.Add(new { month = reader.GetString(1), choir = reader.GetInt64(2), mass = reader.GetInt64(3), visits = reader.GetInt64(4), calls = reader.GetInt64(5) });
