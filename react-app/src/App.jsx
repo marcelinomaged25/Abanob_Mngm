@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Church,
   Copy,
+  Download,
   ExternalLink,
   Home,
   Languages,
@@ -100,6 +101,19 @@ const learningImageUrl = (value) => {
   }
   return source;
 };
+const bookDownloadUrl = (value) => {
+  const source = String(value || "").trim();
+  try {
+    const url = new URL(source);
+    if (url.hostname === "drive.google.com") {
+      const fileId = url.pathname.match(/\/file\/d\/([^/]+)/)?.[1] || url.searchParams.get("id");
+      if (fileId) return `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`;
+    }
+  } catch {
+    /* The standard resource link remains the fallback. */
+  }
+  return source;
+};
 const normalizeArabic = (value) => String(value || "").replace(/[إأآ]/g, "ا");
 const normalizeSearchText = (value) =>
   normalizeArabic(value)
@@ -127,6 +141,13 @@ const emptyVisitReports = {
   monthly: [],
   yearly: [],
   totals: { daily: 0, monthly: 0, yearly: 0 },
+};
+const emptyServiceAnalytics = {
+  summary: {},
+  monthly: [],
+  groups: [],
+  servants: [],
+  needsAttention: [],
 };
 const defaultWhatsAppTemplate = "أهلاً {{name}}، بنطمن عليك. يا رب تكون بخير.";
 const emptyPerson = { name: "", group: "", phone1: "", phone2: "", address: "", note: "", role: "boy" };
@@ -226,6 +247,7 @@ export default function App() {
   const [books, setBooks] = useState([]);
   const [massSchedules, setMassSchedules] = useState([]);
   const [visitReports, setVisitReports] = useState(emptyVisitReports);
+  const [serviceAnalytics, setServiceAnalytics] = useState(emptyServiceAnalytics);
   const [followUpNotes, setFollowUpNotes] = useState([]);
   const [followUpRequests, setFollowUpRequests] = useState([]);
   const [notificationItems, setNotificationItems] = useState([]);
@@ -332,6 +354,10 @@ export default function App() {
           setVisitReports(
             await request(`/api/visit-reports?year=${selectedYear}&month=${selectedMonth}`, {}, auth),
           );
+          return;
+        }
+        if (nextMode === "analytics") {
+          setServiceAnalytics(await request("/api/analytics", {}, auth));
           return;
         }
         if (nextMode === "notes") {
@@ -565,7 +591,7 @@ export default function App() {
     if (nextMode === "notifications" || nextMode === "evaluation" || nextMode === "content-admin") return;
     if (nextMode === "attendance") load(nextMode, attendanceDate);
     else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate);
-    else if (nextMode === "reports" || nextMode === "learning-admin" || nextMode === "books-admin" || nextMode === "mass-admin")
+    else if (nextMode === "reports" || nextMode === "analytics" || nextMode === "learning-admin" || nextMode === "books-admin" || nextMode === "mass-admin")
       load(nextMode);
     else if (nextMode === "qr") {
       /* scanner saves attendance incrementally */
@@ -639,7 +665,7 @@ export default function App() {
   async function exportCsv() {
     try {
       const response = await fetch(`${apiUrl}/api/export/visits`, {
-        headers: { "X-App-Password": password },
+        headers: { "X-App-Password": password, "X-App-Username": username },
       });
       if (!response.ok) throw new Error("تعذر تصدير التقرير");
       const blob = await response.blob();
@@ -652,6 +678,25 @@ export default function App() {
       setNotice("تم تصدير التقرير");
     } catch (exportError) {
       setError(exportError.message);
+    }
+  }
+
+  async function exportFullReports() {
+    try {
+      const response = await fetch(`${apiUrl}/api/export/full-reports`, {
+        headers: { "X-App-Password": password, "X-App-Username": username },
+      });
+      if (!response.ok) throw new Error("تعذر تجهيز التقرير الكامل");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `choir-full-reports-${today()}.zip`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setNotice("تم تنزيل التقرير الكامل");
+    } catch (exportError) {
+      setError(exportError.message || "تعذر تنزيل التقرير الكامل");
     }
   }
 
@@ -843,7 +888,7 @@ export default function App() {
 
   const navItem = (nextMode, icon, label) => (
     <button
-      className={`sidebar-item ${mode === nextMode || (nextMode === "content-admin" && ["learning-admin", "mass-admin"].includes(mode)) ? "active" : ""}`}
+      className={`sidebar-item ${mode === nextMode || (nextMode === "content-admin" && ["learning-admin", "books-admin", "mass-admin"].includes(mode)) ? "active" : ""}`}
       onClick={() => {
         setMobileNavOpen(false);
         switchMode(nextMode);
@@ -888,6 +933,7 @@ export default function App() {
           {navItem("home", <LayoutDashboard size={17} />, "نظرة عامة")}
           {navItem("attendance", <UserCheck size={17} />, "الحضور والغياب")}
           {navItem("visit", <Home size={17} />, "الافتقاد")}
+          {navItem("analytics", <BarChart3 size={17} />, "تحليلات الخدمة")}
           {navItem("stray", <img className="sheep-icon" src="/sheep-icon.svg" alt="" />, "الخروف الضال")}
           {navItem("history", <Users size={17} />, "أفراد الخورس")}
           {navItem("people", <Pencil size={17} />, "إدارة الخورس")}
@@ -1208,6 +1254,7 @@ export default function App() {
             }}
           />
         )}
+        {mode === "analytics" && <ServiceAnalyticsPage analytics={serviceAnalytics} exportFull={exportFullReports} />}
         {mode === "notes" && (
           <FollowUpNotesPage
             notes={followUpNotes}
@@ -1731,7 +1778,7 @@ function PublicBooksPage() {
         ) : (
           <section className="books-public-grid" aria-label="كتب الخورس">
             {items.map((item) => (
-              <a className="book-public-card" href={item.url} key={item.id} target="_blank" rel="noreferrer">
+              <article className="book-public-card" key={item.id}>
                 <div className="book-cover-wrap">
                   {item.coverUrl ? (
                     <img src={learningImageUrl(item.coverUrl)} alt={`غلاف ${item.title}`} />
@@ -1742,11 +1789,16 @@ function PublicBooksPage() {
                 <div className="book-public-card-content">
                   <h2>{item.title}</h2>
                   {item.description && <p>{item.description}</p>}
-                  <span>
-                    فتح الكتاب <ExternalLink size={15} />
-                  </span>
+                  <div className="book-public-actions">
+                    <a href={item.url} target="_blank" rel="noreferrer">
+                      فتح الكتاب <ExternalLink size={15} />
+                    </a>
+                    <a href={bookDownloadUrl(item.url)} download>
+                      تحميل <Download size={15} />
+                    </a>
+                  </div>
                 </div>
-              </a>
+              </article>
             ))}
           </section>
         )}
@@ -3732,6 +3784,146 @@ function NotificationsPage({ notifications, readMap, onOpen, onMarkAllRead, onCl
       </div>
     </section>
   );
+}
+
+function ServiceAnalyticsPage({ analytics, exportFull }) {
+  const summary = analytics.summary || {};
+  const monthly = analytics.monthly || [];
+  const maxMonthly = Math.max(
+    1,
+    ...monthly.flatMap((item) => [item.choir || 0, item.mass || 0, item.visits || 0, item.calls || 0]),
+  );
+  const monthName = (month) =>
+    new Intl.DateTimeFormat("ar-EG", { month: "short", year: "numeric" }).format(new Date(`${month}-01T12:00:00`));
+  return (
+    <section className="service-analytics-page">
+      <section className="analytics-hero">
+        <div>
+          <p className="section-kicker">لوحة تحليل الخدمة</p>
+          <h1>صورة شاملة للخدمة</h1>
+          <p>
+            البيانات من {summary.startedAt ? dateLabel(summary.startedAt) : "بداية التسجيل"} حتى {dateLabel(today())}.
+          </p>
+        </div>
+        <button className="primary-button analytics-export-button" type="button" onClick={exportFull}>
+          <Download size={17} /> تنزيل كل التقارير
+        </button>
+      </section>
+      <section className="analytics-kpi-grid">
+        <AnalyticsMetric label="الأولاد المسجلون" value={summary.boys || 0} note="أفراد الخورس النشطون" tone="blue" />
+        <AnalyticsMetric label="الخدام" value={summary.servants || 0} note="الخدام النشطون" tone="gold" />
+        <AnalyticsMetric label="حضور الخورس" value={`${summary.choirRate || 0}%`} note={`${summary.choirAttendance || 0} حضور مسجل`} tone="green" />
+        <AnalyticsMetric label="حضور القداس" value={`${summary.massRate || 0}%`} note={`${summary.massAttendance || 0} حضور مسجل`} tone="violet" />
+        <AnalyticsMetric label="الزيارات" value={summary.visits || 0} note="من بداية الخدمة" tone="teal" />
+        <AnalyticsMetric label="الاتصالات" value={summary.calls || 0} note="من بداية الخدمة" tone="amber" />
+      </section>
+      <section className="table-section analytics-trend-card">
+        <div className="section-title-row">
+          <div>
+            <p className="section-kicker">اتجاه النشاط</p>
+            <h2>الحضور والافتقاد حسب الشهر</h2>
+          </div>
+          <div className="analytics-legend">
+            <span className="choir">خورس</span>
+            <span className="mass">قداس</span>
+            <span className="visits">زيارة</span>
+            <span className="calls">اتصال</span>
+          </div>
+        </div>
+        {monthly.length ? (
+          <div className={`analytics-month-bars ${monthly.length > 6 ? "has-many" : ""}`}>
+            {monthly.map((item) => (
+              <div className="analytics-month-column" key={item.month}>
+                <div className="analytics-bars">
+                  {[
+                    ["choir", item.choir],
+                    ["mass", item.mass],
+                    ["visits", item.visits],
+                    ["calls", item.calls],
+                  ].map(([kind, value]) => (
+                    <i
+                      className={kind}
+                      key={kind}
+                      title={`${kind}: ${value}`}
+                      style={{ height: `${Math.max(5, ((Number(value) || 0) * 100) / maxMonthly)}%` }}
+                    />
+                  ))}
+                </div>
+                <strong>{monthName(item.month)}</strong>
+                <small>{(item.choir || 0) + (item.mass || 0) + (item.visits || 0) + (item.calls || 0)} حركة</small>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="learning-empty">لا توجد سجلات كافية لعرض الاتجاه بعد.</p>
+        )}
+      </section>
+      <section className="analytics-detail-grid">
+        <section className="table-section analytics-table-card">
+          <div className="section-title-row">
+            <div>
+              <p className="section-kicker">المجموعات</p>
+              <h2>الحضور والافتقاد حسب المجموعة</h2>
+            </div>
+          </div>
+          <div className="table-scroll-wrap">
+            <table className="analytics-table">
+              <thead><tr><th>المجموعة</th><th>الأولاد</th><th>خورس</th><th>قداس</th><th>افتقاد</th></tr></thead>
+              <tbody>
+                {(analytics.groups || []).map((item) => (
+                  <tr key={item.group}>
+                    <td>{item.group}</td><td>{item.boys}</td><td>{item.choirRate}%</td><td>{item.massRate}%</td><td>{item.followUpRate}%</td>
+                  </tr>
+                ))}
+                {!analytics.groups?.length && <tr><td colSpan="5">لا توجد مجموعات مسجلة.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section className="table-section analytics-table-card">
+          <div className="section-title-row">
+            <div>
+              <p className="section-kicker">الخدام</p>
+              <h2>نشاط الخدام</h2>
+            </div>
+          </div>
+          <div className="table-scroll-wrap">
+            <table className="analytics-table">
+              <thead><tr><th>الخادم</th><th>اتصالات</th><th>خورس</th><th>قداس</th></tr></thead>
+              <tbody>
+                {(analytics.servants || []).map((item) => (
+                  <tr key={item.name}><td>{item.name}</td><td>{item.calls}</td><td>{item.choir}</td><td>{item.mass}</td></tr>
+                ))}
+                {!analytics.servants?.length && <tr><td colSpan="4">لا توجد بيانات خدام بعد.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+      <section className="table-section analytics-needs-card">
+        <div className="section-title-row">
+          <div>
+            <p className="section-kicker">أولوية المتابعة</p>
+            <h2>أولاد يحتاجون اهتمامًا أكثر</h2>
+            <p>مرتبة حسب انخفاض الحضور والافتقاد المسجلين.</p>
+          </div>
+        </div>
+        <div className="analytics-needs-list">
+          {(analytics.needsAttention || []).map((person) => (
+            <article key={person.recordKey}>
+              <div><strong>{person.name}</strong><small>مجموعة {person.group || "—"}</small></div>
+              <span>خورس {person.choirRate}%</span><span>قداس {person.massRate}%</span><span>افتقاد {person.followUpRate}%</span>
+            </article>
+          ))}
+          {!analytics.needsAttention?.length && <p className="learning-empty">لا توجد بيانات كافية لتحديد الأولوية.</p>}
+        </div>
+      </section>
+    </section>
+  );
+}
+
+function AnalyticsMetric({ label, value, note, tone }) {
+  return <article className={`analytics-metric ${tone}`}><span>{label}</span><strong>{value}</strong><small>{note}</small></article>;
 }
 
 function VisitReportsPage({ reports, exportCsv, month, setMonth }) {

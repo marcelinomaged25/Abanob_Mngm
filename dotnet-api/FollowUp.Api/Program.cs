@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.IO.Compression;
 using Npgsql;
 using static ApiHelpers;
 
@@ -429,6 +430,129 @@ api.MapGet("/export/visits", async (NpgsqlDataSource db) =>
     var csv = new StringBuilder("التاريخ,رقم السجل,الاسم,الهاتف,العنوان\n");
     while (await reader.ReadAsync()) csv.Append(string.Join(',', CsvCell(reader.GetString(0)), reader.GetInt32(1), CsvCell(reader.GetString(2)), CsvCell(reader.GetString(3)), CsvCell(reader.GetString(4)))).Append('\n');
     return Results.Text(csv.ToString(), "text/csv; charset=utf-8");
+});
+
+api.MapGet("/export/full-reports", async (NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var memory = new MemoryStream();
+    using (var archive = new ZipArchive(memory, ZipArchiveMode.Create, leaveOpen: true))
+    {
+        async Task AddCsv(string fileName, string header, string sql)
+        {
+            var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
+            await using var stream = entry.Open();
+            await using var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+            await writer.WriteLineAsync(header);
+            await using var command = new NpgsqlCommand(sql, connection);
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var values = Enumerable.Range(0, reader.FieldCount)
+                    .Select(index => CsvCell(reader.IsDBNull(index) ? "" : reader.GetValue(index).ToString() ?? ""));
+                await writer.WriteLineAsync(string.Join(',', values));
+            }
+        }
+
+        await AddCsv("01-ملخص-الخدمة.csv", "البند,القيمة", @"
+            select 'الأولاد النشطون',count(*)::text from people where is_active=true and role='boy'
+            union all select 'الخدام النشطون',count(*)::text from people where is_active=true and role='servant'
+            union all select 'حضور الخورس',count(*)::text from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy' and a.attendance_type='choir'
+            union all select 'حضور القداس',count(*)::text from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy' and a.attendance_type='mass'
+            union all select 'الزيارات',count(*)::text from visit_records v join people p on p.id=v.person_id where p.is_active=true and p.role='boy'
+            union all select 'الاتصالات',count(*)::text from call_records c join people p on p.id=c.person_id where p.is_active=true and p.role='boy'");
+        await AddCsv("02-الأولاد.csv", "رقم السجل,الاسم,المجموعة,الهاتف 1,الهاتف 2,العنوان,حضور الخورس,حضور القداس,الزيارات,الاتصالات", @"
+            select p.record_key,p.name,coalesce(p.group_number,''),p.phone1,p.phone2,p.address,
+                   count(distinct a.attendance_date) filter(where a.attendance_type='choir'),count(distinct a.attendance_date) filter(where a.attendance_type='mass'),
+                   count(distinct v.visit_date),count(distinct (c.person_id,c.week_start))
+            from people p left join attendance_records a on a.person_id=p.id left join visit_records v on v.person_id=p.id left join call_records c on c.person_id=p.id
+            where p.is_active=true and p.role='boy' group by p.id order by p.record_key");
+        await AddCsv("03-الخدام.csv", "الاسم,الهاتف 1,الهاتف 2,حضور الخورس,حضور القداس,الأولاد الذين تم الاتصال بهم", @"
+            select p.name,p.phone1,p.phone2,
+                   count(distinct a.attendance_date) filter(where a.attendance_type='choir'),count(distinct a.attendance_date) filter(where a.attendance_type='mass'),
+                   count(distinct c.person_id)
+            from people p left join attendance_records a on a.person_id=p.id left join call_records c on regexp_replace(translate(c.servant,'إأآ','ااا'),'\\s+','','g')=regexp_replace(translate(p.name,'إأآ','ااا'),'\\s+','','g')
+            where p.is_active=true and p.role='servant' group by p.id order by p.name");
+        await AddCsv("04-الحضور.csv", "التاريخ,النوع,رقم السجل,الاسم,المجموعة", @"
+            select a.attendance_date::text,case when a.attendance_type='choir' then 'خورس' else 'قداس' end,p.record_key,p.name,coalesce(p.group_number,'')
+            from attendance_records a join people p on p.id=a.person_id where p.is_active=true order by a.attendance_date desc,p.record_key");
+        await AddCsv("05-الزيارات.csv", "تاريخ الزيارة,رقم السجل,الاسم,المجموعة,الهاتف,العنوان", @"
+            select v.visit_date::text,p.record_key,p.name,coalesce(p.group_number,''),p.phone1,p.address
+            from visit_records v join people p on p.id=v.person_id where p.is_active=true order by v.visit_date desc,p.record_key");
+        await AddCsv("06-الاتصالات.csv", "أسبوع الاتصال,تاريخ التسجيل,رقم السجل,الاسم,المجموعة,الخادم", @"
+            select c.week_start::text,(c.recorded_at at time zone 'Africa/Cairo')::date::text,p.record_key,p.name,coalesce(p.group_number,''),c.servant
+            from call_records c join people p on p.id=c.person_id where p.is_active=true order by c.week_start desc,p.record_key");
+        await AddCsv("07-التقييمات.csv", "تاريخ التقييم,رقم السجل,الاسم,المجموعة,الدرجات", @"
+            select e.attendance_date::text,p.record_key,p.name,coalesce(p.group_number,''),e.points
+            from choir_evaluations e join people p on p.id=e.person_id where p.is_active=true order by e.attendance_date desc,p.record_key");
+    }
+    return Results.File(memory.ToArray(), "application/zip", $"choir-full-reports-{CairoToday():yyyy-MM-dd}.zip");
+});
+
+api.MapGet("/analytics", async (NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    async Task<long> Scalar(string sql)
+    {
+        await using var command = new NpgsqlCommand(sql, connection);
+        return Convert.ToInt64(await command.ExecuteScalarAsync());
+    }
+    string startedAt;
+    await using (var startCommand = new NpgsqlCommand("select coalesce(min(event_date),current_date)::text from (select min(attendance_date) event_date from attendance_records union all select min(visit_date) from visit_records union all select min(week_start) from call_records) dates", connection))
+        startedAt = (string)(await startCommand.ExecuteScalarAsync())!;
+    var boys = await Scalar("select count(*) from people where is_active=true and role='boy'");
+    var servants = await Scalar("select count(*) from people where is_active=true and role='servant'");
+    var choirAttendance = await Scalar("select count(*) from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy' and a.attendance_type='choir'");
+    var massAttendance = await Scalar("select count(*) from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy' and a.attendance_type='mass'");
+    var visits = await Scalar("select count(*) from visit_records v join people p on p.id=v.person_id where p.is_active=true and p.role='boy'");
+    var calls = await Scalar("select count(*) from call_records c join people p on p.id=c.person_id where p.is_active=true and p.role='boy'");
+    var sessionCount = await Scalar("select count(distinct attendance_date) from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy'");
+    var expectedAttendance = Math.Max(1, boys * sessionCount);
+
+    var monthly = new List<object>();
+    await using (var command = new NpgsqlCommand(@"
+        select month,to_char(month,'YYYY-MM'),sum(choir),sum(mass),sum(visits),sum(calls) from (
+          select date_trunc('month',a.attendance_date)::date month,count(*) filter(where a.attendance_type='choir') choir,count(*) filter(where a.attendance_type='mass') mass,0 visits,0 calls from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy' group by 1
+          union all select date_trunc('month',v.visit_date)::date,0,0,count(*),0 from visit_records v join people p on p.id=v.person_id where p.is_active=true and p.role='boy' group by 1
+          union all select date_trunc('month',c.week_start)::date,0,0,0,count(*) from call_records c join people p on p.id=c.person_id where p.is_active=true and p.role='boy' group by 1
+        ) activity group by month order by month", connection))
+    await using (var reader = await command.ExecuteReaderAsync())
+        while (await reader.ReadAsync()) monthly.Add(new { month = reader.GetString(1), choir = reader.GetInt64(2), mass = reader.GetInt64(3), visits = reader.GetInt64(4), calls = reader.GetInt64(5) });
+
+    var groups = new List<object>();
+    await using (var command = new NpgsqlCommand(@"
+        with sessions as (select greatest(1,count(distinct attendance_date)) value from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy'), rows as (
+          select coalesce(p.group_number,'غير محدد') group_name,count(*) boys,
+                 count(distinct a.attendance_date) filter(where a.attendance_type='choir') choir,
+                 count(distinct a.attendance_date) filter(where a.attendance_type='mass') mass,
+                 count(distinct v.person_id)+count(distinct c.person_id) followup
+          from people p left join attendance_records a on a.person_id=p.id left join visit_records v on v.person_id=p.id left join call_records c on c.person_id=p.id
+          where p.is_active=true and p.role='boy' group by 1
+        ) select group_name,boys,round(choir*100.0/nullif(boys*(select value from sessions),0)),round(mass*100.0/nullif(boys*(select value from sessions),0)),round(followup*100.0/nullif(boys*2,0)) from rows order by group_name", connection))
+    await using (var reader = await command.ExecuteReaderAsync())
+        while (await reader.ReadAsync()) groups.Add(new { group = reader.GetString(0), boys = reader.GetInt64(1), choirRate = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2), massRate = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3), followUpRate = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4) });
+
+    var servantRows = new List<object>();
+    await using (var command = new NpgsqlCommand(@"
+        select p.name,count(distinct c.person_id),count(distinct a.attendance_date) filter(where a.attendance_type='choir'),count(distinct a.attendance_date) filter(where a.attendance_type='mass')
+        from people p left join attendance_records a on a.person_id=p.id left join call_records c on regexp_replace(translate(c.servant,'إأآ','ااا'),'\\s+','','g')=regexp_replace(translate(p.name,'إأآ','ااا'),'\\s+','','g')
+        where p.is_active=true and p.role='servant' group by p.id order by count(distinct c.person_id) desc,p.name", connection))
+    await using (var reader = await command.ExecuteReaderAsync())
+        while (await reader.ReadAsync()) servantRows.Add(new { name = reader.GetString(0), calls = reader.GetInt64(1), choir = reader.GetInt64(2), mass = reader.GetInt64(3) });
+
+    var needsAttention = new List<object>();
+    await using (var command = new NpgsqlCommand(@"
+        with sessions as (select greatest(1,count(distinct attendance_date)) value from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy')
+        select p.record_key,p.name,coalesce(p.group_number,''),
+               round(count(distinct a.attendance_date) filter(where a.attendance_type='choir')*100.0/(select value from sessions)),
+               round(count(distinct a.attendance_date) filter(where a.attendance_type='mass')*100.0/(select value from sessions)),
+               round((case when count(distinct v.person_id)>0 then 1 else 0 end + case when count(distinct c.person_id)>0 then 1 else 0 end)*50.0)
+        from people p left join attendance_records a on a.person_id=p.id left join visit_records v on v.person_id=p.id left join call_records c on c.person_id=p.id
+        where p.is_active=true and p.role='boy' group by p.id order by (count(distinct a.attendance_date) filter(where a.attendance_type='choir') + count(distinct a.attendance_date) filter(where a.attendance_type='mass') + count(distinct v.person_id) + count(distinct c.person_id)),p.name limit 12", connection))
+    await using (var reader = await command.ExecuteReaderAsync())
+        while (await reader.ReadAsync()) needsAttention.Add(new { recordKey = reader.GetInt32(0), name = reader.GetString(1), group = reader.GetString(2), choirRate = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3), massRate = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4), followUpRate = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5) });
+
+    return Results.Ok(new { summary = new { startedAt, boys, servants, choirAttendance, massAttendance, visits, calls, choirRate = Math.Round(choirAttendance * 100d / expectedAttendance), massRate = Math.Round(massAttendance * 100d / expectedAttendance) }, monthly, groups, servants = servantRows, needsAttention });
 });
 
 api.MapGet("/state", async (string? mode, string? date, string? week, NpgsqlDataSource db) =>
