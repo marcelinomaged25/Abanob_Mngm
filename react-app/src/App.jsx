@@ -933,7 +933,6 @@ export default function App() {
           {navItem("home", <LayoutDashboard size={17} />, "نظرة عامة")}
           {navItem("attendance", <UserCheck size={17} />, "الحضور والغياب")}
           {navItem("visit", <Home size={17} />, "الافتقاد")}
-          {navItem("analytics", <BarChart3 size={17} />, "تحليلات الخدمة")}
           {navItem("stray", <img className="sheep-icon" src="/sheep-icon.svg" alt="" />, "الخروف الضال")}
           {navItem("history", <Users size={17} />, "أفراد الخورس")}
           {navItem("people", <Pencil size={17} />, "إدارة الخورس")}
@@ -962,6 +961,7 @@ export default function App() {
               </b>
             )}
           </button>
+          {navItem("analytics", <BarChart3 size={17} />, "تحليلات الخدمة")}
         </nav>
         <div className="sidebar-footer">
           <div className="sidebar-footer-actions">
