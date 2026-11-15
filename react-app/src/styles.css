@@ -9303,6 +9303,23 @@ textarea {
 .stray-open-report .stray-person-info {
   min-width: 0;
   width: 100%;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  column-gap: 9px;
+  align-items: center;
+}
+.stray-open-report .person-name-with-avatar {
+  display: contents;
+}
+.stray-open-report .person-name-with-avatar .person-avatar { grid-column: 1; grid-row: 1 / span 2; }
+.stray-open-report .person-name-with-avatar strong {
+  grid-column: 2;
+  grid-row: 1;
+  line-height: 1.25;
+}
+.stray-open-report .stray-person-info > small {
+  grid-column: 2;
+  grid-row: 2;
 }
 .stray-open-report .stray-person-info {
   min-width: 0;
