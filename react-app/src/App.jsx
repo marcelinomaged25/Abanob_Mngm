@@ -683,7 +683,7 @@ export default function App() {
 
   async function exportFullReports() {
     try {
-      const response = await fetch(`${apiUrl}/api/export/full-reports`, {
+      const response = await fetch(`${apiUrl}/api/export/full-reports.xlsx`, {
         headers: { "X-App-Password": password, "X-App-Username": username },
       });
       if (!response.ok) throw new Error("تعذر تجهيز التقرير الكامل");
@@ -691,10 +691,10 @@ export default function App() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `choir-full-reports-${today()}.zip`;
+      link.download = `choir-reports-${today()}.xlsx`;
       link.click();
       URL.revokeObjectURL(url);
-      setNotice("تم تنزيل التقرير الكامل");
+      setNotice("تم تنزيل ملف Excel الكامل");
     } catch (exportError) {
       setError(exportError.message || "تعذر تنزيل التقرير الكامل");
     }
@@ -1780,8 +1780,14 @@ function PublicBooksPage() {
             {items.map((item) => (
               <article className="book-public-card" key={item.id}>
                 <div className="book-cover-wrap">
-                  {item.coverUrl ? (
-                    <img src={learningImageUrl(item.coverUrl)} alt={`غلاف ${item.title}`} />
+                  {item.coverUrl || item.url ? (
+                    <img
+                      src={learningImageUrl(item.coverUrl || item.url)}
+                      alt={`غلاف ${item.title}`}
+                      onError={(event) => {
+                        event.currentTarget.style.display = "none";
+                      }}
+                    />
                   ) : (
                     <BookOpen size={48} aria-hidden="true" />
                   )}
@@ -2485,7 +2491,7 @@ function BooksManagementPage({ items, request, reload, onBack }) {
           />
         </label>
         <label className="learning-form-wide">
-          رابط صورة الغلاف <small>(اختياري)</small>
+          رابط صورة الغلاف <small>(اختياري — لو فاضي هنحاول نستخدم معاينة Drive تلقائيًا)</small>
           <input
             type="url"
             value={draft.coverUrl}
@@ -2538,7 +2544,15 @@ function BooksManagementPage({ items, request, reload, onBack }) {
             {items.map((item) => (
               <article className="book-admin-item" key={item.id}>
                 <div className="book-admin-thumb">
-                  {item.coverUrl ? <img src={learningImageUrl(item.coverUrl)} alt="" /> : <BookOpen size={26} />}
+                  {item.coverUrl || item.url ? (
+                    <img
+                      src={learningImageUrl(item.coverUrl || item.url)}
+                      alt=""
+                      onError={(event) => {
+                        event.currentTarget.style.display = "none";
+                      }}
+                    />
+                  ) : <BookOpen size={26} />}
                 </div>
                 <div>
                   <strong>{item.title}</strong>
@@ -3806,7 +3820,7 @@ function ServiceAnalyticsPage({ analytics, exportFull }) {
           </p>
         </div>
         <button className="primary-button analytics-export-button" type="button" onClick={exportFull}>
-          <Download size={17} /> تنزيل كل التقارير
+          <Download size={17} /> تنزيل ملف Excel
         </button>
       </section>
       <section className="analytics-kpi-grid">
