@@ -8206,6 +8206,7 @@ textarea {
   width: 100%;
   border-collapse: collapse;
   text-align: center;
+  table-layout: fixed;
 }
 .league-table th,
 .league-table td {
@@ -8213,6 +8214,24 @@ textarea {
   padding: 9px 15px;
   border-bottom: 1px solid #e8eceb;
 }
+.league-table th:first-child,
+.league-table td:first-child { width: 62px; padding-inline: 8px; vertical-align: middle; }
+.league-table th:nth-child(2),
+.league-table td:nth-child(2) { width: auto; }
+.league-table th:last-child,
+.league-table td:last-child { width: 78px; padding-inline: 8px; vertical-align: middle; }
+.league-table td:nth-child(2) .person-name-with-avatar {
+  min-width: 0;
+  max-width: 100%;
+  justify-content: flex-start;
+  white-space: nowrap;
+}
+.league-table td:nth-child(2) .person-name-with-avatar strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.league-table .person-avatar-small { width: 36px; height: 36px; }
+.league-table .league-rank-badge { margin-inline: auto; }
 .league-table th {
   height: 44px;
   background: #f5f1e4;
