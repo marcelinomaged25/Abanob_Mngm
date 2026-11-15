@@ -217,7 +217,9 @@ function parentRequestNotifications(requests = []) {
 }
 
 export default function App() {
-  const [username, setUsername] = useState(() => sessionStorage.getItem("choir-username") || "");
+  // Older sessions were saved before the username header was required by the API.
+  // Keep those sessions compatible with the backend's default username.
+  const [username, setUsername] = useState(() => sessionStorage.getItem("choir-username") || "admin");
   const [password, setPassword] = useState(() => sessionStorage.getItem("choir-password") || "");
   const [usernameDraft, setUsernameDraft] = useState("");
   const [passwordDraft, setPasswordDraft] = useState("");
@@ -293,7 +295,7 @@ export default function App() {
         headers: {
           ...(options.body ? { "Content-Type": "application/json" } : {}),
           ...(auth ? { "X-App-Password": auth } : {}),
-          ...(user ? { "X-App-Username": user } : {}),
+          ...(user || "admin" ? { "X-App-Username": user || "admin" } : {}),
           ...options.headers,
         },
       });
