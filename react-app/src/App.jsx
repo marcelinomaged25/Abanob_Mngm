@@ -921,6 +921,13 @@ export default function App() {
       const result = await response.json();
       if (!response.ok || !result.secure_url) throw new Error(result.error?.message || "تعذر رفع الصورة");
       setPersonDraft((current) => ({ ...current, photoUrl: result.secure_url }));
+      if (editingPerson?.id) {
+        await request(`/api/people/${editingPerson.id}/photo`, {
+          method: "PATCH",
+          body: JSON.stringify({ photoUrl: result.secure_url }),
+        });
+        await load("people");
+      }
       setNotice("تم رفع الصورة، اضغط حفظ لإتمام البيانات");
     } catch (uploadError) {
       setError(uploadError.message);

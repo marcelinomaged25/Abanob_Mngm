@@ -1051,6 +1051,17 @@ api.MapPut("/people/{personId:long}", async (long personId, PersonInput payload,
     return Results.NoContent();
 });
 
+api.MapPatch("/people/{personId:long}/photo", async (long personId, PhotoInput payload, NpgsqlDataSource db) =>
+{
+    if (string.IsNullOrWhiteSpace(payload.PhotoUrl) || !Uri.TryCreate(payload.PhotoUrl, UriKind.Absolute, out var photoUri) || photoUri.Scheme != Uri.UriSchemeHttps)
+        return Results.BadRequest(new { error = "رابط الصورة غير صحيح" });
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("update people set photo_url=$1,updated_at=now() where id=$2 and is_active=true", connection);
+    command.Parameters.AddWithValue(payload.PhotoUrl.Trim());
+    command.Parameters.AddWithValue(personId);
+    return await command.ExecuteNonQueryAsync() == 0 ? Results.NotFound(new { error = "الاسم غير موجود" }) : Results.Ok(new { photoUrl = payload.PhotoUrl.Trim() });
+});
+
 api.MapDelete("/people/{personId:long}", async (long personId, NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();
@@ -1212,6 +1223,7 @@ record Group(string Number, int Members, int[] RecordKeys);
 record VisitSave(string Date, Dictionary<string, bool>? Checks);
 record CallSave(string? RotationStart, string[]? Servants, Dictionary<string, bool>? Checks, bool Redistribute = false);
 record PersonInput(string Name, string? Group, string? Phone1, string? Phone2, string? Address, string? Note, string? Role, string? PhotoUrl);
+record PhotoInput(string PhotoUrl);
 record AttendanceSave(string Type, string Date, Dictionary<string, bool>? Checks);
 record EvaluationSave(string Date, Dictionary<string, int>? Scores);
 record AttendanceCommentSave(string Type, string Date, int RecordKey, string Comment);
