@@ -172,6 +172,16 @@ app.MapGet("/api/public/learning-items", async (NpgsqlDataSource db) =>
     return Results.Ok(items);
 });
 
+app.MapGet("/api/public/books", async (NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("select id,title,resource_url,cover_url,description from library_books order by created_at desc,id desc", connection);
+    await using var reader = await command.ExecuteReaderAsync();
+    var books = new List<object>();
+    while (await reader.ReadAsync()) books.Add(new { id = reader.GetInt64(0), title = reader.GetString(1), url = reader.GetString(2), coverUrl = reader.GetString(3), description = reader.GetString(4) });
+    return Results.Ok(books);
+});
+
 app.MapGet("/api/public/mass-schedules", async (NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();
@@ -324,6 +334,39 @@ api.MapDelete("/learning-items/{id:long}", async (long id, NpgsqlDataSource db) 
 {
     await using var connection = await db.OpenConnectionAsync();
     await using var command = new NpgsqlCommand("delete from learning_items where id=$1", connection);
+    command.Parameters.AddWithValue(id);
+    return await command.ExecuteNonQueryAsync() == 0 ? Results.NotFound() : Results.NoContent();
+});
+api.MapGet("/books", async (NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("select id,title,resource_url,cover_url,description from library_books order by created_at desc,id desc", connection);
+    await using var reader = await command.ExecuteReaderAsync();
+    var books = new List<object>();
+    while (await reader.ReadAsync()) books.Add(new { id = reader.GetInt64(0), title = reader.GetString(1), url = reader.GetString(2), coverUrl = reader.GetString(3), description = reader.GetString(4) });
+    return Results.Ok(books);
+});
+api.MapPost("/books", async (BookSave payload, NpgsqlDataSource db) =>
+{
+    if (!ValidBook(payload, out var error)) return Results.BadRequest(new { error });
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("insert into library_books(title,resource_url,cover_url,description) values($1,$2,$3,$4) returning id", connection);
+    command.Parameters.AddWithValue(payload.Title.Trim()); command.Parameters.AddWithValue(payload.Url.Trim()); command.Parameters.AddWithValue(payload.CoverUrl?.Trim() ?? ""); command.Parameters.AddWithValue(payload.Description?.Trim() ?? "");
+    var id = (long)(await command.ExecuteScalarAsync())!;
+    return Results.Created($"/api/books/{id}", new { id });
+});
+api.MapPut("/books/{id:long}", async (long id, BookSave payload, NpgsqlDataSource db) =>
+{
+    if (!ValidBook(payload, out var error)) return Results.BadRequest(new { error });
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("update library_books set title=$1,resource_url=$2,cover_url=$3,description=$4,updated_at=now() where id=$5", connection);
+    command.Parameters.AddWithValue(payload.Title.Trim()); command.Parameters.AddWithValue(payload.Url.Trim()); command.Parameters.AddWithValue(payload.CoverUrl?.Trim() ?? ""); command.Parameters.AddWithValue(payload.Description?.Trim() ?? ""); command.Parameters.AddWithValue(id);
+    return await command.ExecuteNonQueryAsync() == 0 ? Results.NotFound() : Results.Ok(new { id });
+});
+api.MapDelete("/books/{id:long}", async (long id, NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("delete from library_books where id=$1", connection);
     command.Parameters.AddWithValue(id);
     return await command.ExecuteNonQueryAsync() == 0 ? Results.NotFound() : Results.NoContent();
 });
@@ -970,6 +1013,7 @@ record FollowUpRequestSave(string Type, string? Message);
 record WhatsAppTemplateSave(string? Message);
 record LearningItemSave(string Date, string Category, string Title, string Url, string? Description, string? BackgroundUrl, List<LearningResourceLink>? Links);
 record LearningResourceLink(string Label, string Url);
+record BookSave(string Title, string Url, string? CoverUrl, string? Description);
 record MassScheduleSave(string Date, string Time, string Location);
 record FollowUpRequestStatus(string Status);
 record PublicAttendanceItem(string Type, string Date, string RecordedAt, string Comment);

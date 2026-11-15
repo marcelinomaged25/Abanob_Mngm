@@ -125,6 +125,19 @@ internal static class ApiHelpers
         return error.Length == 0;
     }
 
+    internal static bool ValidBook(BookSave payload, out string error)
+    {
+        error = "";
+        if (string.IsNullOrWhiteSpace(payload.Title) || payload.Title.Trim().Length > 180) error = "اكتب اسم الكتاب من 1 إلى 180 حرفًا";
+        else if (!ValidHttpsUrl(payload.Url)) error = "رابط الكتاب يجب أن يبدأ بـ https://";
+        else if (!string.IsNullOrWhiteSpace(payload.CoverUrl) && !ValidHttpsUrl(payload.CoverUrl)) error = "رابط الغلاف يجب أن يبدأ بـ https://";
+        else if (payload.Description?.Length > 1200) error = "الوصف طويل جدًا (الحد 1200 حرف)";
+        return error.Length == 0;
+    }
+
+    internal static bool ValidHttpsUrl(string? value) =>
+        value is not null && value.Length <= 2000 && Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
+
     internal static bool ValidLearningLink(LearningResourceLink link) =>
         !string.IsNullOrWhiteSpace(link.Label) && link.Label.Trim().Length <= 80 && link.Url?.Length <= 2000 &&
         Uri.TryCreate(link.Url?.Trim(), UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;

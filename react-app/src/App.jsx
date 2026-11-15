@@ -141,6 +141,7 @@ const storedMap = (key) => {
 const publicQrToken = window.location.pathname.match(/^\/qr\/([^/]+)\/?$/)?.[1] || "";
 const isAdminPage = window.location.pathname === "/admin" || window.location.pathname.startsWith("/admin/");
 const isLearningPage = window.location.pathname === "/learning" || window.location.pathname === "/learning/";
+const isBooksPage = window.location.pathname === "/books" || window.location.pathname === "/books/";
 const isMassSchedulePage =
   window.location.pathname === "/mass-schedule" || window.location.pathname === "/mass-schedule/";
 
@@ -222,6 +223,7 @@ export default function App() {
   const [dashboard, setDashboard] = useState({ summary: {}, people: [] });
   const [whatsappTemplate, setWhatsappTemplate] = useState(defaultWhatsAppTemplate);
   const [learningItems, setLearningItems] = useState([]);
+  const [books, setBooks] = useState([]);
   const [massSchedules, setMassSchedules] = useState([]);
   const [visitReports, setVisitReports] = useState(emptyVisitReports);
   const [followUpNotes, setFollowUpNotes] = useState([]);
@@ -342,6 +344,10 @@ export default function App() {
         }
         if (nextMode === "learning-admin") {
           setLearningItems(await request("/api/learning-items", {}, auth));
+          return;
+        }
+        if (nextMode === "books-admin") {
+          setBooks(await request("/api/books", {}, auth));
           return;
         }
         if (nextMode === "mass-admin") {
@@ -559,7 +565,7 @@ export default function App() {
     if (nextMode === "notifications" || nextMode === "evaluation" || nextMode === "content-admin") return;
     if (nextMode === "attendance") load(nextMode, attendanceDate);
     else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate);
-    else if (nextMode === "reports" || nextMode === "learning-admin" || nextMode === "mass-admin")
+    else if (nextMode === "reports" || nextMode === "learning-admin" || nextMode === "books-admin" || nextMode === "mass-admin")
       load(nextMode);
     else if (nextMode === "qr") {
       /* scanner saves attendance incrementally */
@@ -789,6 +795,7 @@ export default function App() {
 
   if (publicQrToken) return <PublicAttendancePage token={publicQrToken} />;
   if (isLearningPage) return <PublicLearningPage />;
+  if (isBooksPage) return <PublicBooksPage />;
   if (isMassSchedulePage) return <PublicMassSchedulePage />;
   if (window.location.pathname === "/life-of-saint-abanoub") return <SaintAbanoubStoryPage />;
   if (window.location.pathname === "/league") return <PublicLeaguePage />;
@@ -1155,6 +1162,14 @@ export default function App() {
             items={learningItems}
             request={request}
             reload={() => load("learning-admin")}
+            onBack={() => switchMode("content-admin")}
+          />
+        )}
+        {mode === "books-admin" && (
+          <BooksManagementPage
+            items={books}
+            request={request}
+            reload={() => load("books-admin")}
             onBack={() => switchMode("content-admin")}
           />
         )}
@@ -1679,6 +1694,67 @@ function PublicLearningPage() {
   );
 }
 
+function PublicBooksPage() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    fetch(`${apiUrl}/api/public/books`)
+      .then(async (response) => {
+        const body = await response.json().catch(() => []);
+        if (!response.ok) throw new Error(body.error || "تعذر تحميل الكتب");
+        setItems(body);
+      })
+      .catch((loadError) => setError(loadError.message))
+      .finally(() => setLoading(false));
+  }, []);
+  return (
+    <main className="learning-public-page books-public-page" dir="rtl">
+      <PublicNavigation subtitle="مكتبة الخورس" />
+      <section className="learning-public-content">
+        <div className="learning-public-hero books-public-hero">
+          <BookOpen size={32} />
+          <p className="section-kicker">مكتبة الخورس</p>
+          <h1>كتب</h1>
+          <p>اختار الكتاب اللي تحب تقراه أو تراجعه.</p>
+        </div>
+        {loading ? (
+          <p className="learning-empty">جاري تحميل الكتب…</p>
+        ) : error ? (
+          <p className="learning-empty error">{error}</p>
+        ) : !items.length ? (
+          <section className="learning-empty-card">
+            <BookOpen size={30} />
+            <strong>لسه مفيش كتب مضافة</strong>
+            <span>هتظهر الكتب هنا أول ما الخدام يضيفوها.</span>
+          </section>
+        ) : (
+          <section className="books-public-grid" aria-label="كتب الخورس">
+            {items.map((item) => (
+              <a className="book-public-card" href={item.url} key={item.id} target="_blank" rel="noreferrer">
+                <div className="book-cover-wrap">
+                  {item.coverUrl ? (
+                    <img src={learningImageUrl(item.coverUrl)} alt={`غلاف ${item.title}`} />
+                  ) : (
+                    <BookOpen size={48} aria-hidden="true" />
+                  )}
+                </div>
+                <div className="book-public-card-content">
+                  <h2>{item.title}</h2>
+                  {item.description && <p>{item.description}</p>}
+                  <span>
+                    فتح الكتاب <ExternalLink size={15} />
+                  </span>
+                </div>
+              </a>
+            ))}
+          </section>
+        )}
+      </section>
+    </main>
+  );
+}
+
 function PublicMassSchedulePage() {
   const [items, setItems] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(
@@ -1802,6 +1878,12 @@ function ContentManagementChooser({ onChoose }) {
           <Church size={27} />
           <strong>إدارة القداسات</strong>
           <span>إضافة مواعيد القداسات وأماكنها لكل شهر.</span>
+          <ChevronLeft size={19} />
+        </button>
+        <button type="button" className="content-management-option" onClick={() => onChoose("books-admin")}>
+          <BookOpen size={27} />
+          <strong>إدارة الكتب</strong>
+          <span>إضافة الكتب وأغلفتها وروابطها للأولاد.</span>
           <ChevronLeft size={19} />
         </button>
       </div>
@@ -2255,6 +2337,181 @@ function LearningManagementPage({ items, request, reload, onBack }) {
   );
 }
 
+function BooksManagementPage({ items, request, reload, onBack }) {
+  const emptyDraft = () => ({ title: "", url: "", coverUrl: "", description: "" });
+  const [draft, setDraft] = useState(emptyDraft);
+  const [editingId, setEditingId] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const save = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    setNotice("");
+    try {
+      await request(editingId ? `/api/books/${editingId}` : "/api/books", {
+        method: editingId ? "PUT" : "POST",
+        body: JSON.stringify(draft),
+      });
+      setDraft(emptyDraft());
+      setEditingId(null);
+      setNotice(editingId ? "تم تعديل الكتاب" : "تمت إضافة الكتاب");
+      await reload();
+    } catch (saveError) {
+      setError(saveError.message || "تعذر حفظ الكتاب");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const edit = (item) => {
+    setDraft({
+      title: item.title,
+      url: item.url,
+      coverUrl: item.coverUrl || "",
+      description: item.description || "",
+    });
+    setEditingId(item.id);
+    setError("");
+    setNotice("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const remove = async (item) => {
+    if (!window.confirm(`حذف كتاب «${item.title}»؟`)) return;
+    setError("");
+    try {
+      await request(`/api/books/${item.id}`, { method: "DELETE" });
+      if (editingId === item.id) {
+        setEditingId(null);
+        setDraft(emptyDraft());
+      }
+      await reload();
+    } catch (removeError) {
+      setError(removeError.message || "تعذر حذف الكتاب");
+    }
+  };
+  return (
+    <section className="learning-admin-page books-admin-page">
+      <header className="section-title-row learning-admin-heading">
+        <div>
+          <p className="section-kicker">إدارة الخدمة</p>
+          <h1>إدارة الكتب</h1>
+          <p>أضف اسم الكتاب وغلافه ورابطه، وهيظهر للأولاد في مكتبة الخورس.</p>
+        </div>
+        <button type="button" className="secondary-button" onClick={onBack}>
+          <ChevronLeft size={16} /> إدارة المحتوى
+        </button>
+        <span className="learning-storage-note">الكتب تظل على Drive</span>
+      </header>
+      <form className="table-section learning-admin-form" onSubmit={save}>
+        <div className="learning-admin-form-title">
+          <BookOpen size={21} />
+          <div>
+            <strong>{editingId ? "تعديل كتاب" : "إضافة كتاب"}</strong>
+            <span>رابط الكتاب والغلاف يقبلان روابط Google Drive أو أي رابط https مباشر.</span>
+          </div>
+        </div>
+        <label>
+          اسم الكتاب
+          <input
+            required
+            maxLength={180}
+            value={draft.title}
+            onChange={(event) => setDraft({ ...draft, title: event.target.value })}
+            placeholder="مثال: قصة القديس أبانوب"
+          />
+        </label>
+        <label>
+          رابط الكتاب
+          <input
+            required
+            type="url"
+            value={draft.url}
+            onChange={(event) => setDraft({ ...draft, url: event.target.value })}
+            placeholder="https://drive.google.com/..."
+            dir="ltr"
+          />
+        </label>
+        <label className="learning-form-wide">
+          رابط صورة الغلاف <small>(اختياري)</small>
+          <input
+            type="url"
+            value={draft.coverUrl}
+            onChange={(event) => setDraft({ ...draft, coverUrl: event.target.value })}
+            placeholder="https://.../cover.jpg"
+            dir="ltr"
+          />
+        </label>
+        <label className="learning-form-wide">
+          وصف مختصر <small>(اختياري)</small>
+          <textarea
+            maxLength={1200}
+            rows="2"
+            value={draft.description}
+            onChange={(event) => setDraft({ ...draft, description: event.target.value })}
+          />
+        </label>
+        {error && <p className="learning-form-error">{error}</p>}
+        {notice && <p className="learning-form-notice">{notice}</p>}
+        <div className="learning-form-actions">
+          <button className="primary-button" type="submit" disabled={saving}>
+            {saving ? "جارٍ الحفظ…" : editingId ? "حفظ التعديل" : "إضافة الكتاب"}
+          </button>
+          {editingId && (
+            <button
+              className="cancel-button"
+              type="button"
+              onClick={() => {
+                setEditingId(null);
+                setDraft(emptyDraft());
+              }}
+            >
+              إلغاء التعديل
+            </button>
+          )}
+        </div>
+      </form>
+      <section className="learning-admin-list">
+        <div className="section-title-row">
+          <div>
+            <p className="section-kicker">الكتب المضافة</p>
+            <h2>{items.length} كتاب</h2>
+          </div>
+          <a href="/books" target="_blank" rel="noreferrer">
+            معاينة صفحة الأولاد <ExternalLink size={15} />
+          </a>
+        </div>
+        {items.length ? (
+          <div className="books-admin-grid">
+            {items.map((item) => (
+              <article className="book-admin-item" key={item.id}>
+                <div className="book-admin-thumb">
+                  {item.coverUrl ? <img src={learningImageUrl(item.coverUrl)} alt="" /> : <BookOpen size={26} />}
+                </div>
+                <div>
+                  <strong>{item.title}</strong>
+                  {item.description && <span>{item.description}</span>}
+                  <a href={item.url} target="_blank" rel="noreferrer">
+                    فتح الرابط <ExternalLink size={14} />
+                  </a>
+                </div>
+                <button className="secondary-button" type="button" onClick={() => edit(item)}>
+                  تعديل
+                </button>
+                <button className="cancel-button" type="button" onClick={() => remove(item)}>
+                  حذف
+                </button>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="learning-empty">لم تتم إضافة كتب بعد.</p>
+        )}
+      </section>
+    </section>
+  );
+}
+
 function PublicNavigation({ subtitle, homeActions }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const isHome = window.location.pathname === "/";
@@ -2341,6 +2598,11 @@ function PublicNavigation({ subtitle, homeActions }) {
             <Church size={18} />
             <span>الطقس</span>
             <ExternalLink size={15} />
+          </a>
+          <a href="/books">
+            <BookOpen size={18} />
+            <span>كتب</span>
+            <ChevronLeft size={17} />
           </a>
         </section>
       </aside>
