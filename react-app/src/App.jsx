@@ -3924,21 +3924,19 @@ function ServiceAnalyticsPage({ analytics, exportFull }) {
           <Download size={17} /> تنزيل ملف Excel
         </button>
       </section>
-      {analytics.forecast && (
-        <section className="table-section analytics-forecast-card">
+      <section className={`table-section analytics-forecast-card ${analytics.forecast ? "is-ready" : "is-pending"}`}>
           <div>
             <p className="section-kicker">توقع مبدئي</p>
             <h2>التوقع للجمعة القادمة</h2>
-            <p>مبني على {analytics.forecast.basedOnSessions || 0} جلسات مسجلة، ويزيد تحسنه مع استمرار التسجيل.</p>
+            <p>{analytics.forecast ? `مبني على ${analytics.forecast.basedOnSessions || 0} جلسات مسجلة، ويزيد تحسنه مع استمرار التسجيل.` : "خدمة التنبؤ غير مربوطة بعد. أضف رابط خدمة ML في VITE_FORECAST_URL ثم أعد النشر."}</p>
           </div>
-          <div className="analytics-forecast-values">
+          {analytics.forecast ? <div className="analytics-forecast-values">
             <strong>{analytics.forecast.nextChoirAttendance || 0}<span> حضور خورس متوقع</span></strong>
             <strong>{analytics.forecast.nextMassAttendance || 0}<span> حضور قداس متوقع</span></strong>
             <strong>{analytics.forecast.nextVisits || 0}<span> زيارة متوقعة</span></strong>
             <strong>{analytics.forecast.nextCalls || 0}<span> اتصال متوقع</span></strong>
-          </div>
-        </section>
-      )}
+          </div> : <span className="analytics-forecast-status">في انتظار الربط</span>}
+      </section>
       <section className="analytics-kpi-grid">
         <AnalyticsMetric label="الأولاد المسجلون" value={summary.boys || 0} note="أفراد الخورس النشطون" tone="blue" />
         <AnalyticsMetric label="الخدام" value={summary.servants || 0} note="الخدام النشطون" tone="gold" />
