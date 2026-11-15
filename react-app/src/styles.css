@@ -6907,6 +6907,42 @@ textarea {
   }
 }
 
+/* Keep the analytics workspace inside the available area beside the sidebar. */
+.app-content {
+  min-width: 0;
+  overflow-x: hidden;
+}
+.service-analytics-page,
+.analytics-hero,
+.analytics-detail-grid,
+.analytics-kpi-grid {
+  min-width: 0;
+  box-sizing: border-box;
+}
+.service-analytics-page {
+  width: 100%;
+  max-width: 1280px;
+  overflow-x: clip;
+}
+.analytics-hero > div:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.analytics-export-button {
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: max-content;
+  flex: 0 0 auto;
+  display: inline-flex !important;
+  white-space: nowrap;
+}
+@media (max-width: 680px) {
+  .analytics-export-button {
+    width: 100% !important;
+    max-width: none;
+  }
+}
+
 /* Final dark theme contract: every admin surface shares one graphite, green, and bronze system. */
 .dark-mode {
   --canvas: #0b0f12;
