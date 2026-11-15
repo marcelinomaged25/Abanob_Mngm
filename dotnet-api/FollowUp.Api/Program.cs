@@ -629,11 +629,11 @@ api.MapGet("/analytics", async (NpgsqlDataSource db) =>
         attendance as (select person_id,count(distinct attendance_date) filter(where attendance_type='choir') choir,count(distinct attendance_date) filter(where attendance_type='mass') mass from attendance_records group by person_id),
         visits as (select person_id,count(*) visits from visit_records group by person_id),
         calls as (select person_id,count(*) calls from call_records group by person_id)
-        select p.record_key,p.name,coalesce(p.group_number,''),round(coalesce(a.choir,0)*100.0/(select value from sessions)),round(coalesce(a.mass,0)*100.0/(select value from sessions)),round((case when coalesce(v.visits,0)>0 then 1 else 0 end + case when coalesce(c.calls,0)>0 then 1 else 0 end)*50.0)
+        select p.record_key,p.name,coalesce(p.group_number,''),p.photo_url,round(coalesce(a.choir,0)*100.0/(select value from sessions)),round(coalesce(a.mass,0)*100.0/(select value from sessions)),round((case when coalesce(v.visits,0)>0 then 1 else 0 end + case when coalesce(c.calls,0)>0 then 1 else 0 end)*50.0)
         from people p left join attendance a on a.person_id=p.id left join visits v on v.person_id=p.id left join calls c on c.person_id=p.id
         where p.is_active=true and p.role='boy' order by (coalesce(a.choir,0)+coalesce(a.mass,0)+coalesce(v.visits,0)+coalesce(c.calls,0)),p.name limit 12", connection))
     await using (var reader = await command.ExecuteReaderAsync())
-        while (await reader.ReadAsync()) needsAttention.Add(new { recordKey = reader.GetInt32(0), name = reader.GetString(1), group = reader.GetString(2), choirRate = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3), massRate = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4), followUpRate = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5) });
+        while (await reader.ReadAsync()) needsAttention.Add(new { recordKey = reader.GetInt32(0), name = reader.GetString(1), group = reader.GetString(2), photoUrl = reader.IsDBNull(3) ? "" : reader.GetString(3), choirRate = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4), massRate = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5), followUpRate = reader.IsDBNull(6) ? 0 : reader.GetDecimal(6) });
 
     return Results.Ok(new { summary = new { startedAt, boys, servants, choirAttendance, massAttendance, visits, calls, choirRate = Math.Round(choirAttendance * 100d / expectedAttendance), massRate = Math.Round(massAttendance * 100d / expectedAttendance) }, monthly, groups, servants = servantRows, needsAttention });
 });
@@ -862,11 +862,11 @@ api.MapGet("/history/{personId:long}", async (long personId, NpgsqlDataSource db
     var attendanceStart = new DateOnly(2026, 10, 2);
     var attendanceThrough = CairoToday();
     await using var connection = await db.OpenConnectionAsync();
-    await using var personCommand = new NpgsqlCommand("select id, record_key, name, note, phone1, group_number, address from people where id=$1", connection);
+    await using var personCommand = new NpgsqlCommand("select id, record_key, name, note, phone1, group_number, address, photo_url from people where id=$1", connection);
     personCommand.Parameters.AddWithValue(personId);
     await using var reader = await personCommand.ExecuteReaderAsync();
     if (!await reader.ReadAsync()) return Results.NotFound(new { error = "الاسم غير موجود" });
-    var person = new { id = reader.GetInt64(0), recordKey = reader.GetInt32(1), name = reader.GetString(2), note = reader.IsDBNull(3) ? "" : reader.GetString(3), phone1 = reader.GetString(4), group = reader.IsDBNull(5) ? "" : reader.GetString(5), address = reader.GetString(6) };
+    var person = new { id = reader.GetInt64(0), recordKey = reader.GetInt32(1), name = reader.GetString(2), note = reader.IsDBNull(3) ? "" : reader.GetString(3), phone1 = reader.GetString(4), group = reader.IsDBNull(5) ? "" : reader.GetString(5), address = reader.GetString(6), photoUrl = reader.IsDBNull(7) ? "" : reader.GetString(7) };
     await reader.CloseAsync();
     await using var eventsCommand = new NpgsqlCommand("select event_date::text, bool_or(kind='visit'), bool_or(kind='call'), bool_or(kind='choir'), bool_or(kind='mass'), max(servant) filter(where kind='call'), string_agg(nullif(comment,''), ' / ' order by comment) filter(where comment is not null) from (select visit_date event_date, 'visit' kind, '' servant, null::text comment from visit_records where person_id=$1 union all select (recorded_at at time zone 'Africa/Cairo')::date, 'call', servant, null::text from call_records where person_id=$1 union all select a.attendance_date, a.attendance_type, '', c.comment from attendance_records a left join attendance_comments c on c.person_id=a.person_id and c.attendance_type=a.attendance_type and c.attendance_date=a.attendance_date where a.person_id=$1 and a.attendance_date >= $2 and a.attendance_date <= $3) events group by event_date order by event_date", connection);
     eventsCommand.Parameters.AddWithValue(personId);

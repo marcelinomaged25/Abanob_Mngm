@@ -424,6 +424,7 @@ export default function App() {
                 recordKey: person.recordKey,
                 name: person.name,
                 group: person.group || "",
+                photoUrl: person.photoUrl || "",
                 choirRate: Math.round(((person.choirCount || 0) * 100) / totalSessions),
                 massRate: Math.round(((person.massCount || 0) * 100) / totalSessions),
                 followUpRate: Math.min(100, Math.round((((person.visitCount || 0) + (person.callCount || 0)) * 100) / Math.max(1, totalSessions))),
@@ -3316,7 +3317,7 @@ function PublicAttendancePage({ token }) {
       <section className="public-student-heading">
         <div>
           <p className="section-kicker">تقرير حضور المخدوم</p>
-          <h1>{data.person.name}</h1>
+          <h1 className="report-person-heading"><PersonAvatar person={data.person} name={data.person.name} size="large" />{data.person.name}</h1>
           {data.person.address && (
             <a
               className="map-address-link"
