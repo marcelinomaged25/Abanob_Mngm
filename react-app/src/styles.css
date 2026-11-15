@@ -9271,9 +9271,10 @@ textarea {
   cursor: default;
 }
 .stray-open-report {
-  display: flex;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   min-width: 0;
   padding: 0;
   border: 0;
@@ -9283,18 +9284,25 @@ textarea {
   cursor: pointer;
 }
 .stray-open-report .stray-rank {
-  flex: 0 0 34px;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
+  justify-self: center;
 }
 .stray-open-report .person-name-with-avatar {
   gap: 9px;
   min-height: 38px;
+  width: 100%;
+  justify-content: flex-start;
+  direction: rtl;
 }
 .stray-open-report .person-avatar-small {
   width: 34px;
   height: 34px;
   border-width: 2px;
+}
+.stray-open-report .stray-person-info {
+  min-width: 0;
+  width: 100%;
 }
 .stray-open-report .stray-person-info {
   min-width: 0;
