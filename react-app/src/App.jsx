@@ -161,6 +161,14 @@ const storedMap = (key) => {
     return {};
   }
 };
+function PersonAvatar({ person, name, size = "small" }) {
+  const label = name || person?.name || "";
+  return (
+    <span className={`person-avatar person-avatar-${size}`} aria-hidden="true">
+      {person?.photoUrl ? <img src={person.photoUrl} alt="" /> : label.slice(0, 1)}
+    </span>
+  );
+}
 const publicQrToken = window.location.pathname.match(/^\/qr\/([^/]+)\/?$/)?.[1] || "";
 const isAdminPage = window.location.pathname === "/admin" || window.location.pathname.startsWith("/admin/");
 const isLearningPage = window.location.pathname === "/learning" || window.location.pathname === "/learning/";
@@ -1554,7 +1562,7 @@ function PublicLeaguePage() {
                       </span>
                     </td>
                     <td>
-                      <strong>{row.name}</strong>
+                      <span className="person-name-with-avatar"><PersonAvatar person={row} name={row.name} /> <strong>{row.name}</strong></span>
                     </td>
                     <td>
                       <strong className="league-score">{row.points}</strong>
@@ -1687,7 +1695,7 @@ function ServantBoyEvaluationPage({ request }) {
               return (
                 <label className="evaluation-row" key={person.recordKey}>
                   <span className="evaluation-person">
-                    <strong>{person.name}</strong>
+                    <span className="person-name-with-avatar"><PersonAvatar person={person} name={person.name} /> <strong>{person.name}</strong></span>
                     <small className={saveState || "idle"}>
                       {saveState === "saving"
                         ? "جارٍ الحفظ..."
@@ -3667,7 +3675,7 @@ function StraySheepPage({ people, openReport, template, saveTemplate }) {
                 >
                   <span className="stray-rank">{index + 1}</span>
                   <span className="stray-person-info">
-                    <strong>{row.name}</strong>
+                    <span className="person-name-with-avatar"><PersonAvatar person={row} name={row.name} /> <strong>{row.name}</strong></span>
                     <small>{row.phone1 || row.phone2 || "بدون رقم"}</small>
                   </span>
                 </button>
@@ -4022,7 +4030,7 @@ function ServiceAnalyticsPage({ analytics, exportFull }) {
               <thead><tr><th>الخادم</th><th>اتصالات</th><th>خورس</th><th>قداس</th></tr></thead>
               <tbody>
                 {(analytics.servants || []).map((item) => (
-                  <tr key={item.name}><td>{item.name}</td><td>{item.calls}</td><td>{item.choir}</td><td>{item.mass}</td></tr>
+                  <tr key={item.name}><td><span className="person-name-with-avatar"><PersonAvatar name={item.name} />{item.name}</span></td><td>{item.calls}</td><td>{item.choir}</td><td>{item.mass}</td></tr>
                 ))}
                 {!analytics.servants?.length && <tr><td colSpan="4">لا توجد بيانات خدام بعد.</td></tr>}
               </tbody>
@@ -4041,7 +4049,7 @@ function ServiceAnalyticsPage({ analytics, exportFull }) {
         <div className="analytics-needs-list">
           {(analytics.needsAttention || []).map((person) => (
             <article key={person.recordKey}>
-              <div><strong>{person.name}</strong><small>مجموعة {person.group || "—"}</small></div>
+              <div><span className="person-name-with-avatar"><PersonAvatar person={person} name={person.name} /><strong>{person.name}</strong></span><small>مجموعة {person.group || "—"}</small></div>
               <span>خورس {person.choirRate}%</span><span>قداس {person.massRate}%</span><span>افتقاد {person.followUpRate}%</span>
             </article>
           ))}

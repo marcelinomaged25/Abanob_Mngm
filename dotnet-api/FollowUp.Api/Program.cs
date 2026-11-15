@@ -78,12 +78,12 @@ app.MapGet("/api/public/qr/{token}", async (string token, NpgsqlDataSource db) =
     var attendanceStart = new DateOnly(2026, 10, 2);
     var attendanceThrough = CairoToday();
     await using var connection = await db.OpenConnectionAsync();
-    await using var personCommand = new NpgsqlCommand("select id,record_key,name,group_number from people where qr_token=$1 and is_active=true and role='boy'", connection);
+    await using var personCommand = new NpgsqlCommand("select id,record_key,name,group_number,photo_url from people where qr_token=$1 and is_active=true and role='boy'", connection);
     personCommand.Parameters.AddWithValue(token);
     await using var personReader = await personCommand.ExecuteReaderAsync();
     if (!await personReader.ReadAsync()) return Results.NotFound(new { error = "QR code غير صالح أو الاسم غير متاح" });
     var personId = personReader.GetInt64(0);
-    var person = new { recordKey = personReader.GetInt32(1), name = personReader.GetString(2), group = personReader.IsDBNull(3) ? "" : personReader.GetString(3) };
+    var person = new { recordKey = personReader.GetInt32(1), name = personReader.GetString(2), group = personReader.IsDBNull(3) ? "" : personReader.GetString(3), photoUrl = personReader.IsDBNull(4) ? "" : personReader.GetString(4) };
     await personReader.CloseAsync();
 
     var attendance = new List<PublicAttendanceItem>();
@@ -217,7 +217,7 @@ app.MapGet("/api/public/league", async (string? month, NpgsqlDataSource db) =>
         : new DateOnly(CairoToday().Year, CairoToday().Month, 1);
     var monthEnd = selectedMonth.AddMonths(1);
     var lastFriday = LastFridayOfMonth(selectedMonth);
-    var rows = new List<(int RecordKey, string Name, long Points, long Attendance, long Evaluations, long MonthPoints, long MonthAttendance, long MonthEvaluations)>();
+    var rows = new List<(int RecordKey, string Name, string PhotoUrl, long Points, long Attendance, long Evaluations, long MonthPoints, long MonthAttendance, long MonthEvaluations)>();
     await using var connection = await db.OpenConnectionAsync();
     await using var command = new NpgsqlCommand(@"
         with attendance as (
@@ -234,7 +234,7 @@ app.MapGet("/api/public/league", async (string? month, NpgsqlDataSource db) =>
             join attendance_records a on a.person_id=e.person_id and a.attendance_type='choir' and a.attendance_date=e.attendance_date
             group by e.person_id
         )
-        select p.record_key,p.name,
+        select p.record_key,p.name,p.photo_url,
                coalesce(a.choir_count,0)+coalesce(a.mass_count,0)+coalesce(e.points,0) as points,
                coalesce(a.choir_count,0)+coalesce(a.mass_count,0) as attendance,
                coalesce(e.points,0) as evaluations,
@@ -246,7 +246,7 @@ app.MapGet("/api/public/league", async (string? month, NpgsqlDataSource db) =>
     command.Parameters.AddWithValue(selectedMonth);
     command.Parameters.AddWithValue(monthEnd);
     await using (var reader = await command.ExecuteReaderAsync())
-        while (await reader.ReadAsync()) rows.Add((reader.GetInt32(0), reader.GetString(1), reader.GetInt64(2), reader.GetInt64(3), reader.GetInt64(4), reader.GetInt64(5), reader.GetInt64(6), reader.GetInt64(7)));
+        while (await reader.ReadAsync()) rows.Add((reader.GetInt32(0), reader.GetString(1), reader.IsDBNull(2) ? "" : reader.GetString(2), reader.GetInt64(3), reader.GetInt64(4), reader.GetInt64(5), reader.GetInt64(6), reader.GetInt64(7), reader.GetInt64(8)));
     var rankedRows = rows
         .OrderByDescending(row => row.MonthPoints)
         .ThenByDescending(row => row.MonthAttendance)
@@ -260,7 +260,7 @@ app.MapGet("/api/public/league", async (string? month, NpgsqlDataSource db) =>
         lastFriday = lastFriday.ToString("yyyy-MM-dd"),
         isFinalized = lastFriday <= CairoToday(),
         monthlyLeader = monthlyLeader.Name is null ? null : new { name = monthlyLeader.Name, points = monthlyLeader.MonthPoints },
-        rows = rankedRows.Select((row, index) => new { rank = index + 1, recordKey = row.RecordKey, name = row.Name, points = row.MonthPoints })
+        rows = rankedRows.Select((row, index) => new { rank = index + 1, recordKey = row.RecordKey, name = row.Name, photoUrl = row.PhotoUrl, points = row.MonthPoints })
     });
 });
 
