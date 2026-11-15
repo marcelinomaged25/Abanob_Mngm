@@ -11121,6 +11121,27 @@ textarea {
 .analytics-table {
   min-width: 420px;
 }
+.analytics-stable-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.analytics-stable-grid div {
+  display: grid;
+  gap: 4px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--paper) 88%, #e3b126 12%);
+}
+.analytics-stable-grid strong { color: var(--ink); font-size: 24px; }
+.analytics-stable-grid span,
+.analytics-stable-note { color: var(--muted); font-size: 12px; }
+.analytics-stable-note { margin: 14px 0 0; }
+.dark-mode .analytics-stable-grid div { background: #15232e; }
+@media (max-width: 680px) {
+  .analytics-stable-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .analytics-needs-card > .section-title-row p:last-child {
   margin: 5px 0 0;
   color: var(--muted);

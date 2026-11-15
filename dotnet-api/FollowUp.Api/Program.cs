@@ -516,8 +516,8 @@ api.MapGet("/export/full-reports.xlsx", async (NpgsqlDataSource db) =>
         union all select 'حضور القداس',count(*)::text from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy' and a.attendance_type='mass'
         union all select 'الزيارات',count(*)::text from visit_records v join people p on p.id=v.person_id where p.is_active=true and p.role='boy'
         union all select 'الاتصالات',count(*)::text from call_records c join people p on p.id=c.person_id where p.is_active=true and p.role='boy'");
-    await AddSection("الأولاد", new[] { "رقم السجل", "الاسم", "المجموعة", "الهاتف 1", "الهاتف 2", "العنوان", "حضور الخورس", "حضور القداس", "الزيارات", "الاتصالات" }, @"
-        select p.record_key,p.name,coalesce(p.group_number,''),p.phone1,p.phone2,p.address,
+    await AddSection("الأولاد", new[] { "رقم السجل", "الاسم", "الهاتف 1", "الهاتف 2", "العنوان", "حضور الخورس", "حضور القداس", "الزيارات", "الاتصالات" }, @"
+        select p.record_key,p.name,p.phone1,p.phone2,p.address,
                count(distinct a.attendance_date) filter(where a.attendance_type='choir'),count(distinct a.attendance_date) filter(where a.attendance_type='mass'),count(distinct v.visit_date),count(distinct (c.person_id,c.week_start))
         from people p left join attendance_records a on a.person_id=p.id left join visit_records v on v.person_id=p.id left join call_records c on c.person_id=p.id
         where p.is_active=true and p.role='boy' group by p.id order by p.record_key");
@@ -525,17 +525,17 @@ api.MapGet("/export/full-reports.xlsx", async (NpgsqlDataSource db) =>
         select p.name,p.phone1,p.phone2,count(distinct a.attendance_date) filter(where a.attendance_type='choir'),count(distinct a.attendance_date) filter(where a.attendance_type='mass'),count(distinct c.person_id)
         from people p left join attendance_records a on a.person_id=p.id left join call_records c on regexp_replace(translate(c.servant,'إأآ','ااا'),'\\s+','','g')=regexp_replace(translate(p.name,'إأآ','ااا'),'\\s+','','g')
         where p.is_active=true and p.role='servant' group by p.id order by p.name");
-    await AddSection("الحضور", new[] { "التاريخ", "النوع", "رقم السجل", "الاسم", "المجموعة" }, @"
-        select a.attendance_date::text,case when a.attendance_type='choir' then 'خورس' else 'قداس' end,p.record_key,p.name,coalesce(p.group_number,'')
+    await AddSection("الحضور", new[] { "التاريخ", "النوع", "رقم السجل", "الاسم" }, @"
+        select a.attendance_date::text,case when a.attendance_type='choir' then 'خورس' else 'قداس' end,p.record_key,p.name
         from attendance_records a join people p on p.id=a.person_id where p.is_active=true order by a.attendance_date desc,p.record_key");
-    await AddSection("الزيارات", new[] { "تاريخ الزيارة", "رقم السجل", "الاسم", "المجموعة", "الهاتف", "العنوان" }, @"
-        select v.visit_date::text,p.record_key,p.name,coalesce(p.group_number,''),p.phone1,p.address
+    await AddSection("الزيارات", new[] { "تاريخ الزيارة", "رقم السجل", "الاسم", "الهاتف", "العنوان" }, @"
+        select v.visit_date::text,p.record_key,p.name,p.phone1,p.address
         from visit_records v join people p on p.id=v.person_id where p.is_active=true order by v.visit_date desc,p.record_key");
-    await AddSection("الاتصالات", new[] { "أسبوع الاتصال", "تاريخ التسجيل", "رقم السجل", "الاسم", "المجموعة", "الخادم" }, @"
-        select c.week_start::text,(c.recorded_at at time zone 'Africa/Cairo')::date::text,p.record_key,p.name,coalesce(p.group_number,''),c.servant
+    await AddSection("الاتصالات", new[] { "أسبوع الاتصال", "تاريخ التسجيل", "رقم السجل", "الاسم", "الخادم" }, @"
+        select c.week_start::text,(c.recorded_at at time zone 'Africa/Cairo')::date::text,p.record_key,p.name,c.servant
         from call_records c join people p on p.id=c.person_id where p.is_active=true order by c.week_start desc,p.record_key");
-    await AddSection("التقييمات", new[] { "تاريخ التقييم", "رقم السجل", "الاسم", "المجموعة", "الدرجات" }, @"
-        select e.attendance_date::text,p.record_key,p.name,coalesce(p.group_number,''),e.points
+    await AddSection("التقييمات", new[] { "تاريخ التقييم", "رقم السجل", "الاسم", "الدرجات" }, @"
+        select e.attendance_date::text,p.record_key,p.name,e.points
         from choir_evaluations e join people p on p.id=e.person_id where p.is_active=true order by e.attendance_date desc,p.record_key");
 
     static string Xml(string value) => System.Security.SecurityElement.Escape(value) ?? "";
@@ -548,7 +548,7 @@ api.MapGet("/export/full-reports.xlsx", async (NpgsqlDataSource db) =>
     var sheetRows = rows.Select((row, rowIndex) =>
         $"<row r=\"{rowIndex + 1}\">{string.Concat(row.Values.Select(value => Cell(value, row.Style)))}</row>");
     var sheet = $"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetViews><sheetView workbookViewId=\"0\" rightToLeft=\"1\"/></sheetViews><cols><col min=\"1\" max=\"12\" width=\"22\" customWidth=\"1\"/></cols><sheetData>{string.Concat(sheetRows)}</sheetData></worksheet>";
-    var styles = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><fonts count=\"3\"><font><sz val=\"11\"/><name val=\"Arial\"/></font><font><b/><color rgb=\"FFFFFFFF\"/><sz val=\"11\"/><name val=\"Arial\"/></font><font><b/><color rgb=\"FFFFFFFF\"/><sz val=\"14\"/><name val=\"Arial\"/></font></fonts><fills count=\"3\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FF123B68\"/><bgColor indexed=\"64\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFE0AA24\"/><bgColor indexed=\"64\"/></patternFill></fill></fills><borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs><cellXfs count=\"3\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"1\" borderId=\"0\" applyFont=\"1\" applyFill=\"1\"/><xf numFmtId=\"0\" fontId=\"2\" fillId=\"2\" borderId=\"0\" applyFont=\"1\" applyFill=\"1\"/></cellXfs></styleSheet>";
+    var styles = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><fonts count=\"3\"><font><sz val=\"11\"/><color rgb=\"FF102B4A\"/><name val=\"Arial\"/></font><font><b/><color rgb=\"FF102B4A\"/><sz val=\"11\"/><name val=\"Arial\"/></font><font><b/><color rgb=\"FFFFFFFF\"/><sz val=\"14\"/><name val=\"Arial\"/></font></fonts><fills count=\"3\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFEFE5C8\"/><bgColor indexed=\"64\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FF123B68\"/><bgColor indexed=\"64\"/></patternFill></fill></fills><borders count=\"1\"><border><left/><right/><top/><bottom/></border></borders><cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs><cellXfs count=\"3\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"1\" borderId=\"0\" applyFont=\"1\" applyFill=\"1\"/><xf numFmtId=\"0\" fontId=\"2\" fillId=\"2\" borderId=\"0\" applyFont=\"1\" applyFill=\"1\"/></cellXfs></styleSheet>";
     var files = new Dictionary<string, string>
     {
         ["[Content_Types].xml"] = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/><Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/><Override PartName=\"/xl/worksheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/><Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/></Types>",
