@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "https://abanob-mngm.onrender.com").replace(/\/$/, "");
+const forecastUrl = (import.meta.env.VITE_FORECAST_URL || "").replace(/\/$/, "");
 const today = () => {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Africa/Cairo",
@@ -148,6 +149,7 @@ const emptyServiceAnalytics = {
   groups: [],
   servants: [],
   needsAttention: [],
+  forecast: null,
 };
 const defaultWhatsAppTemplate = "أهلاً {{name}}، بنطمن عليك. يا رب تكون بخير.";
 const emptyPerson = { name: "", group: "", phone1: "", phone2: "", address: "", note: "", role: "boy" };
@@ -398,6 +400,30 @@ export default function App() {
               groupMap.set(group, row);
             });
             const totalSessions = Math.max(1, ...boys.map((person) => person.choirCount || 0), ...boys.map((person) => person.massCount || 0));
+            const monthlyMap = new Map();
+            (legacy.calendar || []).forEach((item) => {
+              const month = String(item.date || "").slice(0, 7);
+              if (!month) return;
+              const row = monthlyMap.get(month) || { month, choir: 0, mass: 0, visits: 0, calls: 0 };
+              row.choir += item.choir || 0;
+              row.mass += item.mass || 0;
+              row.visits += item.visits || 0;
+              row.calls += item.calls || 0;
+              monthlyMap.set(month, row);
+            });
+            const needsAttention = boys
+              .map((person) => ({
+                recordKey: person.recordKey,
+                name: person.name,
+                group: person.group || "",
+                choirRate: Math.round(((person.choirCount || 0) * 100) / totalSessions),
+                massRate: Math.round(((person.massCount || 0) * 100) / totalSessions),
+                followUpRate: Math.min(100, Math.round((((person.visitCount || 0) + (person.callCount || 0)) * 100) / Math.max(1, totalSessions))),
+                activity: (person.choirCount || 0) + (person.massCount || 0) + (person.visitCount || 0) + (person.callCount || 0),
+              }))
+              .sort((a, b) => a.activity - b.activity || a.name.localeCompare(b.name, "ar"))
+              .slice(0, 12)
+              .map(({ activity, ...person }) => person);
             setServiceAnalytics({
               summary: {
                 startedAt: legacy.calendar?.at(-1)?.date || "",
@@ -410,7 +436,7 @@ export default function App() {
                 choirRate: Math.round(((legacy.summary?.choirAttendance || 0) * 100) / Math.max(1, boys.length * totalSessions)),
                 massRate: Math.round(((legacy.summary?.massAttendance || 0) * 100) / Math.max(1, boys.length * totalSessions)),
               },
-              monthly: [],
+              monthly: [...monthlyMap.values()].sort((a, b) => a.month.localeCompare(b.month)),
               groups: [...groupMap.values()].map((row) => ({
                 group: row.group,
                 boys: row.boys,
@@ -419,8 +445,19 @@ export default function App() {
                 followUpRate: Math.round((row.followUp * 100) / Math.max(1, row.boys)),
               })),
               servants: servants.map((person) => ({ name: person.name, calls: person.callCount || 0, choir: person.choirCount || 0, mass: person.massCount || 0 })),
-              needsAttention: [],
+              needsAttention,
             });
+          }
+          if (forecastUrl) {
+            try {
+              const forecastResponse = await fetch(`${forecastUrl}/predict`);
+              if (forecastResponse.ok) {
+                const forecast = await forecastResponse.json();
+                setServiceAnalytics((current) => ({ ...current, forecast }));
+              }
+            } catch {
+              // Forecasting is optional; historical analytics must remain available.
+            }
           }
           return;
         }
@@ -3887,6 +3924,19 @@ function ServiceAnalyticsPage({ analytics, exportFull }) {
           <Download size={17} /> تنزيل ملف Excel
         </button>
       </section>
+      {analytics.forecast && (
+        <section className="table-section analytics-forecast-card">
+          <div>
+            <p className="section-kicker">توقع مبدئي</p>
+            <h2>التوقع للجمعة القادمة</h2>
+            <p>مبني على {analytics.forecast.basedOnSessions || 0} جلسات مسجلة، ويزيد تحسنه مع استمرار التسجيل.</p>
+          </div>
+          <div className="analytics-forecast-values">
+            <strong>{analytics.forecast.nextChoirAttendance || 0}<span> حضور خورس متوقع</span></strong>
+            <strong>{analytics.forecast.nextMassAttendance || 0}<span> حضور قداس متوقع</span></strong>
+          </div>
+        </section>
+      )}
       <section className="analytics-kpi-grid">
         <AnalyticsMetric label="الأولاد المسجلون" value={summary.boys || 0} note="أفراد الخورس النشطون" tone="blue" />
         <AnalyticsMetric label="الخدام" value={summary.servants || 0} note="الخدام النشطون" tone="gold" />

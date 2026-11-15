@@ -11139,6 +11139,22 @@ textarea {
 .analytics-stable-note { color: var(--muted); font-size: 12px; }
 .analytics-stable-note { margin: 14px 0 0; }
 .dark-mode .analytics-stable-grid div { background: #15232e; }
+.analytics-forecast-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 22px;
+}
+.analytics-forecast-card h2 { margin: 0 0 5px; font-size: 19px; }
+.analytics-forecast-card p:last-child { margin: 0; color: var(--muted); font-size: 12px; }
+.analytics-forecast-values { display: flex; gap: 12px; flex-wrap: wrap; }
+.analytics-forecast-values strong { color: var(--ink); font-size: 24px; }
+.analytics-forecast-values span { color: var(--muted); font-size: 11px; font-weight: 500; }
+@media (max-width: 680px) {
+  .analytics-forecast-card { align-items: stretch; flex-direction: column; }
+  .analytics-forecast-values { justify-content: space-between; }
+}
 @media (max-width: 680px) {
   .analytics-stable-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
