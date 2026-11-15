@@ -3934,6 +3934,8 @@ function ServiceAnalyticsPage({ analytics, exportFull }) {
           <div className="analytics-forecast-values">
             <strong>{analytics.forecast.nextChoirAttendance || 0}<span> حضور خورس متوقع</span></strong>
             <strong>{analytics.forecast.nextMassAttendance || 0}<span> حضور قداس متوقع</span></strong>
+            <strong>{analytics.forecast.nextVisits || 0}<span> زيارة متوقعة</span></strong>
+            <strong>{analytics.forecast.nextCalls || 0}<span> اتصال متوقع</span></strong>
           </div>
         </section>
       )}

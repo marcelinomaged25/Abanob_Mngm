@@ -17,17 +17,39 @@ def weekly_counts():
     with connection() as conn, conn.cursor() as cur:
         cur.execute(
             """
-            select a.attendance_date,
-                   count(distinct a.person_id) filter (where a.attendance_type = 'choir'),
-                   count(distinct a.person_id) filter (where a.attendance_type = 'mass')
-            from attendance_records a
-            join people p on p.id = a.person_id
-            where p.is_active = true and p.role = 'boy'
-            group by a.attendance_date
-            order by a.attendance_date
+            with events as (
+                select a.attendance_date as week_date,
+                       count(distinct a.person_id) filter (where a.attendance_type = 'choir') as choir,
+                       count(distinct a.person_id) filter (where a.attendance_type = 'mass') as mass,
+                       0::bigint as visits, 0::bigint as calls
+                from attendance_records a join people p on p.id = a.person_id
+                where p.is_active = true and p.role = 'boy'
+                group by a.attendance_date
+                union all
+                select v.visit_date, 0, 0, count(distinct v.person_id), 0
+                from visit_records v join people p on p.id = v.person_id
+                where p.is_active = true and p.role = 'boy'
+                group by v.visit_date
+                union all
+                select c.week_start, 0, 0, 0, count(distinct c.person_id)
+                from call_records c join people p on p.id = c.person_id
+                where p.is_active = true and p.role = 'boy'
+                group by c.week_start
+            )
+            select date_trunc('week', week_date)::date,
+                   sum(choir), sum(mass), sum(visits), sum(calls)
+            from events
+            group by 1
+            order by 1
             """
         )
         return cur.fetchall()
+
+
+def active_boys():
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute("select count(*) from people where is_active = true and role = 'boy'")
+        return int(cur.fetchone()[0])
 
 
 def forecast(values):
@@ -56,10 +78,22 @@ def predict():
         raise HTTPException(status_code=500, detail="تعذر قراءة بيانات الحضور") from exc
     choir = [int(row[1]) for row in rows]
     mass = [int(row[2]) for row in rows]
+    visits = [int(row[3]) for row in rows]
+    calls = [int(row[4]) for row in rows]
+    boys = active_boys()
+    expected = max(1, boys)
     return {
         "basedOnSessions": len(rows),
         "nextChoirAttendance": forecast(choir),
         "nextMassAttendance": forecast(mass),
+        "nextVisits": forecast(visits),
+        "nextCalls": forecast(calls),
+        "nextChoirRate": round(forecast(choir) * 100 / expected),
+        "nextMassRate": round(forecast(mass) * 100 / expected),
+        "lastWeeks": [
+            {"week": row[0].isoformat(), "choir": int(row[1]), "mass": int(row[2]), "visits": int(row[3]), "calls": int(row[4])}
+            for row in rows[-8:]
+        ],
         "nextFriday": (date.today() + timedelta(days=(4 - date.today().weekday()) % 7)).isoformat(),
-        "method": "trend_with_average_fallback",
+        "method": "weekly_multi_signal_trend_with_average_fallback",
     }
