@@ -163,10 +163,25 @@ const storedMap = (key) => {
 };
 function PersonAvatar({ person, name, size = "small" }) {
   const label = name || person?.name || "";
+  const [open, setOpen] = useState(false);
+  const photoUrl = person?.photoUrl;
   return (
-    <span className={`person-avatar person-avatar-${size}`} aria-hidden="true">
-      {person?.photoUrl ? <img src={person.photoUrl} alt="" /> : label.slice(0, 1)}
-    </span>
+    <>
+      <button
+        type="button"
+        className={`person-avatar person-avatar-${size} ${photoUrl ? "is-clickable" : ""}`}
+        onClick={() => photoUrl && setOpen(true)}
+        aria-label={photoUrl ? `تكبير صورة ${label}` : label}
+      >
+        {photoUrl ? <img src={photoUrl} alt={label} /> : label.slice(0, 1)}
+      </button>
+      {open && photoUrl && (
+        <div className="person-photo-lightbox" role="dialog" aria-label={`صورة ${label}`} onClick={() => setOpen(false)}>
+          <button type="button" className="person-photo-lightbox-close" onClick={() => setOpen(false)} aria-label="إغلاق">×</button>
+          <img src={photoUrl} alt={label} onClick={(event) => event.stopPropagation()} />
+        </div>
+      )}
+    </>
   );
 }
 const publicQrToken = window.location.pathname.match(/^\/qr\/([^/]+)\/?$/)?.[1] || "";

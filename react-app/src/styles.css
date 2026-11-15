@@ -346,12 +346,49 @@ button {
   background: #edf2f6;
   color: #123b68;
   font-weight: 900;
+  padding: 0;
+  font-family: inherit;
+  cursor: default;
 }
+.person-avatar.is-clickable { cursor: zoom-in; }
 .person-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .person-avatar-small { width: 30px; height: 30px; font-size: 12px; }
 .person-avatar-medium { width: 42px; height: 42px; font-size: 16px; }
 .person-avatar-large { width: 76px; height: 76px; font-size: 27px; border-width: 3px; }
 .report-person-heading { display: inline-flex; align-items: center; gap: 14px; }
+.person-photo-lightbox {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: rgba(5, 18, 35, .82);
+  cursor: zoom-out;
+}
+.person-photo-lightbox img {
+  max-width: min(88vw, 620px);
+  max-height: 82vh;
+  border: 5px solid #e3b126;
+  border-radius: 18px;
+  object-fit: contain;
+  box-shadow: 0 20px 70px rgba(0, 0, 0, .45);
+  background: #fff;
+}
+.person-photo-lightbox-close {
+  position: absolute;
+  top: 22px;
+  right: 24px;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(255,255,255,.55);
+  border-radius: 50%;
+  background: rgba(255,255,255,.14);
+  color: #fff;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+}
 .topbar,
 .section-title-row,
 .panel-heading {
