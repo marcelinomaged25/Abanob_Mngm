@@ -3,8 +3,6 @@ from datetime import date, timedelta
 
 import psycopg
 from fastapi import FastAPI, HTTPException
-from sklearn.linear_model import LinearRegression
-
 app = FastAPI(title="Abanob Attendance Forecast")
 
 
@@ -37,9 +35,12 @@ def forecast(values):
         return 0
     if len(values) < 3:
         return round(sum(values) / len(values))
-    x = [[index] for index in range(len(values))]
-    model = LinearRegression().fit(x, values)
-    return max(0, round(float(model.predict([[len(values)]])[0])))
+    # Transparent least-squares trend without a heavyweight ML dependency.
+    x_mean = (len(values) - 1) / 2
+    y_mean = sum(values) / len(values)
+    denominator = sum((index - x_mean) ** 2 for index in range(len(values))) or 1
+    slope = sum((index - x_mean) * (value - y_mean) for index, value in enumerate(values)) / denominator
+    return max(0, round(y_mean + slope * (len(values) - x_mean)))
 
 
 @app.get("/health")

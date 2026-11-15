@@ -3937,21 +3937,6 @@ function ServiceAnalyticsPage({ analytics, exportFull }) {
         )}
       </section>
       <section className="analytics-detail-grid">
-        <section className="table-section analytics-table-card analytics-stable-summary">
-          <div className="section-title-row">
-            <div>
-              <p className="section-kicker">ملخص ثابت</p>
-              <h2>مؤشرات الخدمة الحالية</h2>
-            </div>
-          </div>
-          <div className="analytics-stable-grid">
-            <div><strong>{summary.boys || 0}</strong><span>أولاد نشطون</span></div>
-            <div><strong>{summary.servants || 0}</strong><span>خدام نشطون</span></div>
-            <div><strong>{summary.visits || 0}</strong><span>زيارات مسجلة</span></div>
-            <div><strong>{summary.calls || 0}</strong><span>اتصالات مسجلة</span></div>
-          </div>
-          <p className="analytics-stable-note">تم إلغاء التقسيم حسب المجموعة لأن التوزيع يتغير من أسبوع لآخر.</p>
-        </section>
         <section className="table-section analytics-table-card">
           <div className="section-title-row">
             <div>
