@@ -615,9 +615,11 @@ api.MapGet("/analytics", async (NpgsqlDataSource db) =>
 
     var servantRows = new List<object>();
     await using (var command = new NpgsqlCommand(@"
-        select p.name,count(distinct c.person_id),count(distinct a.attendance_date) filter(where a.attendance_type='choir'),count(distinct a.attendance_date) filter(where a.attendance_type='mass')
-        from people p left join attendance_records a on a.person_id=p.id left join call_records c on regexp_replace(translate(c.servant,'إأآ','ااا'),'\\s+','','g')=regexp_replace(translate(p.name,'إأآ','ااا'),'\\s+','','g')
-        where p.is_active=true and p.role='servant' group by p.id order by count(distinct c.person_id) desc,p.name", connection))
+        with attendance as (select person_id,count(distinct attendance_date) filter(where attendance_type='choir') choir,count(distinct attendance_date) filter(where attendance_type='mass') mass from attendance_records group by person_id),
+        calls as (select regexp_replace(translate(servant,'إأآ','ااا'),'\\s+','','g') servant_key,count(*) total from call_records where nullif(btrim(servant),'') is not null group by 1)
+        select p.name,coalesce(c.total,0),coalesce(a.choir,0),coalesce(a.mass,0)
+        from people p left join attendance a on a.person_id=p.id left join calls c on c.servant_key=regexp_replace(translate(p.name,'إأآ','ااا'),'\\s+','','g')
+        where p.is_active=true and p.role='servant' order by coalesce(c.total,0) desc,p.name", connection))
     await using (var reader = await command.ExecuteReaderAsync())
         while (await reader.ReadAsync()) servantRows.Add(new { name = reader.GetString(0), calls = reader.GetInt64(1), choir = reader.GetInt64(2), mass = reader.GetInt64(3) });
 
