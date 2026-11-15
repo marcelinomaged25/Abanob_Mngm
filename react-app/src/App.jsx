@@ -374,7 +374,54 @@ export default function App() {
           return;
         }
         if (nextMode === "analytics") {
-          setServiceAnalytics(await request("/api/analytics", {}, auth));
+          try {
+            setServiceAnalytics(await request("/api/analytics", {}, auth));
+          } catch {
+            // Keep analytics usable with legacy deployments: dashboard already
+            // contains the historical totals and per-person activity.
+            const legacy = await request(
+              `/api/dashboard?date=${date || today()}&month=${monthOverride}`,
+              {},
+              auth,
+            );
+            const people = legacy.people || [];
+            const boys = people.filter((person) => person.role !== "servant");
+            const servants = people.filter((person) => person.role === "servant");
+            const groupMap = new Map();
+            boys.forEach((person) => {
+              const group = person.group || "غير محدد";
+              const row = groupMap.get(group) || { group, boys: 0, choir: 0, mass: 0, followUp: 0 };
+              row.boys += 1;
+              row.choir += person.choirCount || 0;
+              row.mass += person.massCount || 0;
+              row.followUp += person.visitCount || 0;
+              groupMap.set(group, row);
+            });
+            const totalSessions = Math.max(1, ...boys.map((person) => person.choirCount || 0), ...boys.map((person) => person.massCount || 0));
+            setServiceAnalytics({
+              summary: {
+                startedAt: legacy.calendar?.at(-1)?.date || "",
+                boys: boys.length,
+                servants: servants.length,
+                choirAttendance: legacy.summary?.choirAttendance || 0,
+                massAttendance: legacy.summary?.massAttendance || 0,
+                visits: legacy.summary?.visits || 0,
+                calls: legacy.summary?.calls || 0,
+                choirRate: Math.round(((legacy.summary?.choirAttendance || 0) * 100) / Math.max(1, boys.length * totalSessions)),
+                massRate: Math.round(((legacy.summary?.massAttendance || 0) * 100) / Math.max(1, boys.length * totalSessions)),
+              },
+              monthly: [],
+              groups: [...groupMap.values()].map((row) => ({
+                group: row.group,
+                boys: row.boys,
+                choirRate: Math.round((row.choir * 100) / Math.max(1, row.boys * totalSessions)),
+                massRate: Math.round((row.mass * 100) / Math.max(1, row.boys * totalSessions)),
+                followUpRate: Math.round((row.followUp * 100) / Math.max(1, row.boys)),
+              })),
+              servants: servants.map((person) => ({ name: person.name, calls: person.callCount || 0, choir: person.choirCount || 0, mass: person.massCount || 0 })),
+              needsAttention: [],
+            });
+          }
           return;
         }
         if (nextMode === "notes") {
