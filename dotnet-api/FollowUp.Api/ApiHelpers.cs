@@ -14,9 +14,9 @@ internal static class ApiHelpers
         var availableServants = await GetServantNamesAsync(connection);
         var verse = await GetSetting<string?>(connection, "verse") ?? "";
         var people = new List<Person>();
-        await using (var command = new NpgsqlCommand("select id,record_key,name,note,phone1,phone2,group_number,address,role,qr_token from people where is_active=true order by record_key", connection))
+        await using (var command = new NpgsqlCommand("select id,record_key,name,note,phone1,phone2,group_number,address,role,photo_url,qr_token from people where is_active=true order by record_key", connection))
         await using (var reader = await command.ExecuteReaderAsync())
-            while (await reader.ReadAsync()) people.Add(new Person(reader.GetInt64(0), reader.GetInt32(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.IsDBNull(6) ? "" : reader.GetString(6), reader.GetString(7), reader.GetString(8), reader.IsDBNull(9) ? "" : reader.GetString(9)));
+            while (await reader.ReadAsync()) people.Add(new Person(reader.GetInt64(0), reader.GetInt32(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.IsDBNull(6) ? "" : reader.GetString(6), reader.GetString(7), reader.GetString(8), reader.IsDBNull(9) ? "" : reader.GetString(9), reader.IsDBNull(10) ? "" : reader.GetString(10)));
         var visitedThisMonth = new HashSet<long>();
         var monthStart = new DateOnly(date.Year, date.Month, 1);
         await using (var command = new NpgsqlCommand("select person_id from visit_records where visit_date >= $1 and visit_date < $2", connection))
@@ -91,7 +91,7 @@ internal static class ApiHelpers
         {
             lastCall.TryGetValue(person.Id, out var call);
             var group = person.Role == "servant" ? "" : person.Group;
-            return new { id = person.Id, recordKey = person.RecordKey, name = person.Name, note = person.Note, phone1 = person.Phone1, phone2 = person.Phone2, group, address = person.Address, role = person.Role, qrToken = person.QrToken, visited = mode == "visit" && visits.Contains(person.Id), visitedThisMonth = visitedThisMonth.Contains(person.Id), called = calls.ContainsKey(person.Id), servant = calls.GetValueOrDefault(person.Id) ?? savedAssignments.GetValueOrDefault(person.Group) ?? autoAssignments.GetValueOrDefault(person.Group) ?? "", lastVisitedDate = lastVisit.GetValueOrDefault(person.Id) ?? "", visitCount = visitCounts.GetValueOrDefault(person.Id), lastCalledWeek = call.Week ?? "", lastCaller = call.Servant ?? "", lastChoirDate = lastChoir.GetValueOrDefault(person.Id) ?? "", lastMassDate = lastMass.GetValueOrDefault(person.Id) ?? "", callCount = person.Role == "servant" ? servantCallCounts.GetValueOrDefault(CanonicalServantName(person.Name)) : boyCallCounts.GetValueOrDefault(person.Id), choirCount = choirCounts.GetValueOrDefault(person.Id), massCount = massCounts.GetValueOrDefault(person.Id) };
+            return new { id = person.Id, recordKey = person.RecordKey, name = person.Name, note = person.Note, phone1 = person.Phone1, phone2 = person.Phone2, photoUrl = person.PhotoUrl, group, address = person.Address, role = person.Role, qrToken = person.QrToken, visited = mode == "visit" && visits.Contains(person.Id), visitedThisMonth = visitedThisMonth.Contains(person.Id), called = calls.ContainsKey(person.Id), servant = calls.GetValueOrDefault(person.Id) ?? savedAssignments.GetValueOrDefault(person.Group) ?? autoAssignments.GetValueOrDefault(person.Group) ?? "", lastVisitedDate = lastVisit.GetValueOrDefault(person.Id) ?? "", visitCount = visitCounts.GetValueOrDefault(person.Id), lastCalledWeek = call.Week ?? "", lastCaller = call.Servant ?? "", lastChoirDate = lastChoir.GetValueOrDefault(person.Id) ?? "", lastMassDate = lastMass.GetValueOrDefault(person.Id) ?? "", callCount = person.Role == "servant" ? servantCallCounts.GetValueOrDefault(CanonicalServantName(person.Name)) : boyCallCounts.GetValueOrDefault(person.Id), choirCount = choirCounts.GetValueOrDefault(person.Id), massCount = massCounts.GetValueOrDefault(person.Id) };
         }).ToArray();
         var groupStates = groups.Select(group => new { number = group.Number, members = group.Members, recordKeys = group.RecordKeys, servant = savedAssignments.GetValueOrDefault(group.Number) ?? autoAssignments.GetValueOrDefault(group.Number) ?? "" }).ToArray();
         var weekEnd = week.AddDays(6);
@@ -365,11 +365,11 @@ internal static class ApiHelpers
 
     internal static async Task<Person?> GetPersonAsync(NpgsqlConnection connection, long personId)
     {
-        await using var command = new NpgsqlCommand("select id,record_key,name,note,phone1,phone2,group_number,address,role,qr_token from people where id=$1 and is_active=true", connection);
+        await using var command = new NpgsqlCommand("select id,record_key,name,note,phone1,phone2,group_number,address,role,photo_url,qr_token from people where id=$1 and is_active=true", connection);
         command.Parameters.AddWithValue(personId);
         await using var reader = await command.ExecuteReaderAsync();
         if (!await reader.ReadAsync()) return null;
-        return new Person(reader.GetInt64(0), reader.GetInt32(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.IsDBNull(6) ? "" : reader.GetString(6), reader.GetString(7), reader.GetString(8), reader.IsDBNull(9) ? "" : reader.GetString(9));
+        return new Person(reader.GetInt64(0), reader.GetInt32(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.IsDBNull(6) ? "" : reader.GetString(6), reader.GetString(7), reader.GetString(8), reader.IsDBNull(9) ? "" : reader.GetString(9), reader.IsDBNull(10) ? "" : reader.GetString(10));
     }
 
     internal static async Task<string> SelectLeastFilledGroupAsync(NpgsqlConnection connection, long? excludedPersonId = null)

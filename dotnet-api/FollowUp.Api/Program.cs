@@ -1207,7 +1207,7 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
 
 app.Run();
 
-record Person(long Id, int RecordKey, string Name, string Note, string Phone1, string Phone2, string Group, string Address, string Role, string QrToken);
+record Person(long Id, int RecordKey, string Name, string Note, string Phone1, string Phone2, string Group, string Address, string Role, string PhotoUrl, string QrToken);
 record Group(string Number, int Members, int[] RecordKeys);
 record VisitSave(string Date, Dictionary<string, bool>? Checks);
 record CallSave(string? RotationStart, string[]? Servants, Dictionary<string, bool>? Checks, bool Redistribute = false);
