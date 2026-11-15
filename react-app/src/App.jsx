@@ -152,7 +152,7 @@ const emptyServiceAnalytics = {
   forecast: null,
 };
 const defaultWhatsAppTemplate = "أهلاً {{name}}، بنطمن عليك. يا رب تكون بخير.";
-const emptyPerson = { name: "", group: "", phone1: "", phone2: "", address: "", note: "", role: "boy" };
+const emptyPerson = { name: "", group: "", phone1: "", phone2: "", address: "", note: "", role: "boy", photoUrl: "" };
 const stored = (key, fallback) => sessionStorage.getItem(key) || fallback;
 const storedMap = (key) => {
   try {
@@ -876,6 +876,27 @@ export default function App() {
     }
   }
 
+  async function uploadPersonPhoto(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    setError("");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      body.append("upload_preset", "abanob_uploads");
+      const response = await fetch("https://api.cloudinary.com/v1_1/jtzr0bnj/image/upload", { method: "POST", body });
+      const result = await response.json();
+      if (!response.ok || !result.secure_url) throw new Error(result.error?.message || "تعذر رفع الصورة");
+      setPersonDraft((current) => ({ ...current, photoUrl: result.secure_url }));
+      setNotice("تم رفع الصورة، اضغط حفظ لإتمام البيانات");
+    } catch (uploadError) {
+      setError(uploadError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveAttendance(checksToSave = attendanceChecks, refresh = true) {
     setBusy(true);
     setError("");
@@ -927,6 +948,7 @@ export default function App() {
       address: person.address || "",
       note: person.note || "",
       role: person.role || "boy",
+      photoUrl: person.photoUrl || "",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -1187,6 +1209,7 @@ export default function App() {
             personDraft={personDraft}
             setPersonDraft={setPersonDraft}
             savePerson={savePerson}
+            uploadPersonPhoto={uploadPersonPhoto}
             editPerson={editPerson}
             archivePerson={archivePerson}
             cancelEdit={() => {
@@ -4931,6 +4954,7 @@ function PeopleManager({
   personDraft,
   setPersonDraft,
   savePerson,
+  uploadPersonPhoto,
   editPerson,
   archivePerson,
   cancelEdit,
@@ -4990,6 +5014,11 @@ function PeopleManager({
           <label className="form-wide">
             العنوان
             <input value={personDraft.address} onChange={field("address")} />
+          </label>
+          <label className="form-wide">
+            صورة الولد أو الخادم
+            <input type="file" accept="image/*" onChange={uploadPersonPhoto} disabled={busy} />
+            {personDraft.photoUrl && <img className="person-photo-preview" src={personDraft.photoUrl} alt="معاينة الصورة" />}
           </label>
           <label className="form-wide">
             ملاحظات
