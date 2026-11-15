@@ -307,7 +307,9 @@ export default function App() {
           break;
         } catch (fetchError) {
           lastNetworkError = fetchError;
-          if (attempt === 2) throw fetchError;
+          if (attempt === 2) {
+            throw new Error(`تعذر الاتصال بالخادم أثناء تحميل ${path} (${fetchError?.message || "Network error"})`);
+          }
           await new Promise((resolve) => window.setTimeout(resolve, 700 * (attempt + 1)));
         }
       }
