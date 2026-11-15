@@ -3,7 +3,14 @@ from datetime import date, timedelta
 
 import psycopg
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(title="Abanob Attendance Forecast")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"https://.*\.vercel\.app$|http://localhost(:\d+)?$",
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 
 def connection():
