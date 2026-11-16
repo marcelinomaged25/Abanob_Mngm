@@ -68,6 +68,10 @@ const dateLabel = (value) =>
         new Date(`${value}T12:00:00`),
       )
     : "—";
+const weekdayLabel = (value) =>
+  value
+    ? new Intl.DateTimeFormat("ar-EG", { weekday: "long" }).format(new Date(`${value}T12:00:00`))
+    : "";
 const isGoogleMapsUrl = (value) => {
   try {
     const url = new URL(String(value || "").trim());
@@ -6299,7 +6303,7 @@ function ReportModal({ report, close }) {
                   const event = eventByDate.get(date) || { visited: false, called: false, choir: false, mass: false, caller: "" };
                   return (
                   <tr key={date}>
-                    <td><strong className="report-date-value">{dateLabel(date)}</strong><small className="report-friday-label">الجمعة</small></td>
+                    <td><strong className="report-date-value">{dateLabel(date)}</strong><small className="report-friday-label">{weekdayLabel(date)}</small></td>
                     <td><span className={`report-mini-status ${event.visited ? "done" : "muted"}`}>{event.visited ? "تمت" : "—"}</span></td>
                     <td><span className={`report-mini-status ${event.called ? "done" : "muted"}`}>{event.called ? "تم" : "—"}</span></td>
                     <td>{statusBadge(event.choir, "حضر")}</td>
