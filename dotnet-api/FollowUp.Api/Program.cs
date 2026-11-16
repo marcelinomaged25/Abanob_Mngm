@@ -521,8 +521,8 @@ api.MapGet("/export/full-reports.xlsx", async (NpgsqlDataSource db) =>
                count(distinct a.attendance_date) filter(where a.attendance_type='choir'),count(distinct a.attendance_date) filter(where a.attendance_type='mass'),count(distinct v.visit_date),count(distinct (c.person_id,c.week_start))
         from people p left join attendance_records a on a.person_id=p.id left join visit_records v on v.person_id=p.id left join call_records c on c.person_id=p.id
         where p.is_active=true and p.role='boy' group by p.id order by p.record_key");
-    await AddSection("الخدام", new[] { "الاسم", "الهاتف 1", "الهاتف 2", "حضور الخورس", "حضور القداس", "الأولاد الذين تم الاتصال بهم" }, @"
-        select p.name,p.phone1,p.phone2,count(distinct a.attendance_date) filter(where a.attendance_type='choir'),count(distinct a.attendance_date) filter(where a.attendance_type='mass'),count(distinct c.person_id)
+    await AddSection("تحليلات الخدام", new[] { "اسم الخادم", "الهاتف الأول", "الهاتف الثاني", "حضور الخورس", "حضور القداس", "عدد الاتصالات", "الأولاد الذين تم الاتصال بهم" }, @"
+        select p.name,p.phone1,p.phone2,count(distinct a.attendance_date) filter(where a.attendance_type='choir'),count(distinct a.attendance_date) filter(where a.attendance_type='mass'),count(c.person_id),count(distinct c.person_id)
         from people p left join attendance_records a on a.person_id=p.id left join call_records c on regexp_replace(translate(c.servant,'إأآ','ااا'),'\\s+','','g')=regexp_replace(translate(p.name,'إأآ','ااا'),'\\s+','','g')
         where p.is_active=true and p.role='servant' group by p.id order by p.name");
     await AddSection("الحضور", new[] { "التاريخ", "النوع", "رقم السجل", "الاسم" }, @"
@@ -537,6 +537,13 @@ api.MapGet("/export/full-reports.xlsx", async (NpgsqlDataSource db) =>
     await AddSection("التقييمات", new[] { "تاريخ التقييم", "رقم السجل", "الاسم", "الدرجات" }, @"
         select e.attendance_date::text,p.record_key,p.name,e.points
         from choir_evaluations e join people p on p.id=e.person_id where p.is_active=true order by e.attendance_date desc,p.record_key");
+    await AddSection("الاتجاه الشهري", new[] { "الشهر", "حضور الخورس", "حضور القداس", "الزيارات", "الاتصالات" }, @"
+        select to_char(month,'YYYY-MM'),sum(choir),sum(mass),sum(visits),sum(calls) from (
+          select date_trunc('month',a.attendance_date)::date month,count(*) filter(where a.attendance_type='choir') choir,count(*) filter(where a.attendance_type='mass') mass,0 visits,0 calls
+          from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy' group by 1
+          union all select date_trunc('month',v.visit_date)::date,0,0,count(*),0 from visit_records v join people p on p.id=v.person_id where p.is_active=true and p.role='boy' group by 1
+          union all select date_trunc('month',c.week_start)::date,0,0,0,count(*) from call_records c group by 1
+        ) activity group by month order by month");
 
     static string Xml(string value) => System.Security.SecurityElement.Escape(value) ?? "";
     static string Cell(string value, int style)
@@ -547,7 +554,7 @@ api.MapGet("/export/full-reports.xlsx", async (NpgsqlDataSource db) =>
     }
     var sheetRows = rows.Select((row, rowIndex) =>
         $"<row r=\"{rowIndex + 1}\">{string.Concat(row.Values.Select(value => Cell(value, row.Style)))}</row>");
-    var sheet = $"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetViews><sheetView workbookViewId=\"0\" rightToLeft=\"1\"/></sheetViews><cols><col min=\"1\" max=\"12\" width=\"22\" customWidth=\"1\"/></cols><sheetData>{string.Concat(sheetRows)}</sheetData></worksheet>";
+    var sheet = $"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetViews><sheetView workbookViewId=\"0\" rightToLeft=\"1\" showGridLines=\"0\"/></sheetViews><sheetFormatPr defaultRowHeight=\"22\"/><cols><col min=\"1\" max=\"12\" width=\"24\" customWidth=\"1\"/></cols><sheetData>{string.Concat(sheetRows)}</sheetData></worksheet>";
     var styles = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><fonts count=\"3\"><font><sz val=\"11\"/><color rgb=\"FF102B4A\"/><name val=\"Arial\"/></font><font><b/><color rgb=\"FF102B4A\"/><sz val=\"11\"/><name val=\"Arial\"/></font><font><b/><color rgb=\"FFFFFFFF\"/><sz val=\"14\"/><name val=\"Arial\"/></font></fonts><fills count=\"3\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFEFE5C8\"/><bgColor indexed=\"64\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FF123B68\"/><bgColor indexed=\"64\"/></patternFill></fill></fills><borders count=\"1\"><border><left/><right/><top/><bottom/></border></borders><cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs><cellXfs count=\"3\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"1\" borderId=\"0\" applyFont=\"1\" applyFill=\"1\"/><xf numFmtId=\"0\" fontId=\"2\" fillId=\"2\" borderId=\"0\" applyFont=\"1\" applyFill=\"1\"/></cellXfs></styleSheet>";
     var files = new Dictionary<string, string>
     {
