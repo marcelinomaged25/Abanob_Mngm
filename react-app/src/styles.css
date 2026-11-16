@@ -1327,6 +1327,13 @@ tbody tr:hover td {
 .report-table tbody tr:hover {
   background: #f8fbff;
 }
+.report-table tbody tr.report-followup-row {
+  background: #fffaf0;
+  box-shadow: inset 4px 0 0 #e6ad18;
+}
+.report-table tbody tr.report-followup-row:hover {
+  background: #fff4d6;
+}
 .report-table td:first-child {
   display: grid;
   gap: 3px;

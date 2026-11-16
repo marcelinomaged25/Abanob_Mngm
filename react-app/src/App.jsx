@@ -6302,7 +6302,7 @@ function ReportModal({ report, close }) {
                 reportDates.map((date) => {
                   const event = eventByDate.get(date) || { visited: false, called: false, choir: false, mass: false, caller: "" };
                   return (
-                  <tr key={date}>
+                  <tr key={date} className={event.visited || event.called ? "report-followup-row" : ""}>
                     <td><strong className="report-date-value">{dateLabel(date)}</strong><small className="report-friday-label">{weekdayLabel(date)}</small></td>
                     <td><span className={`report-mini-status ${event.visited ? "done" : "muted"}`}>{event.visited ? "تمت" : "—"}</span></td>
                     <td><span className={`report-mini-status ${event.called ? "done" : "muted"}`}>{event.called ? "تم" : "—"}</span></td>
