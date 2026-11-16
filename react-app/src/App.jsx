@@ -6222,7 +6222,9 @@ function ReportModal({ report, close }) {
     for (const date = start; date <= end; date.setDate(date.getDate() + 7)) {
       dates.push(date.toISOString().slice(0, 10));
     }
-    return dates;
+    const allDates = new Set(dates);
+    report.events.forEach((event) => allDates.add(event.date));
+    return [...allDates].sort((a, b) => a.localeCompare(b));
   }, [report.events, summary?.start]);
   const statusBadge = (present, label) => (
     <span className={`report-status ${present ? "is-present" : "is-absent"}`}>
