@@ -538,12 +538,12 @@ api.MapGet("/export/full-reports.xlsx", async (NpgsqlDataSource db) =>
         select e.attendance_date::text,p.record_key,p.name,e.points
         from choir_evaluations e join people p on p.id=e.person_id where p.is_active=true order by e.attendance_date desc,p.record_key");
     await AddSection("الاتجاه الشهري", new[] { "الشهر", "حضور الخورس", "حضور القداس", "الزيارات", "الاتصالات" }, @"
-        select to_char(month,'YYYY-MM'),sum(choir),sum(mass),sum(visits),sum(calls) from (
-          select date_trunc('month',a.attendance_date)::date month,count(*) filter(where a.attendance_type='choir') choir,count(*) filter(where a.attendance_type='mass') mass,0 visits,0 calls
+        select to_char(month_start,'YYYY-MM'),sum(choir),sum(mass),sum(visits),sum(calls) from (
+          select date_trunc('month',a.attendance_date)::date month_start,count(*) filter(where a.attendance_type='choir') choir,count(*) filter(where a.attendance_type='mass') mass,0 visits,0 calls
           from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy' group by 1
           union all select date_trunc('month',v.visit_date)::date,0,0,count(*),0 from visit_records v join people p on p.id=v.person_id where p.is_active=true and p.role='boy' group by 1
           union all select date_trunc('month',c.week_start)::date,0,0,0,count(*) from call_records c group by 1
-        ) activity group by month order by month");
+        ) activity group by month_start order by month_start");
 
     static string Xml(string value) => System.Security.SecurityElement.Escape(value) ?? "";
     static string Cell(string value, int style)
@@ -599,11 +599,11 @@ api.MapGet("/analytics", async (NpgsqlDataSource db) =>
 
     var monthly = new List<object>();
     await using (var command = new NpgsqlCommand(@"
-        select month,to_char(month,'YYYY-MM'),sum(choir),sum(mass),sum(visits),sum(calls) from (
-          select date_trunc('month',a.attendance_date)::date month,count(*) filter(where a.attendance_type='choir') choir,count(*) filter(where a.attendance_type='mass') mass,0 visits,0 calls from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy' group by 1
+        select month_start,to_char(month_start,'YYYY-MM'),sum(choir),sum(mass),sum(visits),sum(calls) from (
+          select date_trunc('month',a.attendance_date)::date month_start,count(*) filter(where a.attendance_type='choir') choir,count(*) filter(where a.attendance_type='mass') mass,0 visits,0 calls from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='boy' group by 1
           union all select date_trunc('month',v.visit_date)::date,0,0,count(*),0 from visit_records v join people p on p.id=v.person_id where p.is_active=true and p.role='boy' group by 1
           union all select date_trunc('month',c.week_start)::date,0,0,0,count(*) from call_records c group by 1
-        ) activity group by month order by month", connection))
+        ) activity group by month_start order by month_start", connection))
     await using (var reader = await command.ExecuteReaderAsync())
         while (await reader.ReadAsync()) monthly.Add(new { month = reader.GetString(1), choir = reader.GetInt64(2), mass = reader.GetInt64(3), visits = reader.GetInt64(4), calls = reader.GetInt64(5) });
 
@@ -717,10 +717,10 @@ api.MapGet("/servant-stats", async (int? year, NpgsqlDataSource db) =>
         while (await reader.ReadAsync()) stats.Add(new { id = reader.GetInt64(0), name = reader.GetString(1), choir = reader.GetInt64(2), mass = reader.GetInt64(3), calls = reader.GetInt64(4), callWeeks = reader.GetInt64(5) });
     }
     var monthly = new List<object>();
-    await using (var command = new NpgsqlCommand(@"select to_char(month,'YYYY-MM'),sum(choir),sum(mass),sum(calls) from (
-        select date_trunc('month',attendance_date)::date month,count(*) filter(where attendance_type='choir') choir,count(*) filter(where attendance_type='mass') mass,0 calls from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='servant' and extract(year from attendance_date)=$1 group by 1
+    await using (var command = new NpgsqlCommand(@"select to_char(month_start,'YYYY-MM'),sum(choir),sum(mass),sum(calls) from (
+        select date_trunc('month',attendance_date)::date month_start,count(*) filter(where attendance_type='choir') choir,count(*) filter(where attendance_type='mass') mass,0 calls from attendance_records a join people p on p.id=a.person_id where p.is_active=true and p.role='servant' and extract(year from attendance_date)=$1 group by 1
         union all select date_trunc('month',week_start)::date,0,0,count(*) from call_records c join people p on p.is_active=true and p.role='servant' and regexp_replace(translate(c.servant,'إأآ','ااا'),'\s+','','g') = regexp_replace(translate(p.name,'إأآ','ااا'),'\s+','','g') where week_start >= $2 and extract(year from week_start)=$1 group by 1
-    ) data group by month order by month", connection))
+    ) data group by month_start order by month_start", connection))
     {
         command.Parameters.AddWithValue(selectedYear); command.Parameters.AddWithValue(activityStart);
         await using var reader = await command.ExecuteReaderAsync();
