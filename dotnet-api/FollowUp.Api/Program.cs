@@ -493,7 +493,7 @@ api.MapGet("/export/full-reports.xlsx", async (NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();
     var rows = new List<(string[] Values, int Style)>();
-    async Task AddSection(string title, string[] headers, string sql)
+    async Task AddSection(string title, string[] headers, string sql, Func<string[], int>? rowStyle = null)
     {
         rows.Add((new[] { title }, 2));
         rows.Add((headers, 1));
@@ -504,7 +504,7 @@ api.MapGet("/export/full-reports.xlsx", async (NpgsqlDataSource db) =>
             var values = Enumerable.Range(0, reader.FieldCount)
                 .Select(index => reader.IsDBNull(index) ? "" : reader.GetValue(index).ToString() ?? "")
                 .ToArray();
-            rows.Add((values, 0));
+            rows.Add((values, rowStyle?.Invoke(values) ?? 0));
         }
         rows.Add((Array.Empty<string>(), 0));
     }
@@ -544,6 +544,15 @@ api.MapGet("/export/full-reports.xlsx", async (NpgsqlDataSource db) =>
           union all select date_trunc('month',v.visit_date)::date,0,0,count(*),0 from visit_records v join people p on p.id=v.person_id where p.is_active=true and p.role='boy' group by 1
           union all select date_trunc('month',c.week_start)::date,0,0,0,count(*) from call_records c group by 1
         ) activity group by month_start order by month_start");
+    await AddSection("لوحة النشاط اليومي", new[] { "التاريخ", "حضور الخورس", "حضور القداس", "الزيارات", "الاتصالات", "إجمالي النشاط" }, @"
+        select event_date::text,
+          count(*) filter(where kind='choir'),count(*) filter(where kind='mass'),count(*) filter(where kind='visit'),count(*) filter(where kind='call'),count(*)
+        from (
+          select attendance_date event_date,attendance_type kind from attendance_records
+          union all select visit_date,'visit' from visit_records
+          union all select (recorded_at at time zone 'Africa/Cairo')::date,'call' from call_records
+        ) events group by event_date order by event_date desc", values =>
+            values.Length > 0 && DateOnly.TryParse(values[0], out var date) ? (date.DayOfYear % 2 == 0 ? 3 : 4) : 0);
 
     static string Xml(string value) => System.Security.SecurityElement.Escape(value) ?? "";
     static string Cell(string value, int style)
@@ -556,6 +565,10 @@ api.MapGet("/export/full-reports.xlsx", async (NpgsqlDataSource db) =>
         $"<row r=\"{rowIndex + 1}\">{string.Concat(row.Values.Select(value => Cell(value, row.Style)))}</row>");
     var sheet = $"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetViews><sheetView workbookViewId=\"0\" rightToLeft=\"1\" showGridLines=\"0\"/></sheetViews><sheetFormatPr defaultRowHeight=\"22\"/><cols><col min=\"1\" max=\"12\" width=\"24\" customWidth=\"1\"/></cols><sheetData>{string.Concat(sheetRows)}</sheetData></worksheet>";
     var styles = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><fonts count=\"3\"><font><sz val=\"11\"/><color rgb=\"FF102B4A\"/><name val=\"Arial\"/></font><font><b/><color rgb=\"FF102B4A\"/><sz val=\"11\"/><name val=\"Arial\"/></font><font><b/><color rgb=\"FFFFFFFF\"/><sz val=\"14\"/><name val=\"Arial\"/></font></fonts><fills count=\"3\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFEFE5C8\"/><bgColor indexed=\"64\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FF123B68\"/><bgColor indexed=\"64\"/></patternFill></fill></fills><borders count=\"1\"><border><left/><right/><top/><bottom/></border></borders><cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs><cellXfs count=\"3\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"1\" borderId=\"0\" applyFont=\"1\" applyFill=\"1\"/><xf numFmtId=\"0\" fontId=\"2\" fillId=\"2\" borderId=\"0\" applyFont=\"1\" applyFill=\"1\"/></cellXfs></styleSheet>";
+    styles = styles.Replace("<fills count=\"3\">", "<fills count=\"5\">")
+        .Replace("</fills>", "<fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFF5F9FF\"/><bgColor indexed=\"64\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFFFFBF0\"/><bgColor indexed=\"64\"/></patternFill></fill></fills>")
+        .Replace("<cellXfs count=\"3\">", "<cellXfs count=\"5\">")
+        .Replace("</cellXfs>", "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"3\" borderId=\"0\" applyFill=\"1\"/><xf numFmtId=\"0\" fontId=\"0\" fillId=\"4\" borderId=\"0\" applyFill=\"1\"/></cellXfs>");
     var files = new Dictionary<string, string>
     {
         ["[Content_Types].xml"] = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/><Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/><Override PartName=\"/xl/worksheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/><Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/></Types>",
