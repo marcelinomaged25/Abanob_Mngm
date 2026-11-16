@@ -6210,6 +6210,25 @@ function PeopleTable({
 
 function ReportModal({ report, close }) {
   const summary = report.attendanceSummary;
+  const eventByDate = useMemo(
+    () => new Map(report.events.map((event) => [event.date, event])),
+    [report.events],
+  );
+  const reportDates = useMemo(() => {
+    if (!summary?.start) return report.events.map((event) => event.date);
+    const dates = [];
+    const start = new Date(`${summary.start}T12:00:00`);
+    const end = new Date(`${today()}T12:00:00`);
+    for (const date = start; date <= end; date.setDate(date.getDate() + 7)) {
+      dates.push(date.toISOString().slice(0, 10));
+    }
+    return dates;
+  }, [report.events, summary?.start]);
+  const statusBadge = (present, label) => (
+    <span className={`report-status ${present ? "is-present" : "is-absent"}`}>
+      <span className="report-status-dot" />{present ? label : "غائب"}
+    </span>
+  );
   return (
     <div className="modal">
       <button className="modal-backdrop" aria-label="إغلاق التقرير" onClick={close} />
@@ -6273,17 +6292,20 @@ function ReportModal({ report, close }) {
               </tr>
             </thead>
             <tbody>
-              {report.events.length ? (
-                report.events.map((event) => (
-                  <tr key={`${event.date}-${event.caller}-${event.choir}-${event.mass}`}>
-                    <td>{dateLabel(event.date)}</td>
-                    <td>{event.visited ? "تمت" : "—"}</td>
-                    <td>{event.called ? "تم" : "—"}</td>
-                    <td>{event.choir ? "حضر" : "—"}</td>
-                    <td>{event.mass ? "حضر" : "—"}</td>
+              {reportDates.length ? (
+                reportDates.map((date) => {
+                  const event = eventByDate.get(date) || { visited: false, called: false, choir: false, mass: false, caller: "" };
+                  return (
+                  <tr key={date}>
+                    <td><strong className="report-date-value">{dateLabel(date)}</strong><small className="report-friday-label">الجمعة</small></td>
+                    <td><span className={`report-mini-status ${event.visited ? "done" : "muted"}`}>{event.visited ? "تمت" : "—"}</span></td>
+                    <td><span className={`report-mini-status ${event.called ? "done" : "muted"}`}>{event.called ? "تم" : "—"}</span></td>
+                    <td>{statusBadge(event.choir, "حضر")}</td>
+                    <td>{statusBadge(event.mass, "حضر")}</td>
                     <td>{event.caller || "—"}</td>
                   </tr>
-                ))
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan="6">لا يوجد سجل محفوظ لهذا الفرد</td>

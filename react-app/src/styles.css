@@ -1321,6 +1321,66 @@ tbody tr:hover td {
 .report-table {
   min-width: 560px;
 }
+.report-table tbody tr {
+  transition: background-color .18s ease, transform .18s ease;
+}
+.report-table tbody tr:hover {
+  background: #f8fbff;
+}
+.report-table td:first-child {
+  display: grid;
+  gap: 3px;
+}
+.report-date-value {
+  color: var(--ink);
+}
+.report-friday-label {
+  color: var(--muted);
+  font-size: 11px;
+}
+.report-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 72px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.report-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.report-status.is-present {
+  color: #087f5b;
+  background: #def7ec;
+}
+.report-status.is-absent {
+  color: #c92a2a;
+  background: #fff0f0;
+}
+.report-mini-status {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 44px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.report-mini-status.done {
+  color: #087f5b;
+  background: #def7ec;
+}
+.report-mini-status.muted {
+  color: #94a3b8;
+  background: #f1f5f9;
+}
 .people-layout {
   display: grid;
   grid-template-columns: minmax(320px, 0.78fr) minmax(0, 1.6fr);
