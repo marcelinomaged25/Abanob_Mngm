@@ -2034,7 +2034,7 @@ function PublicBiblePage() {
             <button type="button" className="bible-video-modal-close" aria-label="إغلاق الفيديو" onClick={() => setActiveVideo(null)}>×</button>
             <div className="bible-video-modal-player">
               {cloudinaryEmbed(activeVideo.url) ? (
-                <video src={cloudinaryVideoUrl(activeVideo.url)} controls autoPlay playsInline preload="metadata" />
+                <iframe title={activeVideo.title} src={activeVideo.url} allow="autoplay; fullscreen" allowFullScreen />
               ) : googleDriveFileId(activeVideo.url) ? (
                 <iframe title={activeVideo.title} src={`https://drive.google.com/file/d/${googleDriveFileId(activeVideo.url)}/preview`} allow="autoplay; fullscreen" allowFullScreen />
               ) : (
