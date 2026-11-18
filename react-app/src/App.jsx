@@ -610,13 +610,13 @@ export default function App() {
       try {
         const [requests, serviceNotifications] = await Promise.all([
           request("/api/followup-requests"),
-          request("/api/public/notifications"),
+          request("/api/notifications"),
         ]);
         if (stopped) return;
         setFollowUpRequests(requests);
         const notifications = [
           ...parentRequestNotifications(requests),
-          ...serviceNotifications.map((item) => ({ ...item, id: `service-${item.id}` })),
+          ...serviceNotifications,
         ].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
         setNotificationItems(notifications);
         try {
@@ -4164,7 +4164,7 @@ function NotificationsPage({ notifications, readMap, onOpen, onMarkAllRead, onCl
             <div className="notification-entry-content">
               <div className="notification-entry-meta">
                 <span>{item.sourceLabel}</span>
-                <time>{dateLabel(item.createdAt.slice(0, 10))}</time>
+                <time>{dateLabel(String(item.createdAt || item.date || "").slice(0, 10))}</time>
               </div>
               <h2>{item.title}</h2>
               <p>{item.body}</p>

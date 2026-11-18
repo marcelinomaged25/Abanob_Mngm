@@ -288,6 +288,15 @@ api.AddEndpointFilter(async (context, next) =>
 });
 
 api.MapGet("/session", () => Results.Ok(new { role = "user" }));
+api.MapGet("/notifications", async (NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("select id,title,body,target_url,to_char(created_at at time zone 'Africa/Cairo','YYYY-MM-DD\"T\"HH24:MI:SS') from parent_notifications order by created_at desc,id desc limit 100", connection);
+    await using var reader = await command.ExecuteReaderAsync();
+    var notifications = new List<object>();
+    while (await reader.ReadAsync()) notifications.Add(new { id = reader.GetInt64(0), title = reader.GetString(1), body = reader.GetString(2), targetUrl = reader.GetString(3), createdAt = reader.GetString(4), sourceLabel = "تحديثات الخدمة", targetMode = "notifications" });
+    return Results.Ok(notifications);
+});
 api.MapGet("/whatsapp-template", async (NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();
