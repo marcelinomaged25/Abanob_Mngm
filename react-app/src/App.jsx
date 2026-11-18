@@ -2005,7 +2005,7 @@ function PublicBiblePage() {
               {videos.map((item) => (
                 <article className="bible-video-card" key={item.id}>
                   <BibleVideoThumbnail url={item.url} title={item.title} thumbnailUrl={item.thumbnailUrl} />
-                  <div><span className="content-category-pill">{item.category}</span><h2>{item.title}</h2>{item.description && <p>{item.description}</p>}</div>
+                  <div><span className="content-category-pill">{item.category}</span><h2>{item.title}</h2>{item.description && <p>{item.description}</p>}<a className="bible-watch-button" href={item.url} target="_blank" rel="noreferrer"><Play size={15} fill="currentColor" /> تشغيل الفيديو</a></div>
                 </article>
               ))}
             </div>
