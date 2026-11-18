@@ -1963,6 +1963,7 @@ function BibleVideoThumbnail({ url, title, thumbnailUrl = "" }) {
 function PublicBiblePage() {
   const [items, setItems] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [activeVideo, setActiveVideo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -2005,13 +2006,28 @@ function PublicBiblePage() {
               {videos.map((item) => (
                 <article className="bible-video-card" key={item.id}>
                   <BibleVideoThumbnail url={item.url} title={item.title} thumbnailUrl={item.thumbnailUrl} />
-                  <div><span className="content-category-pill">{item.category}</span><h2>{item.title}</h2>{item.description && <p>{item.description}</p>}<a className="bible-watch-button" href={item.url} target="_blank" rel="noreferrer"><Play size={15} fill="currentColor" /> تشغيل الفيديو</a></div>
+                  <div><span className="content-category-pill">{item.category}</span><h2>{item.title}</h2>{item.description && <p>{item.description}</p>}<button className="bible-watch-button" type="button" onClick={() => setActiveVideo(item)}><Play size={15} fill="currentColor" /> تشغيل الفيديو</button></div>
                 </article>
               ))}
             </div>
           </section>
         )}
       </section>
+      {activeVideo && (
+        <div className="bible-video-modal" role="dialog" aria-modal="true" aria-label={activeVideo.title} onClick={() => setActiveVideo(null)}>
+          <div className="bible-video-modal-card" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="bible-video-modal-close" aria-label="إغلاق الفيديو" onClick={() => setActiveVideo(null)}>×</button>
+            <div className="bible-video-modal-player">
+              {googleDriveFileId(activeVideo.url) ? (
+                <iframe title={activeVideo.title} src={`https://drive.google.com/file/d/${googleDriveFileId(activeVideo.url)}/preview`} allow="autoplay; fullscreen" allowFullScreen />
+              ) : (
+                <video src={activeVideo.url} controls autoPlay playsInline />
+              )}
+            </div>
+            <h2>{activeVideo.title}</h2>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
