@@ -11371,3 +11371,4 @@ textarea {
 .app-sidebar .sidebar-nav{gap:8px}
 .app-sidebar .sidebar-item{min-height:46px;padding:13px 12px;border-radius:12px}
 .quick-note-form{display:grid;gap:10px;margin-top:18px;padding-top:16px;border-top:1px solid #e8dfc9}.quick-note-form textarea{width:100%;padding:11px 12px;border:1px solid #d9d2c2;border-radius:12px;background:#fff;color:#162f57;resize:vertical;font:inherit}.quick-note-form .primary-button{justify-self:start;display:inline-flex;align-items:center;gap:6px}.call-notes-dialog article{padding:11px 0;border-bottom:1px solid #eee6d7}.call-notes-dialog article small{color:#73829a}.call-notes-dialog article p{margin:6px 0 0;color:#172f56;line-height:1.7}
+.call-notes-close{display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid #d8c68e;border-radius:50%;background:#fff8df;color:#173b6d;cursor:pointer;transition:background .2s,transform .2s}.call-notes-close:hover{background:#e5b52b;transform:rotate(90deg)}

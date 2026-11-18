@@ -6194,7 +6194,7 @@ function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateChec
       {selectedNotes && (
         <div className="call-notes-backdrop" onClick={() => setSelectedNotes(null)}>
           <section className="call-notes-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
-            <header><h3>ملاحظات {selectedNotes.name}</h3><button type="button" onClick={() => setSelectedNotes(null)}>إغلاق</button></header>
+            <header><h3>ملاحظات {selectedNotes.name}</h3><button type="button" className="call-notes-close" aria-label="إغلاق الملاحظات" onClick={() => setSelectedNotes(null)}><X size={18} /></button></header>
             {selectedNotes.entries.length ? selectedNotes.entries.map((item) => (
               <article key={item.id}><small>{dateLabel(item.date)} · {item.servant} · {item.type === "call" ? "اتصال" : "زيارة"}</small><p>{item.note}</p></article>
             )) : <p>لا توجد ملاحظات مسجلة لهذا الولد.</p>}
