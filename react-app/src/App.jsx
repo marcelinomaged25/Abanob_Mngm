@@ -1952,7 +1952,7 @@ function BibleVideoThumbnail({ url, title, thumbnailUrl = "" }) {
       ) : preview ? (
         <img src={preview} alt="" />
       ) : googleDriveFileId(url) ? (
-        <iframe title={title} src={`https://drive.google.com/file/d/${googleDriveFileId(url)}/preview`} allow="autoplay; fullscreen" allowFullScreen />
+        <img src={`https://drive.google.com/thumbnail?id=${googleDriveFileId(url)}&sz=w1200`} alt="" />
       ) : (
         <video src={url} title={title} muted playsInline controls preload="metadata" onLoadedData={captureFirstFrame} />
       )}
