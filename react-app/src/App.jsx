@@ -1938,6 +1938,10 @@ function cloudinaryEmbed(value) {
     return cloudName && publicId ? { cloudName, publicId } : null;
   } catch { return null; }
 }
+function cloudinaryVideoUrl(value) {
+  const data = cloudinaryEmbed(value);
+  return data ? `https://res.cloudinary.com/${data.cloudName}/video/upload/q_auto,f_auto/${encodeURI(data.publicId)}.mp4` : "";
+}
 
 function BibleVideoThumbnail({ url, title, thumbnailUrl = "" }) {
   const [preview, setPreview] = useState("");
@@ -2030,7 +2034,7 @@ function PublicBiblePage() {
             <button type="button" className="bible-video-modal-close" aria-label="إغلاق الفيديو" onClick={() => setActiveVideo(null)}>×</button>
             <div className="bible-video-modal-player">
               {cloudinaryEmbed(activeVideo.url) ? (
-                <iframe title={activeVideo.title} src={activeVideo.url} allow="autoplay; fullscreen" allowFullScreen />
+                <video src={cloudinaryVideoUrl(activeVideo.url)} controls autoPlay playsInline preload="metadata" />
               ) : googleDriveFileId(activeVideo.url) ? (
                 <iframe title={activeVideo.title} src={`https://drive.google.com/file/d/${googleDriveFileId(activeVideo.url)}/preview`} allow="autoplay; fullscreen" allowFullScreen />
               ) : (
