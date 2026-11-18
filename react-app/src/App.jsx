@@ -382,6 +382,7 @@ export default function App() {
         throw new Error(message);
       }
       if (isGet && cacheableApiPath(path)) writeApiCache(path, body);
+      if (!isGet && path.startsWith("/api/followup-notes")) localStorage.removeItem(apiCacheKey("/api/followup-notes"));
       return body;
     },
     [password, username],
@@ -6076,6 +6077,9 @@ function MembersDirectoryByRole({ rows, query, setQuery, openReport, loading }) 
 }
 function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateCheck, openReport, loading, notes = [], request, password, reloadNotes }) {
   const [selectedNotes, setSelectedNotes] = useState(null);
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteError, setNoteError] = useState("");
+  const [noteSuccess, setNoteSuccess] = useState("");
   const filtered = rows.filter(
     (row) =>
       row.role !== "servant" && searchMatches(`${row.name} ${row.group || ""} ${row.servant || ""}`, query),
@@ -6198,7 +6202,7 @@ function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateChec
             {selectedNotes.entries.length ? selectedNotes.entries.map((item) => (
               <article key={item.id}><small>{dateLabel(item.date)} · {item.servant} · {item.type === "call" ? "اتصال" : "زيارة"}</small><p>{item.note}</p></article>
             )) : <p>لا توجد ملاحظات مسجلة لهذا الولد.</p>}
-            <form className="quick-note-form" onSubmit={async (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const note = String(form.get("note") || "").trim(); if (!note) return; await request("/api/followup-notes", { method: "POST", body: JSON.stringify({ personId: selectedNotes.personId, servant: selectedNotes.servant, type: "call", date: today(), note }) }, password); event.currentTarget.reset(); await reloadNotes(); setSelectedNotes((current) => ({ ...current, entries: [...notes.filter((item) => Number(item.personId) === Number(current.personId)), { id: Date.now(), date: today(), servant: current.servant, type: "call", note }] })); }}><textarea name="note" rows="3" placeholder="اكتب ملاحظة الافتقاد لهذا الولد…" required /><button className="primary-button" type="submit"><Plus size={15} /> حفظ الملاحظة</button></form>
+            <form className="quick-note-form" onSubmit={async (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const note = String(form.get("note") || "").trim(); if (!note || noteSaving) return; setNoteSaving(true); setNoteError(""); setNoteSuccess(""); try { await request("/api/followup-notes", { method: "POST", body: JSON.stringify({ personId: selectedNotes.personId, servant: selectedNotes.servant, type: "call", date: today(), note }) }, password); event.currentTarget.reset(); await reloadNotes(); setSelectedNotes((current) => ({ ...current, entries: [...current.entries, { id: Date.now(), date: today(), servant: current.servant, type: "call", note }] })); setNoteSuccess("تم حفظ الملاحظة وإرسال التنبيه"); } catch (error) { setNoteError(error.message || "تعذر حفظ الملاحظة"); } finally { setNoteSaving(false); } }}><textarea name="note" rows="3" placeholder="اكتب ملاحظة الافتقاد لهذا الولد…" required /><button className="primary-button" type="submit" disabled={noteSaving}><Plus size={15} /> {noteSaving ? "جارٍ الحفظ…" : "حفظ الملاحظة"}</button>{noteError && <span className="quick-note-error">{noteError}</span>}{noteSuccess && <span className="quick-note-success">{noteSuccess}</span>}</form>
           </section>
         </div>
       )}

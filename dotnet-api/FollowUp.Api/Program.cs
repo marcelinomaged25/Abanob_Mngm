@@ -1075,10 +1075,18 @@ api.MapPost("/followup-notes", async (FollowUpNoteSave payload, NpgsqlDataSource
 {
     if (string.IsNullOrWhiteSpace(payload.Note) || payload.Type is not ("visit" or "call")) return Results.BadRequest(new { error = "اكتب الملاحظة واختر نوع الافتقاد" });
     await using var connection = await db.OpenConnectionAsync();
-    await using var command = new NpgsqlCommand("insert into followup_notes(person_id,servant,note_type,note_date,note) select id,$1,$2,$3,$4 from people where id=$5 and is_active=true returning id", connection);
+    await using var transaction = await connection.BeginTransactionAsync();
+    await using var command = new NpgsqlCommand("insert into followup_notes(person_id,servant,note_type,note_date,note) select id,$1,$2,$3,$4 from people where id=$5 and is_active=true returning id,person_id", connection, transaction);
     command.Parameters.AddWithValue(payload.Servant?.Trim() ?? ""); command.Parameters.AddWithValue(payload.Type); command.Parameters.AddWithValue(ParseDate(payload.Date, CairoToday())); command.Parameters.AddWithValue(payload.Note.Trim()); command.Parameters.AddWithValue(payload.PersonId);
-    var id = await command.ExecuteScalarAsync();
-    return id is null ? Results.NotFound(new { error = "الولد غير موجود" }) : Results.Ok(new { id });
+    await using var reader = await command.ExecuteReaderAsync();
+    if (!await reader.ReadAsync()) return Results.NotFound(new { error = "الولد غير موجود" });
+    var id = reader.GetInt64(0); var personId = reader.GetInt64(1); await reader.CloseAsync();
+    await using (var notice = new NpgsqlCommand("insert into parent_notifications(person_id,title,body,target_url) values(null,$1,$2,$3)", connection, transaction))
+    {
+        notice.Parameters.AddWithValue("ملاحظة افتقاد جديدة"); notice.Parameters.AddWithValue($"تمت إضافة ملاحظة للولد رقم {personId} بواسطة {payload.Servant?.Trim() ?? "الخادم"}."); notice.Parameters.AddWithValue("/admin"); await notice.ExecuteNonQueryAsync();
+    }
+    await transaction.CommitAsync();
+    return Results.Ok(new { id });
 });
 api.MapDelete("/followup-notes/{id:long}", async (long id, NpgsqlDataSource db) =>
 {
