@@ -186,7 +186,7 @@ app.MapGet("/api/public/books", async (NpgsqlDataSource db) =>
 app.MapGet("/api/public/bible-videos", async (NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();
-    await using var command = new NpgsqlCommand("select id,category,title,video_url,description,thumbnail_url from bible_videos order by category,title,id", connection);
+    await using var command = new NpgsqlCommand("select id,category,title,video_url,description,thumbnail_url from bible_videos order by category,sort_order,id", connection);
     await using var reader = await command.ExecuteReaderAsync();
     var videos = new List<object>();
     while (await reader.ReadAsync()) videos.Add(new { id = reader.GetInt64(0), category = reader.GetString(1), title = reader.GetString(2), url = reader.GetString(3), description = reader.GetString(4), thumbnailUrl = reader.GetString(5) });
@@ -364,6 +364,10 @@ api.MapPost("/books", async (BookSave payload, NpgsqlDataSource db) =>
     await using var command = new NpgsqlCommand("insert into library_books(title,resource_url,cover_url,description) values($1,$2,$3,$4) returning id", connection);
     command.Parameters.AddWithValue(payload.Title.Trim()); command.Parameters.AddWithValue(payload.Url.Trim()); command.Parameters.AddWithValue(payload.CoverUrl?.Trim() ?? ""); command.Parameters.AddWithValue(payload.Description?.Trim() ?? "");
     var id = (long)(await command.ExecuteScalarAsync())!;
+    await using (var notice = new NpgsqlCommand("insert into parent_notifications(title,body,target_url) values($1,$2,$3)", connection))
+    {
+        notice.Parameters.AddWithValue("كتاب جديد"); notice.Parameters.AddWithValue($"تمت إضافة كتاب جديد: {payload.Title.Trim()}."); notice.Parameters.AddWithValue("/books"); await notice.ExecuteNonQueryAsync();
+    }
     return Results.Created($"/api/books/{id}", new { id });
 });
 api.MapPut("/books/{id:long}", async (long id, BookSave payload, NpgsqlDataSource db) =>
@@ -384,7 +388,7 @@ api.MapDelete("/books/{id:long}", async (long id, NpgsqlDataSource db) =>
 api.MapGet("/bible-videos", async (NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();
-    await using var command = new NpgsqlCommand("select id,category,title,video_url,description,thumbnail_url from bible_videos order by category,title,id", connection);
+    await using var command = new NpgsqlCommand("select id,category,title,video_url,description,thumbnail_url from bible_videos order by category,sort_order,id", connection);
     await using var reader = await command.ExecuteReaderAsync();
     var videos = new List<object>();
     while (await reader.ReadAsync()) videos.Add(new { id = reader.GetInt64(0), category = reader.GetString(1), title = reader.GetString(2), url = reader.GetString(3), description = reader.GetString(4), thumbnailUrl = reader.GetString(5) });
@@ -394,9 +398,13 @@ api.MapPost("/bible-videos", async (BibleVideoSave payload, NpgsqlDataSource db)
 {
     if (!ValidBibleVideo(payload, out var error)) return Results.BadRequest(new { error });
     await using var connection = await db.OpenConnectionAsync();
-    await using var command = new NpgsqlCommand("insert into bible_videos(category,title,video_url,description,thumbnail_url) values($1,$2,$3,$4,$5) returning id", connection);
+    await using var command = new NpgsqlCommand("insert into bible_videos(category,title,video_url,description,thumbnail_url,sort_order) values($1,$2,$3,$4,$5,(select coalesce(max(sort_order),-1)+1 from bible_videos where category=$1)) returning id", connection);
     command.Parameters.AddWithValue(payload.Category.Trim()); command.Parameters.AddWithValue(payload.Title.Trim()); command.Parameters.AddWithValue(payload.Url.Trim()); command.Parameters.AddWithValue(payload.Description?.Trim() ?? ""); command.Parameters.AddWithValue(payload.ThumbnailUrl?.Trim() ?? "");
     var id = (long)(await command.ExecuteScalarAsync())!;
+    await using (var notice = new NpgsqlCommand("insert into parent_notifications(title,body,target_url) values($1,$2,$3)", connection))
+    {
+        notice.Parameters.AddWithValue("فيديو جديد في الكتاب المقدس"); notice.Parameters.AddWithValue($"تمت إضافة فيديو جديد: {payload.Title.Trim()} ضمن {payload.Category.Trim()}."); notice.Parameters.AddWithValue("/bible"); await notice.ExecuteNonQueryAsync();
+    }
     return Results.Created($"/api/bible-videos/{id}", new { id });
 });
 api.MapPut("/bible-videos/{id:long}", async (long id, BibleVideoSave payload, NpgsqlDataSource db) =>
@@ -412,6 +420,14 @@ api.MapDelete("/bible-videos/{id:long}", async (long id, NpgsqlDataSource db) =>
     await using var connection = await db.OpenConnectionAsync();
     await using var command = new NpgsqlCommand("delete from bible_videos where id=$1", connection);
     return await command.ExecuteNonQueryAsync() == 0 ? Results.NotFound() : Results.NoContent();
+});
+api.MapPost("/bible-videos/{id:long}/move", async (long id, MoveContentRequest payload, NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var transaction = await connection.BeginTransactionAsync();
+    await using var command = new NpgsqlCommand(@"with current_item as (select category,sort_order from bible_videos where id=$1), neighbor as (select id,sort_order from bible_videos where category=(select category from current_item) and sort_order=(select sort_order from current_item)+$2 limit 1) update bible_videos set sort_order=case when id=$1 then (select sort_order from neighbor) when id=(select id from neighbor) then (select sort_order from current_item) else sort_order end,updated_at=now() where id=$1 or id=(select id from neighbor)", connection, transaction);
+    command.Parameters.AddWithValue(id); command.Parameters.AddWithValue(payload.Direction == "up" ? -1 : 1);
+    await command.ExecuteNonQueryAsync(); await transaction.CommitAsync(); return Results.Ok();
 });
 api.MapGet("/mass-schedules", async (NpgsqlDataSource db) =>
 {
@@ -1296,6 +1312,7 @@ record LearningItemSave(string Date, string Category, string Title, string Url, 
 record LearningResourceLink(string Label, string Url);
 record BookSave(string Title, string Url, string? CoverUrl, string? Description);
 record BibleVideoSave(string Category, string Title, string Url, string? Description, string? ThumbnailUrl);
+record MoveContentRequest(string Direction);
 record MassScheduleSave(string Date, string Time, string Location);
 record FollowUpRequestStatus(string Status);
 record PublicAttendanceItem(string Type, string Date, string RecordedAt, string Comment);
