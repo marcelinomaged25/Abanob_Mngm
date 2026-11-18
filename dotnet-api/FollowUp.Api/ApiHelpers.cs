@@ -135,6 +135,16 @@ internal static class ApiHelpers
         return error.Length == 0;
     }
 
+    internal static bool ValidBibleVideo(BibleVideoSave payload, out string error)
+    {
+        error = "";
+        if (string.IsNullOrWhiteSpace(payload.Category) || payload.Category.Trim().Length > 120) error = "اكتب تصنيف الفيديو";
+        else if (string.IsNullOrWhiteSpace(payload.Title) || payload.Title.Trim().Length > 180) error = "اكتب اسم الفيديو";
+        else if (!ValidHttpsUrl(payload.Url)) error = "رابط الفيديو يجب أن يبدأ بـ https://";
+        else if (payload.Description?.Length > 1200) error = "الوصف طويل جدًا (الحد 1200 حرف)";
+        return error.Length == 0;
+    }
+
     internal static bool ValidHttpsUrl(string? value) =>
         value is not null && value.Length <= 2000 && Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
 

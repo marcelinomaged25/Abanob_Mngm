@@ -19,6 +19,8 @@ alter table learning_items add column if not exists links jsonb not null default
 create index if not exists learning_items_date_idx on learning_items(lesson_date desc, category, id);
 create table if not exists library_books (id bigserial primary key, title text not null, resource_url text not null, cover_url text not null default '', description text not null default '', created_at timestamptz not null default now(), updated_at timestamptz not null default now());
 create index if not exists library_books_created_idx on library_books(created_at desc, id desc);
+create table if not exists bible_videos (id bigserial primary key, category text not null, title text not null, video_url text not null, description text not null default '', created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+create index if not exists bible_videos_category_idx on bible_videos(category, created_at desc, id desc);
 create table if not exists mass_schedules (id bigserial primary key, service_date date not null, service_time time not null, location text not null, created_at timestamptz not null default now(), updated_at timestamptz not null default now());
 create index if not exists mass_schedules_date_idx on mass_schedules(service_date, service_time, id);
 create table if not exists parent_notifications (id bigserial primary key, person_id bigint references people(id) on delete cascade, title text not null, body text not null, target_url text not null, event_key text, created_at timestamptz not null default now());

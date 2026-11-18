@@ -25,6 +25,7 @@ import {
   Music2,
   Pencil,
   Phone,
+  Play,
   Plus,
   QrCode,
   Search,
@@ -200,6 +201,7 @@ const publicQrToken = window.location.pathname.match(/^\/qr\/([^/]+)\/?$/)?.[1] 
 const isAdminPage = window.location.pathname === "/admin" || window.location.pathname.startsWith("/admin/");
 const isLearningPage = window.location.pathname === "/learning" || window.location.pathname === "/learning/";
 const isBooksPage = window.location.pathname === "/books" || window.location.pathname === "/books/";
+const isBiblePage = window.location.pathname === "/bible" || window.location.pathname === "/bible/";
 const isMassSchedulePage =
   window.location.pathname === "/mass-schedule" || window.location.pathname === "/mass-schedule/";
 
@@ -284,6 +286,7 @@ export default function App() {
   const [whatsappTemplate, setWhatsappTemplate] = useState(defaultWhatsAppTemplate);
   const [learningItems, setLearningItems] = useState([]);
   const [books, setBooks] = useState([]);
+  const [bibleVideos, setBibleVideos] = useState([]);
   const [massSchedules, setMassSchedules] = useState([]);
   const [visitReports, setVisitReports] = useState(emptyVisitReports);
   const [serviceAnalytics, setServiceAnalytics] = useState(emptyServiceAnalytics);
@@ -513,6 +516,10 @@ export default function App() {
           setBooks(await request("/api/books", {}, auth));
           return;
         }
+        if (nextMode === "bible-admin") {
+          setBibleVideos(await request("/api/bible-videos", {}, auth));
+          return;
+        }
         if (nextMode === "mass-admin") {
           setMassSchedules(await request("/api/mass-schedules", {}, auth));
           return;
@@ -728,7 +735,7 @@ export default function App() {
     if (nextMode === "notifications" || nextMode === "evaluation" || nextMode === "content-admin") return;
     if (nextMode === "attendance") load(nextMode, attendanceDate);
     else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate);
-    else if (nextMode === "reports" || nextMode === "analytics" || nextMode === "learning-admin" || nextMode === "books-admin" || nextMode === "mass-admin")
+    else if (nextMode === "reports" || nextMode === "analytics" || nextMode === "learning-admin" || nextMode === "books-admin" || nextMode === "bible-admin" || nextMode === "mass-admin")
       load(nextMode);
     else if (nextMode === "qr") {
       /* scanner saves attendance incrementally */
@@ -1007,6 +1014,7 @@ export default function App() {
   if (publicQrToken) return <PublicAttendancePage token={publicQrToken} />;
   if (isLearningPage) return <PublicLearningPage />;
   if (isBooksPage) return <PublicBooksPage />;
+  if (isBiblePage) return <PublicBiblePage />;
   if (isMassSchedulePage) return <PublicMassSchedulePage />;
   if (window.location.pathname === "/life-of-saint-abanoub") return <SaintAbanoubStoryPage />;
   if (window.location.pathname === "/league") return <PublicLeaguePage />;
@@ -1054,7 +1062,7 @@ export default function App() {
 
   const navItem = (nextMode, icon, label) => (
     <button
-      className={`sidebar-item ${mode === nextMode || (nextMode === "content-admin" && ["learning-admin", "books-admin", "mass-admin"].includes(mode)) ? "active" : ""}`}
+      className={`sidebar-item ${mode === nextMode || (nextMode === "content-admin" && ["learning-admin", "books-admin", "bible-admin", "mass-admin"].includes(mode)) ? "active" : ""}`}
       onClick={() => {
         setMobileNavOpen(false);
         switchMode(nextMode);
@@ -1383,6 +1391,14 @@ export default function App() {
             items={books}
             request={request}
             reload={() => load("books-admin")}
+            onBack={() => switchMode("content-admin")}
+          />
+        )}
+        {mode === "bible-admin" && (
+          <BibleVideoManagementPage
+            items={bibleVideos}
+            request={request}
+            reload={() => load("bible-admin")}
             onBack={() => switchMode("content-admin")}
           />
         )}
@@ -1908,6 +1924,123 @@ function PublicLearningPage() {
   );
 }
 
+function BibleVideoThumbnail({ url, title }) {
+  const [preview, setPreview] = useState("");
+  const captureFirstFrame = (event) => {
+    const video = event.currentTarget;
+    try {
+      if (!video.videoWidth || !video.videoHeight) return;
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+      setPreview(canvas.toDataURL("image/jpeg", 0.82));
+    } catch {
+      // بعض روابط Drive لا تسمح بالقراءة من canvas؛ في هذه الحالة نُبقي معاينة الفيديو الأصلية.
+    }
+  };
+  return (
+    <div className="bible-video-thumb">
+      {preview ? (
+        <img src={preview} alt="" />
+      ) : (
+        <video src={url} title={title} muted playsInline preload="metadata" onLoadedData={captureFirstFrame} />
+      )}
+      <span className="bible-video-play"><Play size={18} fill="currentColor" /></span>
+    </div>
+  );
+}
+
+function PublicBiblePage() {
+  const [items, setItems] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    fetch(`${apiUrl}/api/public/bible-videos`)
+      .then(async (response) => {
+        const body = await response.json().catch(() => []);
+        if (!response.ok) throw new Error(body.error || "تعذر تحميل فيديوهات الكتاب المقدس");
+        setItems(body);
+      })
+      .catch((loadError) => setError(loadError.message))
+      .finally(() => setLoading(false));
+  }, []);
+  const categories = [...new Set(items.map((item) => item.category).filter(Boolean))];
+  const videos = items.filter((item) => item.category === selectedCategory);
+  return (
+    <main className="learning-public-page bible-public-page" dir="rtl">
+      <PublicNavigation subtitle="الكتاب المقدس" />
+      <section className="learning-public-content">
+        <div className="learning-public-hero">
+          <BookOpen size={32} />
+          <p className="section-kicker">محتوى روحي</p>
+          <h1>الكتاب المقدس</h1>
+          <p>{selectedCategory ? "اختار الفيديو اللي تحب تشوفه." : "اختار القسم اللي تحب تفتحه."}</p>
+        </div>
+        {loading ? <p className="learning-empty">جاري التحميل…</p> : error ? <p className="learning-empty error">{error}</p> : !selectedCategory ? (
+          <section className="bible-category-grid" aria-label="أقسام الكتاب المقدس">
+            {categories.length ? categories.map((category) => (
+              <button type="button" className="bible-category-card" key={category} onClick={() => setSelectedCategory(category)}>
+                <BookOpen size={28} />
+                <strong>{category}</strong>
+                <span>{items.filter((item) => item.category === category).length} فيديو</span>
+                <ChevronLeft size={19} />
+              </button>
+            )) : <section className="learning-empty-card"><BookOpen size={30} /><strong>لسه مفيش أقسام مضافة</strong><span>هتظهر هنا أول ما الخدام يضيفوا فيديوهات.</span></section>}
+          </section>
+        ) : (
+          <section>
+            <button type="button" className="secondary-button bible-back-button" onClick={() => setSelectedCategory("")}><ChevronRight size={16} /> الأقسام</button>
+            <div className="bible-video-grid">
+              {videos.map((item) => (
+                <article className="bible-video-card" key={item.id}>
+                  <a href={item.url} target="_blank" rel="noreferrer"><BibleVideoThumbnail url={item.url} title={item.title} /></a>
+                  <div><span className="content-category-pill">{item.category}</span><h2>{item.title}</h2>{item.description && <p>{item.description}</p>}<a className="primary-button" href={item.url} target="_blank" rel="noreferrer">فتح الفيديو <ExternalLink size={15} /></a></div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+      </section>
+    </main>
+  );
+}
+
+function BibleVideoManagementPage({ items, request, reload, onBack }) {
+  const emptyDraft = () => ({ category: "الكتاب المقدس في فتفوتة", title: "", url: "", description: "" });
+  const [draft, setDraft] = useState(emptyDraft);
+  const [editingId, setEditingId] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const save = async (event) => {
+    event.preventDefault(); setSaving(true); setError(""); setNotice("");
+    try {
+      await request(editingId ? `/api/bible-videos/${editingId}` : "/api/bible-videos", { method: editingId ? "PUT" : "POST", body: JSON.stringify(draft) });
+      await reload(); setDraft(emptyDraft()); setEditingId(null); setNotice("تم حفظ الفيديو");
+    } catch (saveError) { setError(saveError.message || "تعذر الحفظ"); } finally { setSaving(false); }
+  };
+  const remove = async (item) => { if (!window.confirm(`حذف فيديو «${item.title}»؟`)) return; await request(`/api/bible-videos/${item.id}`, { method: "DELETE" }); await reload(); };
+  return (
+    <section className="learning-admin-page bible-admin-page">
+      <header className="section-title-row learning-admin-heading"><div><p className="section-kicker">إدارة الخدمة</p><h1>إدارة فيديوهات الكتاب المقدس</h1><p>أضف القسم واسم الفيديو ورابط Google Drive. لا تحتاج لإضافة غلاف.</p></div><button type="button" className="secondary-button" onClick={onBack}><ChevronLeft size={16} /> إدارة المحتوى</button></header>
+      <form className="table-section learning-admin-form" onSubmit={save}>
+        <div className="learning-admin-form-title"><BookOpen size={21} /><div><strong>{editingId ? "تعديل فيديو" : "إضافة فيديو"}</strong><span>سيحاول الموقع استخدام أول فريم من الفيديو كصورة معاينة.</span></div></div>
+        <label>اسم القسم<input required maxLength={120} value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} /></label>
+        <label>اسم الفيديو<input required maxLength={180} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="مثال: سفر التكوين" /></label>
+        <label className="learning-form-wide">رابط الفيديو<input required type="url" dir="ltr" value={draft.url} onChange={(e) => setDraft({ ...draft, url: e.target.value })} placeholder="https://drive.google.com/..." /></label>
+        <label className="learning-form-wide">وصف مختصر <small>(اختياري)</small><textarea maxLength={1200} rows="2" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} /></label>
+        {error && <p className="learning-form-error">{error}</p>}{notice && <p className="learning-form-notice">{notice}</p>}
+        <div className="learning-form-actions"><button className="primary-button" type="submit" disabled={saving}>{saving ? "جارٍ الحفظ…" : editingId ? "حفظ التعديل" : "إضافة الفيديو"}</button>{editingId && <button className="cancel-button" type="button" onClick={() => { setEditingId(null); setDraft(emptyDraft()); }}>إلغاء</button>}</div>
+      </form>
+      <section className="learning-admin-list"><div className="section-title-row"><div><p className="section-kicker">الفيديوهات المضافة</p><h2>{items.length} فيديو</h2></div><a href="/bible" target="_blank" rel="noreferrer">معاينة صفحة الأولاد <ExternalLink size={15} /></a></div>
+        {items.length ? <div className="bible-admin-list">{items.map((item) => <article className="bible-admin-item" key={item.id}><BibleVideoThumbnail url={item.url} title={item.title} /><div><span className="content-category-pill">{item.category}</span><strong>{item.title}</strong>{item.description && <span>{item.description}</span>}</div><button className="secondary-button" type="button" onClick={() => { setEditingId(item.id); setDraft({ category: item.category, title: item.title, url: item.url, description: item.description || "" }); }}>تعديل</button><button className="cancel-button" type="button" onClick={() => remove(item)}>حذف</button></article>)}</div> : <p className="learning-empty">لم تتم إضافة فيديوهات بعد.</p>}
+      </section>
+    </section>
+  );
+}
+
 function PublicBooksPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2109,6 +2242,12 @@ function ContentManagementChooser({ onChoose }) {
           <BookOpen size={27} />
           <strong>إدارة الكتب</strong>
           <span>إضافة الكتب وأغلفتها وروابطها للأولاد.</span>
+          <ChevronLeft size={19} />
+        </button>
+        <button type="button" className="content-management-option" onClick={() => onChoose("bible-admin")}>
+          <BookOpen size={27} />
+          <strong>إدارة فيديوهات الكتاب المقدس</strong>
+          <span>أضف التصنيفات وفيديوهات الكتاب المقدس بروابطها.</span>
           <ChevronLeft size={19} />
         </button>
       </div>
@@ -2808,6 +2947,11 @@ function PublicNavigation({ subtitle, homeActions }) {
           <a href="/mass-schedule">
             <Church size={18} />
             <span>اعرف قداسك إمتى</span>
+            <ChevronLeft size={17} />
+          </a>
+          <a href="/bible">
+            <BookOpen size={18} />
+            <span>الكتاب المقدس</span>
             <ChevronLeft size={17} />
           </a>
         </section>
