@@ -2005,8 +2005,8 @@ function PublicBiblePage() {
             <div className="bible-video-grid">
               {videos.map((item) => (
                 <article className="bible-video-card" key={item.id}>
-                  <a href={item.url} target="_blank" rel="noreferrer"><BibleVideoThumbnail url={item.url} title={item.title} thumbnailUrl={item.thumbnailUrl} /></a>
-                  <div><span className="content-category-pill">{item.category}</span><h2>{item.title}</h2>{item.description && <p>{item.description}</p>}<a className="primary-button" href={item.url} target="_blank" rel="noreferrer">فتح الفيديو <ExternalLink size={15} /></a></div>
+                  <BibleVideoThumbnail url={item.url} title={item.title} thumbnailUrl={item.thumbnailUrl} />
+                  <div><span className="content-category-pill">{item.category}</span><h2>{item.title}</h2>{item.description && <p>{item.description}</p>}</div>
                 </article>
               ))}
             </div>
