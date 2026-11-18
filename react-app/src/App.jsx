@@ -18,7 +18,6 @@ import {
   LayoutDashboard,
   LoaderCircle,
   LogOut,
-  Maximize,
   MapPin,
   Medal,
   Menu,
@@ -1957,7 +1956,6 @@ function BibleVideoThumbnail({ url, title, thumbnailUrl = "" }) {
       ) : (
         <video src={url} title={title} muted playsInline controls preload="metadata" onLoadedData={captureFirstFrame} />
       )}
-      <button type="button" className="bible-video-expand" aria-label="تكبير الفيديو" onClick={(event) => { event.preventDefault(); event.currentTarget.parentElement?.requestFullscreen?.(); }}><Maximize size={17} /></button>
     </div>
   );
 }
