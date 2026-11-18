@@ -1438,6 +1438,9 @@ export default function App() {
             openReport={openReport}
             loading={loading}
             notes={followUpNotes}
+            request={request}
+            password={password}
+            reloadNotes={() => load("notes")}
             includeVisitedThisMonth={includeVisitedThisMonth}
             setIncludeVisitedThisMonth={setIncludeVisitedThisMonth}
           />
@@ -6071,7 +6074,7 @@ function MembersDirectoryByRole({ rows, query, setQuery, openReport, loading }) 
     </section>
   );
 }
-function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateCheck, openReport, loading, notes = [] }) {
+function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateCheck, openReport, loading, notes = [], request, password, reloadNotes }) {
   const [selectedNotes, setSelectedNotes] = useState(null);
   const filtered = rows.filter(
     (row) =>
@@ -6149,6 +6152,8 @@ function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateChec
                         </span>
                         <button type="button" className="call-notes-link" onClick={() => setSelectedNotes({
                           name: row.name,
+                          personId: row.id,
+                          servant: row.servant || members[0]?.servant || "",
                           entries: notes.filter((item) => Number(item.personId) === Number(row.id)),
                         })}>
                           ملاحظاتي
@@ -6193,6 +6198,7 @@ function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateChec
             {selectedNotes.entries.length ? selectedNotes.entries.map((item) => (
               <article key={item.id}><small>{dateLabel(item.date)} · {item.servant} · {item.type === "call" ? "اتصال" : "زيارة"}</small><p>{item.note}</p></article>
             )) : <p>لا توجد ملاحظات مسجلة لهذا الولد.</p>}
+            <form className="quick-note-form" onSubmit={async (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const note = String(form.get("note") || "").trim(); if (!note) return; await request("/api/followup-notes", { method: "POST", body: JSON.stringify({ personId: selectedNotes.personId, servant: selectedNotes.servant, type: "call", date: today(), note }) }, password); event.currentTarget.reset(); await reloadNotes(); setSelectedNotes((current) => ({ ...current, entries: [...notes.filter((item) => Number(item.personId) === Number(current.personId)), { id: Date.now(), date: today(), servant: current.servant, type: "call", note }] })); }}><textarea name="note" rows="3" placeholder="اكتب ملاحظة الافتقاد لهذا الولد…" required /><button className="primary-button" type="submit"><Plus size={15} /> حفظ الملاحظة</button></form>
           </section>
         </div>
       )}
@@ -6211,6 +6217,9 @@ function PeopleTable({
   openReport,
   loading,
   notes = [],
+  request,
+  password,
+  reloadNotes,
   includeVisitedThisMonth,
   setIncludeVisitedThisMonth,
 }) {
@@ -6226,6 +6235,9 @@ function PeopleTable({
         openReport={openReport}
         loading={loading}
         notes={notes}
+        request={request}
+        password={password}
+        reloadNotes={reloadNotes}
       />
     );
   return (
