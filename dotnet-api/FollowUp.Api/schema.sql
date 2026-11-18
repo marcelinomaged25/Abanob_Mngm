@@ -29,6 +29,7 @@ create table if not exists parent_notifications (id bigserial primary key, perso
 alter table parent_notifications add column if not exists event_key text;
 alter table parent_notifications add column if not exists servant_only boolean not null default false;
 alter table parent_notifications add column if not exists target_mode text not null default 'notifications';
+update parent_notifications set servant_only=true, target_mode='notes' where title='ملاحظة افتقاد جديدة';
 create index if not exists parent_notifications_feed_idx on parent_notifications(created_at desc, person_id);
 create unique index if not exists parent_notifications_event_key_idx on parent_notifications(event_key) where event_key is not null;
 create table if not exists attendance_comments (person_id bigint not null references people(id) on delete cascade, attendance_type text not null check (attendance_type in ('choir','mass')), attendance_date date not null, comment text not null default '', recorded_at timestamptz not null default now(), primary key (person_id, attendance_type, attendance_date));
