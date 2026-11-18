@@ -18,6 +18,7 @@ import {
   LayoutDashboard,
   LoaderCircle,
   LogOut,
+  Maximize,
   MapPin,
   Medal,
   Menu,
@@ -1952,11 +1953,11 @@ function BibleVideoThumbnail({ url, title, thumbnailUrl = "" }) {
       ) : preview ? (
         <img src={preview} alt="" />
       ) : googleDriveFileId(url) ? (
-        <iframe title={title} src={`https://drive.google.com/file/d/${googleDriveFileId(url)}/preview`} allow="autoplay" />
+        <iframe title={title} src={`https://drive.google.com/file/d/${googleDriveFileId(url)}/preview`} allow="autoplay; fullscreen" allowFullScreen />
       ) : (
-        <video src={url} title={title} muted playsInline preload="metadata" onLoadedData={captureFirstFrame} />
+        <video src={url} title={title} muted playsInline controls preload="metadata" onLoadedData={captureFirstFrame} />
       )}
-      <span className="bible-video-play"><Play size={18} fill="currentColor" /></span>
+      <button type="button" className="bible-video-expand" aria-label="تكبير الفيديو" onClick={(event) => { event.preventDefault(); event.currentTarget.parentElement?.requestFullscreen?.(); }}><Maximize size={17} /></button>
     </div>
   );
 }
@@ -1986,7 +1987,7 @@ function PublicBiblePage() {
           <BookOpen size={32} />
           <p className="section-kicker">محتوى روحي</p>
           <h1>الكتاب المقدس</h1>
-          <p>{selectedCategory ? "اختار الفيديو اللي تحب تشوفه." : "اختار القسم اللي تحب تفتحه."}</p>
+          <p>{selectedCategory ? "اختار السفر اللي تحب تسمعه." : "اختار القسم اللي تحب تفتحه."}</p>
         </div>
         {loading ? <p className="learning-empty">جاري التحميل…</p> : error ? <p className="learning-empty error">{error}</p> : !selectedCategory ? (
           <section className="bible-category-grid" aria-label="أقسام الكتاب المقدس">
