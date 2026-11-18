@@ -1925,7 +1925,12 @@ function PublicLearningPage() {
   );
 }
 
-function BibleVideoThumbnail({ url, title }) {
+function googleDriveFileId(value) {
+  const match = String(value || "").match(/(?:\/d\/|id=)([a-zA-Z0-9_-]+)/);
+  return match?.[1] || "";
+}
+
+function BibleVideoThumbnail({ url, title, thumbnailUrl = "" }) {
   const [preview, setPreview] = useState("");
   const captureFirstFrame = (event) => {
     const video = event.currentTarget;
@@ -1942,8 +1947,12 @@ function BibleVideoThumbnail({ url, title }) {
   };
   return (
     <div className="bible-video-thumb">
-      {preview ? (
+      {thumbnailUrl ? (
+        <img src={learningImageUrl(thumbnailUrl)} alt="" />
+      ) : preview ? (
         <img src={preview} alt="" />
+      ) : googleDriveFileId(url) ? (
+        <iframe title={title} src={`https://drive.google.com/file/d/${googleDriveFileId(url)}/preview`} allow="autoplay" />
       ) : (
         <video src={url} title={title} muted playsInline preload="metadata" onLoadedData={captureFirstFrame} />
       )}
@@ -1996,7 +2005,7 @@ function PublicBiblePage() {
             <div className="bible-video-grid">
               {videos.map((item) => (
                 <article className="bible-video-card" key={item.id}>
-                  <a href={item.url} target="_blank" rel="noreferrer"><BibleVideoThumbnail url={item.url} title={item.title} /></a>
+                  <a href={item.url} target="_blank" rel="noreferrer"><BibleVideoThumbnail url={item.url} title={item.title} thumbnailUrl={item.thumbnailUrl} /></a>
                   <div><span className="content-category-pill">{item.category}</span><h2>{item.title}</h2>{item.description && <p>{item.description}</p>}<a className="primary-button" href={item.url} target="_blank" rel="noreferrer">فتح الفيديو <ExternalLink size={15} /></a></div>
                 </article>
               ))}
@@ -2009,7 +2018,7 @@ function PublicBiblePage() {
 }
 
 function BibleVideoManagementPage({ items, request, reload, onBack }) {
-  const emptyDraft = () => ({ category: "الكتاب المقدس في فتفوتة", title: "", url: "", description: "" });
+  const emptyDraft = () => ({ category: "الكتاب المقدس في فتفوتة", title: "", url: "", thumbnailUrl: "", description: "" });
   const [draft, setDraft] = useState(emptyDraft);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -2031,12 +2040,13 @@ function BibleVideoManagementPage({ items, request, reload, onBack }) {
         <label>اسم القسم<input required maxLength={120} value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} /></label>
         <label>اسم الفيديو<input required maxLength={180} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="مثال: سفر التكوين" /></label>
         <label className="learning-form-wide">رابط الفيديو<input required type="url" dir="ltr" value={draft.url} onChange={(e) => setDraft({ ...draft, url: e.target.value })} placeholder="https://drive.google.com/..." /></label>
+        <label className="learning-form-wide">خلفية الفيديو <small>(اختياري — صورة ثابتة أجمل وأسرع، ولو فاضية سنحاول إظهار أول فريم)</small><input type="url" dir="ltr" value={draft.thumbnailUrl} onChange={(e) => setDraft({ ...draft, thumbnailUrl: e.target.value })} placeholder="https://.../thumbnail.jpg" /></label>
         <label className="learning-form-wide">وصف مختصر <small>(اختياري)</small><textarea maxLength={1200} rows="2" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} /></label>
         {error && <p className="learning-form-error">{error}</p>}{notice && <p className="learning-form-notice">{notice}</p>}
         <div className="learning-form-actions"><button className="primary-button" type="submit" disabled={saving}>{saving ? "جارٍ الحفظ…" : editingId ? "حفظ التعديل" : "إضافة الفيديو"}</button>{editingId && <button className="cancel-button" type="button" onClick={() => { setEditingId(null); setDraft(emptyDraft()); }}>إلغاء</button>}</div>
       </form>
       <section className="learning-admin-list"><div className="section-title-row"><div><p className="section-kicker">الفيديوهات المضافة</p><h2>{items.length} فيديو</h2></div><a href="/bible" target="_blank" rel="noreferrer">معاينة صفحة الأولاد <ExternalLink size={15} /></a></div>
-        {items.length ? <div className="bible-admin-list">{items.map((item) => <article className="bible-admin-item" key={item.id}><BibleVideoThumbnail url={item.url} title={item.title} /><div><span className="content-category-pill">{item.category}</span><strong>{item.title}</strong>{item.description && <span>{item.description}</span>}</div><button className="secondary-button" type="button" onClick={() => { setEditingId(item.id); setDraft({ category: item.category, title: item.title, url: item.url, description: item.description || "" }); }}>تعديل</button><button className="cancel-button" type="button" onClick={() => remove(item)}>حذف</button></article>)}</div> : <p className="learning-empty">لم تتم إضافة فيديوهات بعد.</p>}
+        {items.length ? <div className="bible-admin-list">{items.map((item) => <article className="bible-admin-item" key={item.id}><BibleVideoThumbnail url={item.url} title={item.title} thumbnailUrl={item.thumbnailUrl} /><div><span className="content-category-pill">{item.category}</span><strong>{item.title}</strong>{item.description && <span>{item.description}</span>}</div><button className="secondary-button" type="button" onClick={() => { setEditingId(item.id); setDraft({ category: item.category, title: item.title, url: item.url, thumbnailUrl: item.thumbnailUrl || "", description: item.description || "" }); }}>تعديل</button><button className="cancel-button" type="button" onClick={() => remove(item)}>حذف</button></article>)}</div> : <p className="learning-empty">لم تتم إضافة فيديوهات بعد.</p>}
       </section>
     </section>
   );

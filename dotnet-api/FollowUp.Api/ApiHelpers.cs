@@ -106,6 +106,7 @@ internal static class ApiHelpers
         else if (string.IsNullOrWhiteSpace(payload.Category) || payload.Category.Trim().Length > 100) error = "اكتب تصنيفًا من 1 إلى 100 حرف";
         else if (string.IsNullOrWhiteSpace(payload.Title) || payload.Title.Trim().Length > 180) error = "اكتب اسم المادة من 1 إلى 180 حرفًا";
         else if (payload.Description?.Length > 1200) error = "الوصف طويل جدًا (الحد 1200 حرف)";
+        else if (!string.IsNullOrWhiteSpace(payload.ThumbnailUrl) && !ValidHttpsUrl(payload.ThumbnailUrl)) error = "رابط الخلفية يجب أن يبدأ بـ https://";
         else if (payload.Links is { Count: > 10 }) error = "يمكن إضافة 10 روابط كحد أقصى لكل مادة";
         else if (payload.Links is { Count: > 0 } links && links.Any(link => !ValidLearningLink(link))) error = "راجع أسماء الروابط وتأكد أن كل رابط يبدأ بـ https://";
         else if ((payload.Links is null || payload.Links.Count == 0) && !ValidLearningLink(new LearningResourceLink("فتح المادة", payload.Url ?? ""))) error = "أضف رابطًا صحيحًا يبدأ بـ https://";
