@@ -40,6 +40,17 @@ import {
 } from "lucide-react";
 
 const apiUrl = (import.meta.env.VITE_API_URL || "https://abanob-mngm.onrender.com").replace(/\/$/, "");
+const apiCacheKey = (path) => `choir-api-cache:${apiUrl}${path}`;
+const cacheableApiPath = (path) => /\/api\/(dashboard|analytics|learning-items|books|bible-videos|mass-schedules|followup-notes|followup-requests|whatsapp-template)/.test(path);
+const readApiCache = (path) => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(apiCacheKey(path)) || "null");
+    return saved && Date.now() - saved.time < 5 * 60 * 1000 ? saved.value : null;
+  } catch { return null; }
+};
+const writeApiCache = (path, value) => {
+  try { localStorage.setItem(apiCacheKey(path), JSON.stringify({ time: Date.now(), value })); } catch { /* storage is optional */ }
+};
 const forecastUrl = (import.meta.env.VITE_FORECAST_URL || "").replace(/\/$/, "");
 const today = () => {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -331,6 +342,9 @@ export default function App() {
 
   const request = useCallback(
     async (path, options = {}, auth = password, user = username) => {
+      const isGet = !options.method || options.method.toUpperCase() === "GET";
+      const cached = isGet && cacheableApiPath(path) ? readApiCache(path) : null;
+      if (cached !== null) return cached;
       const requestOptions = {
         ...options,
         headers: {
@@ -367,6 +381,7 @@ export default function App() {
                 : body.error || "تعذر إكمال الطلب، حاول مرة أخرى";
         throw new Error(message);
       }
+      if (isGet && cacheableApiPath(path)) writeApiCache(path, body);
       return body;
     },
     [password, username],
