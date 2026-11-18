@@ -663,7 +663,7 @@ export default function App() {
     };
 
     pollRequests();
-    const interval = window.setInterval(pollRequests, 30000);
+    const interval = window.setInterval(pollRequests, 5000);
     const onVisibilityChange = () => {
       if (!document.hidden) pollRequests();
     };

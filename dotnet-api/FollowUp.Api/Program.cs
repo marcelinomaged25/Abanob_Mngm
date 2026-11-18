@@ -211,7 +211,7 @@ app.MapGet("/api/public/notifications", async (string? token, NpgsqlDataSource d
                to_char(n.created_at at time zone 'Africa/Cairo','YYYY-MM-DD'),
                n.person_id is not null
         from parent_notifications n
-        where n.person_id is null or n.person_id=(select id from people where qr_token=$1 and is_active=true and role='boy')
+        where n.servant_only=false and (n.person_id is null or n.person_id=(select id from people where qr_token=$1 and is_active=true and role='boy'))
         order by n.created_at desc,n.id desc limit 50", connection);
     command.Parameters.AddWithValue(token ?? "");
     await using var reader = await command.ExecuteReaderAsync();
@@ -291,10 +291,10 @@ api.MapGet("/session", () => Results.Ok(new { role = "user" }));
 api.MapGet("/notifications", async (NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();
-    await using var command = new NpgsqlCommand("select id,title,body,target_url,to_char(created_at at time zone 'Africa/Cairo','YYYY-MM-DD\"T\"HH24:MI:SS') from parent_notifications order by created_at desc,id desc limit 100", connection);
+    await using var command = new NpgsqlCommand("select id,title,body,target_url,target_mode,to_char(created_at at time zone 'Africa/Cairo','YYYY-MM-DD\"T\"HH24:MI:SS') from parent_notifications order by created_at desc,id desc limit 100", connection);
     await using var reader = await command.ExecuteReaderAsync();
     var notifications = new List<object>();
-    while (await reader.ReadAsync()) notifications.Add(new { id = reader.GetInt64(0), title = reader.GetString(1), body = reader.GetString(2), targetUrl = reader.GetString(3), createdAt = reader.GetString(4), sourceLabel = "تحديثات الخدمة", targetMode = "notifications" });
+    while (await reader.ReadAsync()) notifications.Add(new { id = reader.GetInt64(0), title = reader.GetString(1), body = reader.GetString(2), targetUrl = reader.GetString(3), targetMode = reader.GetString(4), createdAt = reader.GetString(5), sourceLabel = "تحديثات الخدمة" });
     return Results.Ok(notifications);
 });
 api.MapGet("/whatsapp-template", async (NpgsqlDataSource db) =>
@@ -1090,7 +1090,7 @@ api.MapPost("/followup-notes", async (FollowUpNoteSave payload, NpgsqlDataSource
     await using var reader = await command.ExecuteReaderAsync();
     if (!await reader.ReadAsync()) return Results.NotFound(new { error = "الولد غير موجود" });
     var id = reader.GetInt64(0); var personId = reader.GetInt64(1); await reader.CloseAsync();
-    await using (var notice = new NpgsqlCommand("insert into parent_notifications(person_id,title,body,target_url) values(null,$1,$2,$3)", connection, transaction))
+    await using (var notice = new NpgsqlCommand("insert into parent_notifications(person_id,title,body,target_url,servant_only,target_mode) values(null,$1,$2,$3,true,'notes')", connection, transaction))
     {
         notice.Parameters.AddWithValue("ملاحظة افتقاد جديدة"); notice.Parameters.AddWithValue($"تمت إضافة ملاحظة للولد رقم {personId} بواسطة {payload.Servant?.Trim() ?? "الخادم"}."); notice.Parameters.AddWithValue("/admin"); await notice.ExecuteNonQueryAsync();
     }

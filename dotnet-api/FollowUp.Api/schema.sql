@@ -27,6 +27,8 @@ create table if not exists mass_schedules (id bigserial primary key, service_dat
 create index if not exists mass_schedules_date_idx on mass_schedules(service_date, service_time, id);
 create table if not exists parent_notifications (id bigserial primary key, person_id bigint references people(id) on delete cascade, title text not null, body text not null, target_url text not null, event_key text, created_at timestamptz not null default now());
 alter table parent_notifications add column if not exists event_key text;
+alter table parent_notifications add column if not exists servant_only boolean not null default false;
+alter table parent_notifications add column if not exists target_mode text not null default 'notifications';
 create index if not exists parent_notifications_feed_idx on parent_notifications(created_at desc, person_id);
 create unique index if not exists parent_notifications_event_key_idx on parent_notifications(event_key) where event_key is not null;
 create table if not exists attendance_comments (person_id bigint not null references people(id) on delete cascade, attendance_type text not null check (attendance_type in ('choir','mass')), attendance_date date not null, comment text not null default '', recorded_at timestamptz not null default now(), primary key (person_id, attendance_type, attendance_date));
