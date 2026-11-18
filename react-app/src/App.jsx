@@ -1929,6 +1929,15 @@ function googleDriveFileId(value) {
   const match = String(value || "").match(/(?:\/d\/|id=)([a-zA-Z0-9_-]+)/);
   return match?.[1] || "";
 }
+function cloudinaryEmbed(value) {
+  try {
+    const url = new URL(String(value || ""));
+    if (url.hostname !== "player.cloudinary.com") return null;
+    const cloudName = url.searchParams.get("cloud_name");
+    const publicId = url.searchParams.get("public_id");
+    return cloudName && publicId ? { cloudName, publicId } : null;
+  } catch { return null; }
+}
 
 function BibleVideoThumbnail({ url, title, thumbnailUrl = "" }) {
   const [preview, setPreview] = useState("");
@@ -1951,6 +1960,8 @@ function BibleVideoThumbnail({ url, title, thumbnailUrl = "" }) {
         <img src={learningImageUrl(thumbnailUrl)} alt="" />
       ) : preview ? (
         <img src={preview} alt="" />
+      ) : cloudinaryEmbed(url) ? (
+        <img src={`https://res.cloudinary.com/${cloudinaryEmbed(url).cloudName}/video/upload/so_0,q_auto,f_auto/${encodeURI(cloudinaryEmbed(url).publicId)}.jpg`} alt="" />
       ) : googleDriveFileId(url) ? (
         <img src={`https://drive.google.com/thumbnail?id=${googleDriveFileId(url)}&sz=w1200`} alt="" />
       ) : (
@@ -2018,7 +2029,9 @@ function PublicBiblePage() {
           <div className="bible-video-modal-card" onClick={(event) => event.stopPropagation()}>
             <button type="button" className="bible-video-modal-close" aria-label="إغلاق الفيديو" onClick={() => setActiveVideo(null)}>×</button>
             <div className="bible-video-modal-player">
-              {googleDriveFileId(activeVideo.url) ? (
+              {cloudinaryEmbed(activeVideo.url) ? (
+                <iframe title={activeVideo.title} src={activeVideo.url} allow="autoplay; fullscreen" allowFullScreen />
+              ) : googleDriveFileId(activeVideo.url) ? (
                 <iframe title={activeVideo.title} src={`https://drive.google.com/file/d/${googleDriveFileId(activeVideo.url)}/preview`} allow="autoplay; fullscreen" allowFullScreen />
               ) : (
                 <video src={activeVideo.url} controls autoPlay playsInline />
