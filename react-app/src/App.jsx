@@ -7,6 +7,7 @@ import {
   Camera,
   Check,
   ChevronLeft,
+  ChevronRight,
   ChevronDown,
   Church,
   Copy,
