@@ -414,6 +414,11 @@ export default function App() {
       if (isGet && cacheableApiPath(path)) writeApiCache(path, body);
       if (!isGet && path.startsWith("/api/followup-notes"))
         localStorage.removeItem(apiCacheKey("/api/followup-notes"));
+      if (!isGet) {
+        ["/api/learning-items", "/api/books", "/api/bible-videos", "/api/mass-schedules"].forEach((cachePath) => {
+          if (path.startsWith(cachePath)) localStorage.removeItem(apiCacheKey(cachePath));
+        });
+      }
       return body;
     },
     [password, username],
