@@ -41,15 +41,24 @@ import {
 
 const apiUrl = (import.meta.env.VITE_API_URL || "https://abanob-mngm.onrender.com").replace(/\/$/, "");
 const apiCacheKey = (path) => `choir-api-cache:${apiUrl}${path}`;
-const cacheableApiPath = (path) => /\/api\/(dashboard|analytics|learning-items|books|bible-videos|mass-schedules|followup-notes|followup-requests|whatsapp-template)/.test(path);
+const cacheableApiPath = (path) =>
+  /\/api\/(dashboard|analytics|learning-items|books|bible-videos|mass-schedules|followup-notes|followup-requests|whatsapp-template)/.test(
+    path,
+  );
 const readApiCache = (path) => {
   try {
     const saved = JSON.parse(localStorage.getItem(apiCacheKey(path)) || "null");
     return saved && Date.now() - saved.time < 5 * 60 * 1000 ? saved.value : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 };
 const writeApiCache = (path, value) => {
-  try { localStorage.setItem(apiCacheKey(path), JSON.stringify({ time: Date.now(), value })); } catch { /* storage is optional */ }
+  try {
+    localStorage.setItem(apiCacheKey(path), JSON.stringify({ time: Date.now(), value }));
+  } catch {
+    /* storage is optional */
+  }
 };
 const forecastUrl = (import.meta.env.VITE_FORECAST_URL || "").replace(/\/$/, "");
 const today = () => {
@@ -82,9 +91,7 @@ const dateLabel = (value) =>
       )
     : "—";
 const weekdayLabel = (value) =>
-  value
-    ? new Intl.DateTimeFormat("ar-EG", { weekday: "long" }).format(new Date(`${value}T12:00:00`))
-    : "";
+  value ? new Intl.DateTimeFormat("ar-EG", { weekday: "long" }).format(new Date(`${value}T12:00:00`)) : "";
 const isGoogleMapsUrl = (value) => {
   try {
     const url = new URL(String(value || "").trim());
@@ -169,7 +176,16 @@ const emptyServiceAnalytics = {
   forecast: null,
 };
 const defaultWhatsAppTemplate = "أهلاً {{name}}، بنطمن عليك. يا رب تكون بخير.";
-const emptyPerson = { name: "", group: "", phone1: "", phone2: "", address: "", note: "", role: "boy", photoUrl: "" };
+const emptyPerson = {
+  name: "",
+  group: "",
+  phone1: "",
+  phone2: "",
+  address: "",
+  note: "",
+  role: "boy",
+  photoUrl: "",
+};
 const stored = (key, fallback) => sessionStorage.getItem(key) || fallback;
 const storedMap = (key) => {
   try {
@@ -201,8 +217,20 @@ function PersonAvatar({ person, name, size = "small" }) {
         {photoUrl ? <img src={photoUrl} alt={label} /> : label.slice(0, 1)}
       </button>
       {open && photoUrl && (
-        <div className="person-photo-lightbox" role="dialog" aria-label={`صورة ${label}`} onClick={() => setOpen(false)}>
-          <button type="button" className="person-photo-lightbox-close" onClick={() => setOpen(false)} aria-label="إغلاق">×</button>
+        <div
+          className="person-photo-lightbox"
+          role="dialog"
+          aria-label={`صورة ${label}`}
+          onClick={() => setOpen(false)}
+        >
+          <button
+            type="button"
+            className="person-photo-lightbox-close"
+            onClick={() => setOpen(false)}
+            aria-label="إغلاق"
+          >
+            ×
+          </button>
           <img src={photoUrl} alt={label} onClick={(event) => event.stopPropagation()} />
         </div>
       )}
@@ -363,7 +391,9 @@ export default function App() {
         } catch (fetchError) {
           lastNetworkError = fetchError;
           if (attempt === 2) {
-            throw new Error(`تعذر الاتصال بالخادم أثناء تحميل ${path} (${fetchError?.message || "Network error"})`);
+            throw new Error(
+              `تعذر الاتصال بالخادم أثناء تحميل ${path} (${fetchError?.message || "Network error"})`,
+            );
           }
           await new Promise((resolve) => window.setTimeout(resolve, 700 * (attempt + 1)));
         }
@@ -382,7 +412,8 @@ export default function App() {
         throw new Error(message);
       }
       if (isGet && cacheableApiPath(path)) writeApiCache(path, body);
-      if (!isGet && path.startsWith("/api/followup-notes")) localStorage.removeItem(apiCacheKey("/api/followup-notes"));
+      if (!isGet && path.startsWith("/api/followup-notes"))
+        localStorage.removeItem(apiCacheKey("/api/followup-notes"));
       return body;
     },
     [password, username],
@@ -454,7 +485,11 @@ export default function App() {
               row.followUp += person.visitCount || 0;
               groupMap.set(group, row);
             });
-            const totalSessions = Math.max(1, ...boys.map((person) => person.choirCount || 0), ...boys.map((person) => person.massCount || 0));
+            const totalSessions = Math.max(
+              1,
+              ...boys.map((person) => person.choirCount || 0),
+              ...boys.map((person) => person.massCount || 0),
+            );
             const monthlyMap = new Map();
             (legacy.calendar || []).forEach((item) => {
               const month = String(item.date || "").slice(0, 7);
@@ -474,8 +509,17 @@ export default function App() {
                 photoUrl: person.photoUrl || "",
                 choirRate: Math.round(((person.choirCount || 0) * 100) / totalSessions),
                 massRate: Math.round(((person.massCount || 0) * 100) / totalSessions),
-                followUpRate: Math.min(100, Math.round((((person.visitCount || 0) + (person.callCount || 0)) * 100) / Math.max(1, totalSessions))),
-                activity: (person.choirCount || 0) + (person.massCount || 0) + (person.visitCount || 0) + (person.callCount || 0),
+                followUpRate: Math.min(
+                  100,
+                  Math.round(
+                    (((person.visitCount || 0) + (person.callCount || 0)) * 100) / Math.max(1, totalSessions),
+                  ),
+                ),
+                activity:
+                  (person.choirCount || 0) +
+                  (person.massCount || 0) +
+                  (person.visitCount || 0) +
+                  (person.callCount || 0),
               }))
               .sort((a, b) => a.activity - b.activity || a.name.localeCompare(b.name, "ar"))
               .slice(0, 12)
@@ -489,8 +533,12 @@ export default function App() {
                 massAttendance: legacy.summary?.massAttendance || 0,
                 visits: legacy.summary?.visits || 0,
                 calls: legacy.summary?.calls || 0,
-                choirRate: Math.round(((legacy.summary?.choirAttendance || 0) * 100) / Math.max(1, boys.length * totalSessions)),
-                massRate: Math.round(((legacy.summary?.massAttendance || 0) * 100) / Math.max(1, boys.length * totalSessions)),
+                choirRate: Math.round(
+                  ((legacy.summary?.choirAttendance || 0) * 100) / Math.max(1, boys.length * totalSessions),
+                ),
+                massRate: Math.round(
+                  ((legacy.summary?.massAttendance || 0) * 100) / Math.max(1, boys.length * totalSessions),
+                ),
               },
               monthly: [...monthlyMap.values()].sort((a, b) => a.month.localeCompare(b.month)),
               groups: [...groupMap.values()].map((row) => ({
@@ -500,7 +548,12 @@ export default function App() {
                 massRate: Math.round((row.mass * 100) / Math.max(1, row.boys * totalSessions)),
                 followUpRate: Math.round((row.followUp * 100) / Math.max(1, row.boys)),
               })),
-              servants: servants.map((person) => ({ name: person.name, calls: person.callCount || 0, choir: person.choirCount || 0, mass: person.massCount || 0 })),
+              servants: servants.map((person) => ({
+                name: person.name,
+                calls: person.callCount || 0,
+                choir: person.choirCount || 0,
+                mass: person.massCount || 0,
+              })),
               needsAttention,
             });
           }
@@ -614,10 +667,9 @@ export default function App() {
         ]);
         if (stopped) return;
         setFollowUpRequests(requests);
-        const notifications = [
-          ...parentRequestNotifications(requests),
-          ...serviceNotifications,
-        ].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+        const notifications = [...parentRequestNotifications(requests), ...serviceNotifications].sort(
+          (a, b) => String(b.date || "").localeCompare(String(a.date || "")),
+        );
         setNotificationItems(notifications);
         try {
           const savedState = localStorage.getItem(storageKey);
@@ -700,7 +752,9 @@ export default function App() {
   const percent = followUpRows.length ? Math.round((checkedCount * 100) / followUpRows.length) : 0;
   const followUpMode = mode === "visit" || mode === "call";
   const visibleNotificationItems = notificationItems.filter((item) => !notificationDismissedMap[item.id]);
-  const unreadNotificationCount = visibleNotificationItems.filter((item) => !notificationReadMap[item.id]).length;
+  const unreadNotificationCount = visibleNotificationItems.filter(
+    (item) => !notificationReadMap[item.id],
+  ).length;
 
   async function login(event) {
     event.preventDefault();
@@ -758,7 +812,14 @@ export default function App() {
     if (nextMode === "notifications" || nextMode === "evaluation" || nextMode === "content-admin") return;
     if (nextMode === "attendance") load(nextMode, attendanceDate);
     else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate);
-    else if (nextMode === "reports" || nextMode === "analytics" || nextMode === "learning-admin" || nextMode === "books-admin" || nextMode === "bible-admin" || nextMode === "mass-admin")
+    else if (
+      nextMode === "reports" ||
+      nextMode === "analytics" ||
+      nextMode === "learning-admin" ||
+      nextMode === "books-admin" ||
+      nextMode === "bible-admin" ||
+      nextMode === "mass-admin"
+    )
       load(nextMode);
     else if (nextMode === "qr") {
       /* scanner saves attendance incrementally */
@@ -951,7 +1012,10 @@ export default function App() {
       const body = new FormData();
       body.append("file", file);
       body.append("upload_preset", "abanob_uploads");
-      const response = await fetch("https://api.cloudinary.com/v1_1/jtzr0bnj/image/upload", { method: "POST", body });
+      const response = await fetch("https://api.cloudinary.com/v1_1/jtzr0bnj/image/upload", {
+        method: "POST",
+        body,
+      });
       const result = await response.json();
       if (!response.ok || !result.secure_url) throw new Error(result.error?.message || "تعذر رفع الصورة");
       setPersonDraft((current) => ({ ...current, photoUrl: result.secure_url }));
@@ -1085,7 +1149,14 @@ export default function App() {
 
   const navItem = (nextMode, icon, label) => (
     <button
-      className={`sidebar-item ${mode === nextMode || (nextMode === "content-admin" && ["learning-admin", "books-admin", "bible-admin", "mass-admin"].includes(mode)) ? "active" : ""}`}
+      className={`sidebar-item ${
+        mode === nextMode ||
+        (nextMode === "content-admin" &&
+          ["learning-admin", "books-admin", "bible-admin", "mass-admin"].includes(mode)) ||
+        (nextMode === "visit" && ["visit", "call", "reports", "notes", "requests"].includes(mode))
+          ? "active"
+          : ""
+      }`}
       onClick={() => {
         setMobileNavOpen(false);
         switchMode(nextMode);
@@ -1463,7 +1534,9 @@ export default function App() {
             }}
           />
         )}
-        {mode === "analytics" && <ServiceAnalyticsPage analytics={serviceAnalytics} exportFull={exportFullReports} />}
+        {mode === "analytics" && (
+          <ServiceAnalyticsPage analytics={serviceAnalytics} exportFull={exportFullReports} />
+        )}
         {mode === "notes" && (
           <FollowUpNotesPage
             notes={followUpNotes}
@@ -1639,7 +1712,9 @@ function PublicLeaguePage() {
                       </span>
                     </td>
                     <td>
-                      <span className="person-name-with-avatar"><PersonAvatar person={row} name={row.name} /> <strong>{row.name}</strong></span>
+                      <span className="person-name-with-avatar">
+                        <PersonAvatar person={row} name={row.name} /> <strong>{row.name}</strong>
+                      </span>
                     </td>
                     <td>
                       <strong className="league-score">{row.points}</strong>
@@ -1772,7 +1847,9 @@ function ServantBoyEvaluationPage({ request }) {
               return (
                 <label className="evaluation-row" key={person.recordKey}>
                   <span className="evaluation-person">
-                    <span className="person-name-with-avatar"><PersonAvatar person={person} name={person.name} /> <strong>{person.name}</strong></span>
+                    <span className="person-name-with-avatar">
+                      <PersonAvatar person={person} name={person.name} /> <strong>{person.name}</strong>
+                    </span>
                     <small className={saveState || "idle"}>
                       {saveState === "saving"
                         ? "جارٍ الحفظ..."
@@ -1961,11 +2038,15 @@ function cloudinaryEmbed(value) {
     const cloudName = url.searchParams.get("cloud_name");
     const publicId = url.searchParams.get("public_id");
     return cloudName && publicId ? { cloudName, publicId } : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 function cloudinaryVideoUrl(value) {
   const data = cloudinaryEmbed(value);
-  return data ? `https://res.cloudinary.com/${data.cloudName}/video/upload/q_auto,f_auto/${encodeURI(data.publicId)}.mp4` : "";
+  return data
+    ? `https://res.cloudinary.com/${data.cloudName}/video/upload/q_auto,f_auto/${encodeURI(data.publicId)}.mp4`
+    : "";
 }
 
 function BibleVideoThumbnail({ url, title, thumbnailUrl = "" }) {
@@ -1990,11 +2071,22 @@ function BibleVideoThumbnail({ url, title, thumbnailUrl = "" }) {
       ) : preview ? (
         <img src={preview} alt="" />
       ) : cloudinaryEmbed(url) ? (
-        <img src={`https://res.cloudinary.com/${cloudinaryEmbed(url).cloudName}/video/upload/so_0,q_auto,f_auto/${encodeURI(cloudinaryEmbed(url).publicId)}.jpg`} alt="" />
+        <img
+          src={`https://res.cloudinary.com/${cloudinaryEmbed(url).cloudName}/video/upload/so_0,q_auto,f_auto/${encodeURI(cloudinaryEmbed(url).publicId)}.jpg`}
+          alt=""
+        />
       ) : googleDriveFileId(url) ? (
         <img src={`https://drive.google.com/thumbnail?id=${googleDriveFileId(url)}&sz=w1200`} alt="" />
       ) : (
-        <video src={url} title={title} muted playsInline controls preload="metadata" onLoadedData={captureFirstFrame} />
+        <video
+          src={url}
+          title={title}
+          muted
+          playsInline
+          controls
+          preload="metadata"
+          onLoadedData={captureFirstFrame}
+        />
       )}
     </div>
   );
@@ -2028,25 +2120,55 @@ function PublicBiblePage() {
           <h1>الكتاب المقدس</h1>
           <p>{selectedCategory ? "اختار السفر اللي تحب تسمعه." : "اختار القسم اللي تحب تفتحه."}</p>
         </div>
-        {loading ? <p className="learning-empty">جاري التحميل…</p> : error ? <p className="learning-empty error">{error}</p> : !selectedCategory ? (
+        {loading ? (
+          <p className="learning-empty">جاري التحميل…</p>
+        ) : error ? (
+          <p className="learning-empty error">{error}</p>
+        ) : !selectedCategory ? (
           <section className="bible-category-grid" aria-label="أقسام الكتاب المقدس">
-            {categories.length ? categories.map((category) => (
-              <button type="button" className="bible-category-card" key={category} onClick={() => setSelectedCategory(category)}>
-                <BookOpen size={28} />
-                <strong>{category}</strong>
-                <span>{items.filter((item) => item.category === category).length} فيديو</span>
-                <ChevronLeft size={19} />
-              </button>
-            )) : <section className="learning-empty-card"><BookOpen size={30} /><strong>لسه مفيش أقسام مضافة</strong><span>هتظهر هنا أول ما الخدام يضيفوا فيديوهات.</span></section>}
+            {categories.length ? (
+              categories.map((category) => (
+                <button
+                  type="button"
+                  className="bible-category-card"
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                >
+                  <BookOpen size={28} />
+                  <strong>{category}</strong>
+                  <span>{items.filter((item) => item.category === category).length} فيديو</span>
+                  <ChevronLeft size={19} />
+                </button>
+              ))
+            ) : (
+              <section className="learning-empty-card">
+                <BookOpen size={30} />
+                <strong>لسه مفيش أقسام مضافة</strong>
+                <span>هتظهر هنا أول ما الخدام يضيفوا فيديوهات.</span>
+              </section>
+            )}
           </section>
         ) : (
           <section>
-            <button type="button" className="secondary-button bible-back-button" onClick={() => setSelectedCategory("")}><ChevronRight size={16} /> الأقسام</button>
+            <button
+              type="button"
+              className="secondary-button bible-back-button"
+              onClick={() => setSelectedCategory("")}
+            >
+              <ChevronRight size={16} /> الأقسام
+            </button>
             <div className="bible-video-grid">
               {videos.map((item) => (
                 <article className="bible-video-card" key={item.id}>
                   <BibleVideoThumbnail url={item.url} title={item.title} thumbnailUrl={item.thumbnailUrl} />
-                  <div><span className="content-category-pill">{item.category}</span><h2>{item.title}</h2>{item.description && <p>{item.description}</p>}<button className="bible-watch-button" type="button" onClick={() => setActiveVideo(item)}><Play size={15} fill="currentColor" /> تشغيل الفيديو</button></div>
+                  <div>
+                    <span className="content-category-pill">{item.category}</span>
+                    <h2>{item.title}</h2>
+                    {item.description && <p>{item.description}</p>}
+                    <button className="bible-watch-button" type="button" onClick={() => setActiveVideo(item)}>
+                      <Play size={15} fill="currentColor" /> تشغيل الفيديو
+                    </button>
+                  </div>
                 </article>
               ))}
             </div>
@@ -2054,14 +2176,37 @@ function PublicBiblePage() {
         )}
       </section>
       {activeVideo && (
-        <div className="bible-video-modal" role="dialog" aria-modal="true" aria-label={activeVideo.title} onClick={() => setActiveVideo(null)}>
+        <div
+          className="bible-video-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label={activeVideo.title}
+          onClick={() => setActiveVideo(null)}
+        >
           <div className="bible-video-modal-card" onClick={(event) => event.stopPropagation()}>
-            <button type="button" className="bible-video-modal-close" aria-label="إغلاق الفيديو" onClick={() => setActiveVideo(null)}>×</button>
+            <button
+              type="button"
+              className="bible-video-modal-close"
+              aria-label="إغلاق الفيديو"
+              onClick={() => setActiveVideo(null)}
+            >
+              ×
+            </button>
             <div className="bible-video-modal-player">
               {cloudinaryEmbed(activeVideo.url) ? (
-                <iframe title={activeVideo.title} src={activeVideo.url} allow="autoplay; fullscreen" allowFullScreen />
+                <iframe
+                  title={activeVideo.title}
+                  src={activeVideo.url}
+                  allow="autoplay; fullscreen"
+                  allowFullScreen
+                />
               ) : googleDriveFileId(activeVideo.url) ? (
-                <iframe title={activeVideo.title} src={`https://drive.google.com/file/d/${googleDriveFileId(activeVideo.url)}/preview`} allow="autoplay; fullscreen" allowFullScreen />
+                <iframe
+                  title={activeVideo.title}
+                  src={`https://drive.google.com/file/d/${googleDriveFileId(activeVideo.url)}/preview`}
+                  allow="autoplay; fullscreen"
+                  allowFullScreen
+                />
               ) : (
                 <video src={activeVideo.url} controls autoPlay playsInline />
               )}
@@ -2075,36 +2220,204 @@ function PublicBiblePage() {
 }
 
 function BibleVideoManagementPage({ items, request, reload, onBack }) {
-  const emptyDraft = () => ({ category: "الكتاب المقدس في فتفوتة", title: "", url: "", thumbnailUrl: "", description: "" });
+  const emptyDraft = () => ({
+    category: "الكتاب المقدس في فتفوتة",
+    title: "",
+    url: "",
+    thumbnailUrl: "",
+    description: "",
+  });
   const [draft, setDraft] = useState(emptyDraft);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const save = async (event) => {
-    event.preventDefault(); setSaving(true); setError(""); setNotice("");
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    setNotice("");
     try {
-      await request(editingId ? `/api/bible-videos/${editingId}` : "/api/bible-videos", { method: editingId ? "PUT" : "POST", body: JSON.stringify(draft) });
-      await reload(); setDraft(emptyDraft()); setEditingId(null); setNotice("تم حفظ الفيديو");
-    } catch (saveError) { setError(saveError.message || "تعذر الحفظ"); } finally { setSaving(false); }
+      await request(editingId ? `/api/bible-videos/${editingId}` : "/api/bible-videos", {
+        method: editingId ? "PUT" : "POST",
+        body: JSON.stringify(draft),
+      });
+      await reload();
+      setDraft(emptyDraft());
+      setEditingId(null);
+      setNotice("تم حفظ الفيديو");
+    } catch (saveError) {
+      setError(saveError.message || "تعذر الحفظ");
+    } finally {
+      setSaving(false);
+    }
   };
-  const remove = async (item) => { if (!window.confirm(`حذف فيديو «${item.title}»؟`)) return; await request(`/api/bible-videos/${item.id}`, { method: "DELETE" }); await reload(); };
-  const move = async (item, direction) => { await request(`/api/bible-videos/${item.id}/move`, { method: "POST", body: JSON.stringify({ direction }) }); await reload(); };
+  const remove = async (item) => {
+    if (!window.confirm(`حذف فيديو «${item.title}»؟`)) return;
+    await request(`/api/bible-videos/${item.id}`, { method: "DELETE" });
+    await reload();
+  };
+  const move = async (item, direction) => {
+    await request(`/api/bible-videos/${item.id}/move`, {
+      method: "POST",
+      body: JSON.stringify({ direction }),
+    });
+    await reload();
+  };
   return (
     <section className="learning-admin-page bible-admin-page">
-      <header className="section-title-row learning-admin-heading"><div><p className="section-kicker">إدارة الخدمة</p><h1>إدارة فيديوهات الكتاب المقدس</h1><p>أضف القسم واسم الفيديو ورابط Google Drive. لا تحتاج لإضافة غلاف.</p></div><button type="button" className="secondary-button" onClick={onBack}><ChevronLeft size={16} /> إدارة المحتوى</button></header>
+      <header className="section-title-row learning-admin-heading">
+        <div>
+          <p className="section-kicker">إدارة الخدمة</p>
+          <h1>إدارة فيديوهات الكتاب المقدس</h1>
+          <p>أضف القسم واسم الفيديو ورابط Google Drive. لا تحتاج لإضافة غلاف.</p>
+        </div>
+        <button type="button" className="secondary-button" onClick={onBack}>
+          <ChevronLeft size={16} /> إدارة المحتوى
+        </button>
+      </header>
       <form className="table-section learning-admin-form" onSubmit={save}>
-        <div className="learning-admin-form-title"><BookOpen size={21} /><div><strong>{editingId ? "تعديل فيديو" : "إضافة فيديو"}</strong><span>سيحاول الموقع استخدام أول فريم من الفيديو كصورة معاينة.</span></div></div>
-        <label>اسم القسم<input required maxLength={120} value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} /></label>
-        <label>اسم الفيديو<input required maxLength={180} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="مثال: سفر التكوين" /></label>
-        <label className="learning-form-wide">رابط الفيديو<input required type="url" dir="ltr" value={draft.url} onChange={(e) => setDraft({ ...draft, url: e.target.value })} placeholder="https://drive.google.com/..." /></label>
-        <label className="learning-form-wide">خلفية الفيديو <small>(اختياري — صورة ثابتة أجمل وأسرع، ولو فاضية سنحاول إظهار أول فريم)</small><input type="url" dir="ltr" value={draft.thumbnailUrl} onChange={(e) => setDraft({ ...draft, thumbnailUrl: e.target.value })} placeholder="https://.../thumbnail.jpg" /></label>
-        <label className="learning-form-wide">وصف مختصر <small>(اختياري)</small><textarea maxLength={1200} rows="2" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} /></label>
-        {error && <p className="learning-form-error">{error}</p>}{notice && <p className="learning-form-notice">{notice}</p>}
-        <div className="learning-form-actions"><button className="primary-button" type="submit" disabled={saving}>{saving ? "جارٍ الحفظ…" : editingId ? "حفظ التعديل" : "إضافة الفيديو"}</button>{editingId && <button className="cancel-button" type="button" onClick={() => { setEditingId(null); setDraft(emptyDraft()); }}>إلغاء</button>}</div>
+        <div className="learning-admin-form-title">
+          <BookOpen size={21} />
+          <div>
+            <strong>{editingId ? "تعديل فيديو" : "إضافة فيديو"}</strong>
+            <span>سيحاول الموقع استخدام أول فريم من الفيديو كصورة معاينة.</span>
+          </div>
+        </div>
+        <label>
+          اسم القسم
+          <input
+            required
+            maxLength={120}
+            value={draft.category}
+            onChange={(e) => setDraft({ ...draft, category: e.target.value })}
+          />
+        </label>
+        <label>
+          اسم الفيديو
+          <input
+            required
+            maxLength={180}
+            value={draft.title}
+            onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+            placeholder="مثال: سفر التكوين"
+          />
+        </label>
+        <label className="learning-form-wide">
+          رابط الفيديو
+          <input
+            required
+            type="url"
+            dir="ltr"
+            value={draft.url}
+            onChange={(e) => setDraft({ ...draft, url: e.target.value })}
+            placeholder="https://drive.google.com/..."
+          />
+        </label>
+        <label className="learning-form-wide">
+          خلفية الفيديو <small>(اختياري — صورة ثابتة أجمل وأسرع، ولو فاضية سنحاول إظهار أول فريم)</small>
+          <input
+            type="url"
+            dir="ltr"
+            value={draft.thumbnailUrl}
+            onChange={(e) => setDraft({ ...draft, thumbnailUrl: e.target.value })}
+            placeholder="https://.../thumbnail.jpg"
+          />
+        </label>
+        <label className="learning-form-wide">
+          وصف مختصر <small>(اختياري)</small>
+          <textarea
+            maxLength={1200}
+            rows="2"
+            value={draft.description}
+            onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+          />
+        </label>
+        {error && <p className="learning-form-error">{error}</p>}
+        {notice && <p className="learning-form-notice">{notice}</p>}
+        <div className="learning-form-actions">
+          <button className="primary-button" type="submit" disabled={saving}>
+            {saving ? "جارٍ الحفظ…" : editingId ? "حفظ التعديل" : "إضافة الفيديو"}
+          </button>
+          {editingId && (
+            <button
+              className="cancel-button"
+              type="button"
+              onClick={() => {
+                setEditingId(null);
+                setDraft(emptyDraft());
+              }}
+            >
+              إلغاء
+            </button>
+          )}
+        </div>
       </form>
-      <section className="learning-admin-list"><div className="section-title-row"><div><p className="section-kicker">الفيديوهات المضافة</p><h2>{items.length} فيديو</h2></div><a href="/bible" target="_blank" rel="noreferrer">معاينة صفحة الأولاد <ExternalLink size={15} /></a></div>
-        {items.length ? <div className="bible-admin-list">{items.map((item, index) => <article className="bible-admin-item" key={item.id}><BibleVideoThumbnail url={item.url} title={item.title} thumbnailUrl={item.thumbnailUrl} /><div><span className="content-category-pill">{item.category}</span><strong>{index + 1}. {item.title}</strong>{item.description && <span>{item.description}</span>}</div><div className="bible-order-buttons"><button type="button" disabled={index === 0} onClick={() => move(item, "up")} aria-label="تقديم">▲</button><button type="button" disabled={index === items.length - 1} onClick={() => move(item, "down")} aria-label="تأخير">▼</button></div><button className="secondary-button" type="button" onClick={() => { setEditingId(item.id); setDraft({ category: item.category, title: item.title, url: item.url, thumbnailUrl: item.thumbnailUrl || "", description: item.description || "" }); }}>تعديل</button><button className="cancel-button" type="button" onClick={() => remove(item)}>حذف</button></article>)}</div> : <p className="learning-empty">لم تتم إضافة فيديوهات بعد.</p>}
+      <section className="learning-admin-list">
+        <div className="section-title-row">
+          <div>
+            <p className="section-kicker">الفيديوهات المضافة</p>
+            <h2>{items.length} فيديو</h2>
+          </div>
+          <a href="/bible" target="_blank" rel="noreferrer">
+            معاينة صفحة الأولاد <ExternalLink size={15} />
+          </a>
+        </div>
+        {items.length ? (
+          <div className="bible-admin-list">
+            {items.map((item, index) => (
+              <article className="bible-admin-item" key={item.id}>
+                <BibleVideoThumbnail url={item.url} title={item.title} thumbnailUrl={item.thumbnailUrl} />
+                <div>
+                  <span className="content-category-pill">{item.category}</span>
+                  <strong>
+                    {index + 1}. {item.title}
+                  </strong>
+                  {item.description && <span>{item.description}</span>}
+                </div>
+                <div className="bible-order-buttons">
+                  <button
+                    type="button"
+                    disabled={index === 0}
+                    onClick={() => move(item, "up")}
+                    aria-label="تقديم"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    disabled={index === items.length - 1}
+                    onClick={() => move(item, "down")}
+                    aria-label="تأخير"
+                  >
+                    ▼
+                  </button>
+                </div>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => {
+                    setEditingId(item.id);
+                    setDraft({
+                      category: item.category,
+                      title: item.title,
+                      url: item.url,
+                      thumbnailUrl: item.thumbnailUrl || "",
+                      description: item.description || "",
+                    });
+                  }}
+                >
+                  تعديل
+                </button>
+                <button className="cancel-button" type="button" onClick={() => remove(item)}>
+                  حذف
+                </button>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="learning-empty">لم تتم إضافة فيديوهات بعد.</p>
+        )}
       </section>
     </section>
   );
@@ -2691,7 +3004,9 @@ function LearningManagementPage({ items, request, reload, onBack }) {
             placeholder="https://.../image.jpg"
             dir="ltr"
           />
-          <small className="learning-image-hint">تأكد أن مشاركة ملف Drive تسمح بالعرض لأي شخص لديه الرابط.</small>
+          <small className="learning-image-hint">
+            تأكد أن مشاركة ملف Drive تسمح بالعرض لأي شخص لديه الرابط.
+          </small>
         </label>
         <label className="learning-form-wide">
           وصف مختصر <small>(اختياري)</small>
@@ -2927,7 +3242,9 @@ function BooksManagementPage({ items, request, reload, onBack }) {
                         event.currentTarget.style.display = "none";
                       }}
                     />
-                  ) : <BookOpen size={26} />}
+                  ) : (
+                    <BookOpen size={26} />
+                  )}
                 </div>
                 <div>
                   <strong>{item.title}</strong>
@@ -3247,7 +3564,10 @@ function ParentNotificationCenter({ childToken, header = false }) {
     window.location.assign(item.targetUrl);
   };
   const clearNotifications = () => {
-    const nextDismissedMap = { ...dismissedMap, ...Object.fromEntries(visibleItems.map((item) => [item.id, true])) };
+    const nextDismissedMap = {
+      ...dismissedMap,
+      ...Object.fromEntries(visibleItems.map((item) => [item.id, true])),
+    };
     const nextReadMap = { ...readMap, ...Object.fromEntries(visibleItems.map((item) => [item.id, true])) };
     setDismissedMap(nextDismissedMap);
     setReadMap(nextReadMap);
@@ -3516,7 +3836,12 @@ function PublicAttendancePage({ token }) {
         }
         return body;
       })
-      .then(setData)
+      .then((body) => {
+        if (!body || !body.person || !Array.isArray(body.attendance)) {
+          throw new Error("بيانات التقرير غير مكتملة من الخادم. جرّب إعادة التحميل بعد قليل.");
+        }
+        setData(body);
+      })
       .catch((loadError) => setError(loadError.message || "تعذر الاتصال بالخادم"));
   }, [token]);
   if (error)
@@ -3564,7 +3889,10 @@ function PublicAttendancePage({ token }) {
       <section className="public-student-heading">
         <div>
           <p className="section-kicker">تقرير حضور المخدوم</p>
-          <h1 className="report-person-heading"><PersonAvatar person={data.person} name={data.person.name} size="large" />{data.person.name}</h1>
+          <h1 className="report-person-heading">
+            <PersonAvatar person={data.person} name={data.person.name} size="large" />
+            {data.person.name}
+          </h1>
           {data.person.address && (
             <a
               className="map-address-link"
@@ -3923,7 +4251,9 @@ function StraySheepPage({ people, openReport, template, saveTemplate }) {
                 >
                   <span className="stray-rank">{index + 1}</span>
                   <span className="stray-person-info">
-                    <span className="person-name-with-avatar"><PersonAvatar person={row} name={row.name} /> <strong>{row.name}</strong></span>
+                    <span className="person-name-with-avatar">
+                      <PersonAvatar person={row} name={row.name} /> <strong>{row.name}</strong>
+                    </span>
                     <small>{row.phone1 || row.phone2 || "بدون رقم"}</small>
                   </span>
                 </button>
@@ -4150,7 +4480,12 @@ function NotificationsPage({ notifications, readMap, onOpen, onMarkAllRead, onCl
           <button className="secondary-button" type="button" onClick={onMarkAllRead} disabled={!unreadCount}>
             تحديد الكل كمقروء
           </button>
-          <button className="secondary-button" type="button" onClick={onClear} disabled={!notifications.length}>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={onClear}
+            disabled={!notifications.length}
+          >
             مسح الكل
           </button>
         </div>
@@ -4188,7 +4523,9 @@ function ServiceAnalyticsPage({ analytics, exportFull }) {
     ...monthly.flatMap((item) => [item.choir || 0, item.mass || 0, item.visits || 0, item.calls || 0]),
   );
   const monthName = (month) =>
-    new Intl.DateTimeFormat("ar-EG", { month: "short", year: "numeric" }).format(new Date(`${month}-01T12:00:00`));
+    new Intl.DateTimeFormat("ar-EG", { month: "short", year: "numeric" }).format(
+      new Date(`${month}-01T12:00:00`),
+    );
   return (
     <section className="service-analytics-page">
       <section className="analytics-hero">
@@ -4196,31 +4533,69 @@ function ServiceAnalyticsPage({ analytics, exportFull }) {
           <p className="section-kicker">لوحة تحليل الخدمة</p>
           <h1>صورة شاملة للخدمة</h1>
           <p>
-            البيانات من {summary.startedAt ? dateLabel(summary.startedAt) : "بداية التسجيل"} حتى {dateLabel(today())}.
+            البيانات من {summary.startedAt ? dateLabel(summary.startedAt) : "بداية التسجيل"} حتى{" "}
+            {dateLabel(today())}.
           </p>
         </div>
         <button className="primary-button analytics-export-button" type="button" onClick={exportFull}>
           <Download size={17} /> تنزيل ملف Excel
         </button>
       </section>
-      <section className={`table-section analytics-forecast-card ${analytics.forecast ? "is-ready" : "is-pending"}`}>
-          <div>
-            <p className="section-kicker">توقع مبدئي</p>
-            <h2>التوقع للجمعة القادمة</h2>
-            <p>{analytics.forecast ? `مبني على ${analytics.forecast.basedOnSessions || 0} جلسات مسجلة، ويزيد تحسنه مع استمرار التسجيل.` : "خدمة التنبؤ غير مربوطة بعد. أضف رابط خدمة ML في VITE_FORECAST_URL ثم أعد النشر."}</p>
+      <section
+        className={`table-section analytics-forecast-card ${analytics.forecast ? "is-ready" : "is-pending"}`}
+      >
+        <div>
+          <p className="section-kicker">توقع مبدئي</p>
+          <h2>التوقع للجمعة القادمة</h2>
+          <p>
+            {analytics.forecast
+              ? `مبني على ${analytics.forecast.basedOnSessions || 0} جلسات مسجلة، ويزيد تحسنه مع استمرار التسجيل.`
+              : "خدمة التنبؤ غير مربوطة بعد. أضف رابط خدمة ML في VITE_FORECAST_URL ثم أعد النشر."}
+          </p>
+        </div>
+        {analytics.forecast ? (
+          <div className="analytics-forecast-values">
+            <strong>
+              {analytics.forecast.nextChoirAttendance || 0}
+              <span> حضور خورس متوقع</span>
+            </strong>
+            <strong>
+              {analytics.forecast.nextMassAttendance || 0}
+              <span> حضور قداس متوقع</span>
+            </strong>
+            <strong>
+              {analytics.forecast.nextVisits || 0}
+              <span> زيارة متوقعة</span>
+            </strong>
+            <strong>
+              {analytics.forecast.nextCalls || 0}
+              <span> اتصال متوقع</span>
+            </strong>
           </div>
-          {analytics.forecast ? <div className="analytics-forecast-values">
-            <strong>{analytics.forecast.nextChoirAttendance || 0}<span> حضور خورس متوقع</span></strong>
-            <strong>{analytics.forecast.nextMassAttendance || 0}<span> حضور قداس متوقع</span></strong>
-            <strong>{analytics.forecast.nextVisits || 0}<span> زيارة متوقعة</span></strong>
-            <strong>{analytics.forecast.nextCalls || 0}<span> اتصال متوقع</span></strong>
-          </div> : <span className="analytics-forecast-status">في انتظار الربط</span>}
+        ) : (
+          <span className="analytics-forecast-status">في انتظار الربط</span>
+        )}
       </section>
       <section className="analytics-kpi-grid">
-        <AnalyticsMetric label="الأولاد المسجلون" value={summary.boys || 0} note="أفراد الخورس النشطون" tone="blue" />
+        <AnalyticsMetric
+          label="الأولاد المسجلون"
+          value={summary.boys || 0}
+          note="أفراد الخورس النشطون"
+          tone="blue"
+        />
         <AnalyticsMetric label="الخدام" value={summary.servants || 0} note="الخدام النشطون" tone="gold" />
-        <AnalyticsMetric label="حضور الخورس" value={`${summary.choirRate || 0}%`} note={`${summary.choirAttendance || 0} حضور مسجل`} tone="green" />
-        <AnalyticsMetric label="حضور القداس" value={`${summary.massRate || 0}%`} note={`${summary.massAttendance || 0} حضور مسجل`} tone="violet" />
+        <AnalyticsMetric
+          label="حضور الخورس"
+          value={`${summary.choirRate || 0}%`}
+          note={`${summary.choirAttendance || 0} حضور مسجل`}
+          tone="green"
+        />
+        <AnalyticsMetric
+          label="حضور القداس"
+          value={`${summary.massRate || 0}%`}
+          note={`${summary.massAttendance || 0} حضور مسجل`}
+          tone="violet"
+        />
         <AnalyticsMetric label="الزيارات" value={summary.visits || 0} note="من بداية الخدمة" tone="teal" />
         <AnalyticsMetric label="الاتصالات" value={summary.calls || 0} note="من بداية الخدمة" tone="amber" />
       </section>
@@ -4257,7 +4632,9 @@ function ServiceAnalyticsPage({ analytics, exportFull }) {
                   ))}
                 </div>
                 <strong>{monthName(item.month)}</strong>
-                <small>{(item.choir || 0) + (item.mass || 0) + (item.visits || 0) + (item.calls || 0)} حركة</small>
+                <small>
+                  {(item.choir || 0) + (item.mass || 0) + (item.visits || 0) + (item.calls || 0)} حركة
+                </small>
               </div>
             ))}
           </div>
@@ -4275,12 +4652,33 @@ function ServiceAnalyticsPage({ analytics, exportFull }) {
           </div>
           <div className="table-scroll-wrap">
             <table className="analytics-table">
-              <thead><tr><th>الخادم</th><th>اتصالات</th><th>خورس</th><th>قداس</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>الخادم</th>
+                  <th>اتصالات</th>
+                  <th>خورس</th>
+                  <th>قداس</th>
+                </tr>
+              </thead>
               <tbody>
                 {(analytics.servants || []).map((item) => (
-                  <tr key={item.name}><td><span className="person-name-with-avatar"><PersonAvatar name={item.name} />{item.name}</span></td><td>{item.calls}</td><td>{item.choir}</td><td>{item.mass}</td></tr>
+                  <tr key={item.name}>
+                    <td>
+                      <span className="person-name-with-avatar">
+                        <PersonAvatar name={item.name} />
+                        {item.name}
+                      </span>
+                    </td>
+                    <td>{item.calls}</td>
+                    <td>{item.choir}</td>
+                    <td>{item.mass}</td>
+                  </tr>
                 ))}
-                {!analytics.servants?.length && <tr><td colSpan="4">لا توجد بيانات خدام بعد.</td></tr>}
+                {!analytics.servants?.length && (
+                  <tr>
+                    <td colSpan="4">لا توجد بيانات خدام بعد.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -4297,11 +4695,21 @@ function ServiceAnalyticsPage({ analytics, exportFull }) {
         <div className="analytics-needs-list">
           {(analytics.needsAttention || []).map((person) => (
             <article key={person.recordKey}>
-              <div><span className="person-name-with-avatar"><PersonAvatar person={person} name={person.name} /><strong>{person.name}</strong></span><small>مجموعة {person.group || "—"}</small></div>
-              <span>خورس {person.choirRate}%</span><span>قداس {person.massRate}%</span><span>افتقاد {person.followUpRate}%</span>
+              <div>
+                <span className="person-name-with-avatar">
+                  <PersonAvatar person={person} name={person.name} />
+                  <strong>{person.name}</strong>
+                </span>
+                <small>مجموعة {person.group || "—"}</small>
+              </div>
+              <span>خورس {person.choirRate}%</span>
+              <span>قداس {person.massRate}%</span>
+              <span>افتقاد {person.followUpRate}%</span>
             </article>
           ))}
-          {!analytics.needsAttention?.length && <p className="learning-empty">لا توجد بيانات كافية لتحديد الأولوية.</p>}
+          {!analytics.needsAttention?.length && (
+            <p className="learning-empty">لا توجد بيانات كافية لتحديد الأولوية.</p>
+          )}
         </div>
       </section>
     </section>
@@ -4309,7 +4717,13 @@ function ServiceAnalyticsPage({ analytics, exportFull }) {
 }
 
 function AnalyticsMetric({ label, value, note, tone }) {
-  return <article className={`analytics-metric ${tone}`}><span>{label}</span><strong>{value}</strong><small>{note}</small></article>;
+  return (
+    <article className={`analytics-metric ${tone}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{note}</small>
+    </article>
+  );
 }
 
 function VisitReportsPage({ reports, exportCsv, month, setMonth }) {
@@ -5052,66 +5466,68 @@ function FollowUpDashboard({
         )}
         {(mode === "visit" || (mode === "call" && openCallPanel === "rotation")) && (
           <article className="panel settings-panel" id={mode === "call" ? "call-rotation-panel" : undefined}>
-          <div className="panel-heading">
-            <div>
-              <p className="section-kicker">{mode === "visit" ? "التاريخ" : "دورة التوزيع"}</p>
-              <h2>
-                {mode === "visit"
-                  ? "تاريخ الزيارة"
-                  : state.distributionNotStarted
-                    ? "أول أسبوع قادم"
-                    : "الأسبوع الحالي"}
-              </h2>
-            </div>
-            <span className="week-mark">
-              <CalendarDays size={17} />
-            </span>
-          </div>
-          {mode === "visit" ? (
-            <>
-              <label htmlFor="period-date">تاريخ تسجيل الزيارة</label>
-              <input
-                id="period-date"
-                type="date"
-                value={selectedDate}
-                onChange={(event) => {
-                  setSelectedDate(event.target.value);
-                  load(mode, event.target.value);
-                }}
-              />
-              <div className="period-range">{dateLabel(selectedDate)}</div>
-              <label htmlFor="visit-month">شهر متابعة الافتقاد</label>
-              <input
-                id="visit-month"
-                type="month"
-                value={selectedDate.slice(0, 7)}
-                onChange={(event) => {
-                  const date = `${event.target.value}-01`;
-                  setSelectedDate(date);
-                  load(mode, date);
-                }}
-              />
-            </>
-          ) : (
-            <>
-              <div className="period-range">
-                من {dateLabel(state.selectedWeek)} إلى {dateLabel(state.weekEnd)}
-                <br />
-                {state.distributionNotStarted ? "لم يبدأ التوزيع بعد." : "يتغير تلقائيًا كل 7 أيام."}
+            <div className="panel-heading">
+              <div>
+                <p className="section-kicker">{mode === "visit" ? "التاريخ" : "دورة التوزيع"}</p>
+                <h2>
+                  {mode === "visit"
+                    ? "تاريخ الزيارة"
+                    : state.distributionNotStarted
+                      ? "أول أسبوع قادم"
+                      : "الأسبوع الحالي"}
+                </h2>
               </div>
-              <label htmlFor="rotation-date">بداية أول أسبوع للتوزيع</label>
-              <input
-                id="rotation-date"
-                type="date"
-                value={rotationStart}
-                onChange={(event) => setRotationStart(event.target.value)}
-              />
-              <div className="field-hint">اضبطه مرة واحدة. التطبيق يحدد أسبوع اليوم والمسؤولين تلقائيًا.</div>
-              <button className="primary-button" disabled={busy} onClick={() => saveFollowUp(true)}>
-                ↻ حفظ بداية التوزيع
-              </button>
-            </>
-          )}
+              <span className="week-mark">
+                <CalendarDays size={17} />
+              </span>
+            </div>
+            {mode === "visit" ? (
+              <>
+                <label htmlFor="period-date">تاريخ تسجيل الزيارة</label>
+                <input
+                  id="period-date"
+                  type="date"
+                  value={selectedDate}
+                  onChange={(event) => {
+                    setSelectedDate(event.target.value);
+                    load(mode, event.target.value);
+                  }}
+                />
+                <div className="period-range">{dateLabel(selectedDate)}</div>
+                <label htmlFor="visit-month">شهر متابعة الافتقاد</label>
+                <input
+                  id="visit-month"
+                  type="month"
+                  value={selectedDate.slice(0, 7)}
+                  onChange={(event) => {
+                    const date = `${event.target.value}-01`;
+                    setSelectedDate(date);
+                    load(mode, date);
+                  }}
+                />
+              </>
+            ) : (
+              <>
+                <div className="period-range">
+                  من {dateLabel(state.selectedWeek)} إلى {dateLabel(state.weekEnd)}
+                  <br />
+                  {state.distributionNotStarted ? "لم يبدأ التوزيع بعد." : "يتغير تلقائيًا كل 7 أيام."}
+                </div>
+                <label htmlFor="rotation-date">بداية أول أسبوع للتوزيع</label>
+                <input
+                  id="rotation-date"
+                  type="date"
+                  value={rotationStart}
+                  onChange={(event) => setRotationStart(event.target.value)}
+                />
+                <div className="field-hint">
+                  اضبطه مرة واحدة. التطبيق يحدد أسبوع اليوم والمسؤولين تلقائيًا.
+                </div>
+                <button className="primary-button" disabled={busy} onClick={() => saveFollowUp(true)}>
+                  ↻ حفظ بداية التوزيع
+                </button>
+              </>
+            )}
           </article>
         )}
         <article className="panel overview-panel">
@@ -5274,7 +5690,9 @@ function PeopleManager({
           <label className="form-wide">
             صورة الولد أو الخادم
             <input type="file" accept="image/*" onChange={uploadPersonPhoto} disabled={busy} />
-            {personDraft.photoUrl && <img className="person-photo-preview" src={personDraft.photoUrl} alt="معاينة الصورة" />}
+            {personDraft.photoUrl && (
+              <img className="person-photo-preview" src={personDraft.photoUrl} alt="معاينة الصورة" />
+            )}
           </label>
           <label className="form-wide">
             ملاحظات
@@ -5762,9 +6180,7 @@ function AttendanceCommentPanel({ rows, checks, date, type, save, remove, busy }
   const [open, setOpen] = useState(false);
   const person = presentRows.find((row) => String(row.recordKey) === personKey);
   const phone = phoneHref(person?.phone1 || person?.phone2).replace(/\D/g, "");
-  const whatsappUrl = phone
-    ? `https://wa.me/${phone}?text=${encodeURIComponent(text.trim())}`
-    : "";
+  const whatsappUrl = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(text.trim())}` : "";
   return (
     <div className="attendance-comment-wrap">
       <button
@@ -5781,27 +6197,59 @@ function AttendanceCommentPanel({ rows, checks, date, type, save, remove, busy }
           <div>
             <p className="section-kicker">تعليق على الحضور</p>
             <strong>أضف تعليقًا لولد في هذا اليوم</strong>
-            <small>{dateLabel(date)} · {type === "choir" ? "حضور الخورس" : "حضور القداس"}</small>
+            <small>
+              {dateLabel(date)} · {type === "choir" ? "حضور الخورس" : "حضور القداس"}
+            </small>
           </div>
           <select value={personKey} onChange={(event) => setPersonKey(event.target.value)}>
             <option value="">اختر اسم الولد</option>
             {presentRows.map((row) => (
-              <option key={row.recordKey} value={row.recordKey}>{row.name}</option>
+              <option key={row.recordKey} value={row.recordKey}>
+                {row.name}
+              </option>
             ))}
           </select>
-          <textarea rows="2" value={text} onChange={(event) => setText(event.target.value)} placeholder="اكتب التعليق هنا" />
+          <textarea
+            rows="2"
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            placeholder="اكتب التعليق هنا"
+          />
           <div className="form-actions">
-            <button type="button" className="primary-button" disabled={!personKey || !text.trim() || busy} onClick={async () => { await save(personKey, text); setText(""); }}>
+            <button
+              type="button"
+              className="primary-button"
+              disabled={!personKey || !text.trim() || busy}
+              onClick={async () => {
+                await save(personKey, text);
+                setText("");
+              }}
+            >
               إرسال التعليق
             </button>
-            <button type="button" className="attendance-whatsapp-button" aria-disabled={!whatsappUrl} onClick={() => whatsappUrl && window.open(whatsappUrl, "_blank", "noopener,noreferrer")}>
+            <button
+              type="button"
+              className="attendance-whatsapp-button"
+              aria-disabled={!whatsappUrl}
+              onClick={() => whatsappUrl && window.open(whatsappUrl, "_blank", "noopener,noreferrer")}
+            >
               <MessageCircle size={15} /> واتساب
             </button>
-            <button type="button" className="cancel-button" disabled={!personKey || busy} onClick={async () => { await remove(personKey); setText(""); }}>
+            <button
+              type="button"
+              className="cancel-button"
+              disabled={!personKey || busy}
+              onClick={async () => {
+                await remove(personKey);
+                setText("");
+              }}
+            >
               مسح التعليق
             </button>
           </div>
-          {person && !phone && <small className="attendance-whatsapp-hint">لا يوجد رقم هاتف مسجل لهذا الاسم.</small>}
+          {person && !phone && (
+            <small className="attendance-whatsapp-hint">لا يوجد رقم هاتف مسجل لهذا الاسم.</small>
+          )}
         </section>
       )}
     </div>
@@ -6081,7 +6529,20 @@ function MembersDirectoryByRole({ rows, query, setQuery, openReport, loading }) 
     </section>
   );
 }
-function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateCheck, openReport, loading, notes = [], request, password, reloadNotes }) {
+function CallGroupsTable({
+  rows,
+  query,
+  setQuery,
+  busy,
+  saveFollowUp,
+  updateCheck,
+  openReport,
+  loading,
+  notes = [],
+  request,
+  password,
+  reloadNotes,
+}) {
   const [selectedNotes, setSelectedNotes] = useState(null);
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteError, setNoteError] = useState("");
@@ -6160,12 +6621,18 @@ function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateChec
                         <span className="call-attendance-rate" title="احتياج متابعة حسب الحضور والافتقاد">
                           احتياج متابعة {need}%
                         </span>
-                        <button type="button" className="call-notes-link" onClick={() => setSelectedNotes({
-                          name: row.name,
-                          personId: row.id,
-                          servant: row.servant || members[0]?.servant || "",
-                          entries: notes.filter((item) => Number(item.personId) === Number(row.id)),
-                        })}>
+                        <button
+                          type="button"
+                          className="call-notes-link"
+                          onClick={() =>
+                            setSelectedNotes({
+                              name: row.name,
+                              personId: row.id,
+                              servant: row.servant || members[0]?.servant || "",
+                              entries: notes.filter((item) => Number(item.personId) === Number(row.id)),
+                            })
+                          }
+                        >
                           ملاحظاتي
                         </button>
                       </span>
@@ -6203,12 +6670,85 @@ function CallGroupsTable({ rows, query, setQuery, busy, saveFollowUp, updateChec
       </div>
       {selectedNotes && (
         <div className="call-notes-backdrop" onClick={() => setSelectedNotes(null)}>
-          <section className="call-notes-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
-            <header><h3>ملاحظات {selectedNotes.name}</h3><button type="button" className="call-notes-close" aria-label="إغلاق الملاحظات" onClick={() => setSelectedNotes(null)}><X size={18} /></button></header>
-            {selectedNotes.entries.length ? selectedNotes.entries.map((item) => (
-              <article key={item.id}><small>{dateLabel(item.date)} · {item.servant} · {item.type === "call" ? "اتصال" : "زيارة"}</small><p>{item.note}</p></article>
-            )) : <p>لا توجد ملاحظات مسجلة لهذا الولد.</p>}
-            <form className="quick-note-form" onSubmit={async (event) => { event.preventDefault(); const formElement = event.currentTarget; const form = new FormData(formElement); const note = String(form.get("note") || "").trim(); if (!note || noteSaving) return; setNoteSaving(true); setNoteError(""); setNoteSuccess(""); try { await request("/api/followup-notes", { method: "POST", body: JSON.stringify({ personId: selectedNotes.personId, servant: selectedNotes.servant, type: "call", date: today(), note }) }, password); formElement?.reset?.(); await reloadNotes(); setSelectedNotes((current) => ({ ...current, entries: [...current.entries, { id: Date.now(), date: today(), servant: current.servant, type: "call", note }] })); setNoteSuccess("تم حفظ الملاحظة وإرسال التنبيه"); } catch (error) { setNoteError(error.message || "تعذر حفظ الملاحظة"); } finally { setNoteSaving(false); } }}><textarea name="note" rows="3" placeholder="اكتب ملاحظة الافتقاد لهذا الولد…" required /><button className="primary-button" type="submit" disabled={noteSaving}><Plus size={15} /> {noteSaving ? "جارٍ الحفظ…" : "حفظ الملاحظة"}</button>{noteError && <span className="quick-note-error">{noteError}</span>}{noteSuccess && <span className="quick-note-success">{noteSuccess}</span>}</form>
+          <section
+            className="call-notes-dialog"
+            role="dialog"
+            aria-modal="true"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header>
+              <h3>ملاحظات {selectedNotes.name}</h3>
+              <button
+                type="button"
+                className="call-notes-close"
+                aria-label="إغلاق الملاحظات"
+                onClick={() => setSelectedNotes(null)}
+              >
+                <X size={18} />
+              </button>
+            </header>
+            {selectedNotes.entries.length ? (
+              selectedNotes.entries.map((item) => (
+                <article key={item.id}>
+                  <small>
+                    {dateLabel(item.date)} · {item.servant} · {item.type === "call" ? "اتصال" : "زيارة"}
+                  </small>
+                  <p>{item.note}</p>
+                </article>
+              ))
+            ) : (
+              <p>لا توجد ملاحظات مسجلة لهذا الولد.</p>
+            )}
+            <form
+              className="quick-note-form"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                const formElement = event.currentTarget;
+                const form = new FormData(formElement);
+                const note = String(form.get("note") || "").trim();
+                if (!note || noteSaving) return;
+                setNoteSaving(true);
+                setNoteError("");
+                setNoteSuccess("");
+                try {
+                  await request(
+                    "/api/followup-notes",
+                    {
+                      method: "POST",
+                      body: JSON.stringify({
+                        personId: selectedNotes.personId,
+                        servant: selectedNotes.servant,
+                        type: "call",
+                        date: today(),
+                        note,
+                      }),
+                    },
+                    password,
+                  );
+                  formElement?.reset?.();
+                  await reloadNotes();
+                  setSelectedNotes((current) => ({
+                    ...current,
+                    entries: [
+                      ...current.entries,
+                      { id: Date.now(), date: today(), servant: current.servant, type: "call", note },
+                    ],
+                  }));
+                  setNoteSuccess("تم حفظ الملاحظة وإرسال التنبيه");
+                } catch (error) {
+                  setNoteError(error.message || "تعذر حفظ الملاحظة");
+                } finally {
+                  setNoteSaving(false);
+                }
+              }}
+            >
+              <textarea name="note" rows="3" placeholder="اكتب ملاحظة الافتقاد لهذا الولد…" required />
+              <button className="primary-button" type="submit" disabled={noteSaving}>
+                <Plus size={15} /> {noteSaving ? "جارٍ الحفظ…" : "حفظ الملاحظة"}
+              </button>
+              {noteError && <span className="quick-note-error">{noteError}</span>}
+              {noteSuccess && <span className="quick-note-success">{noteSuccess}</span>}
+            </form>
           </section>
         </div>
       )}
@@ -6457,7 +6997,8 @@ function ReportModal({ report, close }) {
   }, [report.events, summary?.start]);
   const statusBadge = (present, label) => (
     <span className={`report-status ${present ? "is-present" : "is-absent"}`}>
-      <span className="report-status-dot" />{present ? label : "غائب"}
+      <span className="report-status-dot" />
+      {present ? label : "غائب"}
     </span>
   );
   return (
@@ -6468,7 +7009,10 @@ function ReportModal({ report, close }) {
           <X size={18} />
         </button>
         <p className="section-kicker">التقرير التفصيلي للمخدوم</p>
-        <h2 className="report-person-heading"><PersonAvatar person={report.person} name={report.person.name} size="large" />{report.person.name}</h2>
+        <h2 className="report-person-heading">
+          <PersonAvatar person={report.person} name={report.person.name} size="large" />
+          {report.person.name}
+        </h2>
         <div className="report-meta">
           الجروب {report.person.group || "غير مرتبط"} · {report.person.phone1 || "بدون رقم"}
         </div>
@@ -6525,16 +7069,33 @@ function ReportModal({ report, close }) {
             <tbody>
               {reportDates.length ? (
                 reportDates.map((date) => {
-                  const event = eventByDate.get(date) || { visited: false, called: false, choir: false, mass: false, caller: "" };
+                  const event = eventByDate.get(date) || {
+                    visited: false,
+                    called: false,
+                    choir: false,
+                    mass: false,
+                    caller: "",
+                  };
                   return (
-                  <tr key={date} className={event.visited || event.called ? "report-followup-row" : ""}>
-                    <td><strong className="report-date-value">{dateLabel(date)}</strong><small className="report-friday-label">{weekdayLabel(date)}</small></td>
-                    <td><span className={`report-mini-status ${event.visited ? "done" : "muted"}`}>{event.visited ? "تمت" : "—"}</span></td>
-                    <td><span className={`report-mini-status ${event.called ? "done" : "muted"}`}>{event.called ? "تم" : "—"}</span></td>
-                    <td>{statusBadge(event.choir, "حضر")}</td>
-                    <td>{statusBadge(event.mass, "حضر")}</td>
-                    <td>{event.caller || "—"}</td>
-                  </tr>
+                    <tr key={date} className={event.visited || event.called ? "report-followup-row" : ""}>
+                      <td>
+                        <strong className="report-date-value">{dateLabel(date)}</strong>
+                        <small className="report-friday-label">{weekdayLabel(date)}</small>
+                      </td>
+                      <td>
+                        <span className={`report-mini-status ${event.visited ? "done" : "muted"}`}>
+                          {event.visited ? "تمت" : "—"}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`report-mini-status ${event.called ? "done" : "muted"}`}>
+                          {event.called ? "تم" : "—"}
+                        </span>
+                      </td>
+                      <td>{statusBadge(event.choir, "حضر")}</td>
+                      <td>{statusBadge(event.mass, "حضر")}</td>
+                      <td>{event.caller || "—"}</td>
+                    </tr>
                   );
                 })
               ) : (
@@ -6597,4 +7158,3 @@ function AttendanceDonut({ choir, mass, total }) {
     </div>
   );
 }
-
