@@ -690,6 +690,15 @@ label > span {
 .weekly-trend {
   overflow: hidden;
 }
+/* A backdrop-filter ancestor becomes the containing block for the fixed modal
+   backdrop, leaving undimmed strips at the screen edges. While the modal is
+   open the section sits behind the dim overlay anyway, so dropping its blur is
+   invisible. */
+.panel:has(> .call-notes-backdrop),
+.table-section:has(> .call-notes-backdrop),
+.group-strip:has(> .call-notes-backdrop) {
+  backdrop-filter: none !important;
+}
 .section-title-row,
 .table-title-row,
 .panel-heading {
@@ -1762,6 +1771,14 @@ input[type="file"]:hover::file-selector-button {
   color: var(--navy-800);
   box-shadow: 0 2px 6px rgba(16, 32, 58, 0.12);
 }
+/* The switch shares a two-column row with the export button on phones, so its
+   labels need tighter padding to stay inside the active pill. */
+@media (max-width: 620px) {
+  .report-period-switch button {
+    padding-inline: 4px;
+    font-size: 10.5px;
+  }
+}
 .report-chart-card {
   padding: 22px;
 }
@@ -2306,6 +2323,10 @@ input[type="file"]:hover::file-selector-button {
 }
 .report-dialog {
   padding: 28px;
+}
+.call-notes-dialog textarea {
+  padding: 10px 12px;
+  resize: none;
 }
 .report-dialog h2 {
   font-size: 21px;
@@ -3035,7 +3056,10 @@ input[type="file"]:hover::file-selector-button {
 .service-analytics-page > *,
 .learning-public-content > *,
 .league-content > * {
-  animation: q-rise 0.4s var(--ease) both;
+  /* "backwards" keeps the pre-animation state during the stagger delay but lets
+     the transform drop once the animation ends, so position: fixed descendants
+     (modal backdrops) are not trapped inside this element's box. */
+  animation: q-rise 0.4s var(--ease) backwards;
 }
 .home-dashboard > *:nth-child(2),
 .visit-reports-page > *:nth-child(2),
@@ -4544,6 +4568,30 @@ input[type="checkbox"] {
 }
 
 /* Tables: neutral zebra + empty rows */
+/* Keep the scope toggle on one baseline with the heading instead of floating
+   between the kicker and the title on phones. */
+@media (max-width: 680px) {
+  .members-directory .table-title-row {
+    flex-wrap: wrap;
+  }
+  .members-directory .table-title-row > div:first-child {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 12px;
+    width: 100%;
+  }
+  .members-directory .table-title-row .section-kicker {
+    flex-basis: 100%;
+  }
+  .members-directory .table-title-row h2 {
+    order: 1;
+  }
+  .members-directory .table-title-row .segmented-control {
+    order: 2;
+    margin-inline-start: auto;
+  }
+}
 .members-directory .table-wrap th {
   background: rgba(246, 247, 250, 0.7);
   color: var(--muted);
