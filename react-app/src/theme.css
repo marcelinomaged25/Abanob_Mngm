@@ -1213,6 +1213,19 @@ input[type="file"]:hover::file-selector-button {
   background: linear-gradient(180deg, #215084, #123a69);
   transform: translateY(-1px);
 }
+/* This button renders on the light report card; the legacy white-on-glass
+   style from the old dark hero made it invisible there. */
+.public-followup-button {
+  border: 1px solid rgba(18, 33, 56, 0.18);
+  background: #ffffff;
+  color: #102f5f;
+  box-shadow: var(--shadow-xs);
+}
+.public-followup-button:hover {
+  border-color: rgba(18, 33, 56, 0.3);
+  background: #f4f8ff;
+  color: #0b2a55;
+}
 .qr-print-button {
   background: #ffffff;
   border: 1px solid rgba(18, 33, 56, 0.12);
