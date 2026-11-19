@@ -2482,11 +2482,14 @@ input[type="file"]:hover::file-selector-button {
 
 /* ---------- Parent home ---------- */
 .public-parent-home {
-  background-color: #081a31;
+  background-color: #071c38;
   background-image:
-    radial-gradient(900px 520px at 82% -10%, rgba(211, 166, 58, 0.22), transparent 62%),
-    radial-gradient(760px 560px at 6% 12%, rgba(33, 82, 138, 0.38), transparent 64%),
-    linear-gradient(155deg, #06162b 0%, #0b2544 52%, #071b33 100%);
+    radial-gradient(900px 520px at 82% -10%, rgba(211, 166, 58, 0.16), transparent 62%),
+    radial-gradient(760px 560px at 6% 12%, rgba(33, 82, 138, 0.3), transparent 64%),
+    url("/dashboard-pattern.png");
+  background-position: center;
+  background-size: auto, auto, cover;
+  background-repeat: no-repeat;
   color: #f6f9ff;
 }
 .public-home-glow {
@@ -4887,7 +4890,31 @@ table tbody td[colspan] {
   }
 }
 
+@media (max-width: 680px) {
+  /* Keep the verse bar aligned with the page gutters instead of full-bleed. */
+  .app-content > .topbar {
+    width: auto;
+    margin: 0 0 14px;
+  }
+  /* Let every tab stay reachable instead of clipping the strip. */
+  .sub-tabs {
+    flex-wrap: wrap;
+    overflow: visible;
+    scroll-snap-type: none;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .sub-tabs button {
+    flex: 1 1 auto;
+    justify-content: center;
+    scroll-snap-align: none;
+  }
+}
+
 @media (max-width: 560px) {
+  .call-settings-tabs {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .dashboard-hero {
     grid-template-columns: minmax(0, 1fr);
   }
