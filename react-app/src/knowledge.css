@@ -1,0 +1,1162 @@
+/* Standalone knowledge surfaces: all selectors are scoped to these two pages. */
+.knowledge-admin-page,
+.ritual-chat-page {
+  --knowledge-ink: #14243b;
+  --knowledge-muted: #58677d;
+  --knowledge-line: #dce3ed;
+  --knowledge-navy: #17365c;
+  --knowledge-blue-soft: #edf3fb;
+  --knowledge-gold: #b18a37;
+  --knowledge-danger: #a63245;
+  box-sizing: border-box;
+  min-width: 0;
+  color: var(--knowledge-ink);
+  font-family: var(--font-sans, "Segoe UI", Tahoma, Arial, sans-serif);
+  font-size: 15px;
+  line-height: 1.7;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.knowledge-admin-page *,
+.ritual-chat-page * {
+  box-sizing: border-box;
+}
+.knowledge-admin-page h1,
+.knowledge-admin-page h2,
+.knowledge-admin-page h3,
+.knowledge-admin-page p,
+.ritual-chat-page h1,
+.ritual-chat-page h2,
+.ritual-chat-page p {
+  margin: 0;
+}
+.knowledge-admin-page button,
+.knowledge-admin-page input,
+.knowledge-admin-page textarea,
+.knowledge-admin-page select,
+.ritual-chat-page button,
+.ritual-chat-page textarea {
+  font: inherit;
+}
+.knowledge-admin-page button,
+.ritual-chat-page button {
+  cursor: pointer;
+}
+.knowledge-admin-page button:disabled,
+.ritual-chat-page button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.knowledge-admin-page :focus-visible,
+.ritual-chat-page :focus-visible {
+  outline: 3px solid #497fb7;
+  outline-offset: 3px;
+}
+.knowledge-admin-page svg,
+.ritual-chat-page svg {
+  flex-shrink: 0;
+}
+.knowledge-admin-page summary,
+.ritual-chat-page summary {
+  cursor: pointer;
+}
+.knowledge-plain-text,
+.ritual-chat-plain-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  unicode-bidi: plaintext;
+}
+
+.knowledge-button,
+.ritual-chat-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 17px;
+  border: 1px solid var(--knowledge-navy);
+  border-radius: 11px;
+  background: var(--knowledge-navy);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.5;
+  text-decoration: none;
+  transition: background 150ms ease;
+}
+.knowledge-button:hover:not(:disabled),
+.ritual-chat-button:hover:not(:disabled) {
+  background: #244d7e;
+}
+.knowledge-button--secondary,
+.ritual-chat-button--secondary {
+  border-color: var(--knowledge-line);
+  background: #fff;
+  color: var(--knowledge-navy);
+}
+.knowledge-button--secondary:hover:not(:disabled),
+.ritual-chat-button--secondary:hover:not(:disabled) {
+  background: var(--knowledge-blue-soft);
+}
+.knowledge-button--danger {
+  background: var(--knowledge-danger);
+  border-color: var(--knowledge-danger);
+}
+.knowledge-button--danger:hover:not(:disabled) {
+  background: #892437;
+}
+.knowledge-icon-button,
+.knowledge-inspect-button,
+.ritual-chat-text-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--knowledge-navy);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.knowledge-icon-button:hover:not(:disabled),
+.knowledge-inspect-button:hover:not(:disabled),
+.ritual-chat-text-button:hover:not(:disabled) {
+  background: var(--knowledge-blue-soft);
+}
+.knowledge-icon-button--danger {
+  color: var(--knowledge-danger);
+}
+.knowledge-kicker,
+.ritual-chat-kicker {
+  color: #806222;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.1px;
+}
+.knowledge-spin,
+.ritual-chat-spin {
+  animation: knowledge-surface-spin 1.1s linear infinite;
+}
+@keyframes knowledge-surface-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Public chat */
+.ritual-chat-page {
+  min-height: 100svh;
+  padding: 18px 12px 24px;
+  background: #f3f5f9;
+}
+.ritual-chat-shell {
+  width: min(100%, 920px);
+  margin-inline: auto;
+}
+.ritual-chat-heading {
+  margin-bottom: 18px;
+}
+.ritual-chat-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 4px 0;
+  color: var(--knowledge-navy);
+  text-decoration: none;
+  font-size: 14px;
+}
+.ritual-chat-home:hover {
+  text-decoration: underline;
+}
+.ritual-chat-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-block: 9px 12px;
+}
+.ritual-chat-brand-icon,
+.knowledge-heading-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 54px;
+  height: 54px;
+  border: 1px solid #d8c494;
+  border-radius: 16px;
+  background: #fffaf0;
+  color: #85651f;
+}
+.ritual-chat-heading h1 {
+  font-size: clamp(25px, 5vw, 34px);
+  font-weight: 750;
+  line-height: 1.5;
+}
+.ritual-chat-disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: var(--knowledge-muted);
+  font-size: 13px;
+}
+.ritual-chat-disclaimer svg {
+  margin-top: 3px;
+  color: #8a6b2d;
+}
+.ritual-chat-health {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid #e3ce9d;
+  border-radius: 12px;
+  background: #fffaec;
+  color: #735319;
+  font-size: 13px;
+}
+.ritual-chat-health > svg {
+  margin-top: 4px;
+}
+.ritual-chat-health > span {
+  flex: 1;
+  min-width: 190px;
+}
+.ritual-chat-health .ritual-chat-text-button {
+  margin-inline-start: auto;
+  color: #735319;
+}
+.ritual-chat-health--checking {
+  border-color: var(--knowledge-line);
+  background: #eef3fa;
+  color: var(--knowledge-muted);
+}
+.ritual-chat-panel {
+  overflow: hidden;
+  border: 1px solid var(--knowledge-line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 38px -25px #17365c5c;
+}
+.ritual-chat-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--knowledge-line);
+  background: #fafbfd;
+}
+.ritual-chat-panel-heading > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--knowledge-muted);
+  font-size: 12px;
+}
+.ritual-chat-status-dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #b18a37;
+}
+.ritual-chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 320px;
+  height: clamp(320px, 49svh, 600px);
+  padding: 18px 12px;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+.ritual-chat-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 14px 0;
+  text-align: center;
+}
+.ritual-chat-welcome-icon {
+  display: grid;
+  place-items: center;
+  width: 65px;
+  height: 65px;
+  margin-bottom: 14px;
+  border: 1px solid #e1d4b5;
+  border-radius: 22px;
+  background: #fffbf2;
+  color: #907031;
+}
+.ritual-chat-welcome h2 {
+  font-size: 21px;
+  line-height: 1.6;
+}
+.ritual-chat-welcome > p {
+  max-width: 410px;
+  margin-top: 5px;
+  color: var(--knowledge-muted);
+  font-size: 13px;
+}
+.ritual-chat-samples {
+  display: grid;
+  width: min(100%, 540px);
+  gap: 9px;
+  margin-top: 22px;
+}
+.ritual-chat-sample {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 12px;
+  border: 1px solid var(--knowledge-line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--knowledge-navy);
+  font-size: 13px;
+  text-align: start;
+}
+.ritual-chat-sample:hover:not(:disabled) {
+  background: var(--knowledge-blue-soft);
+  border-color: #a9bfdc;
+}
+.ritual-chat-sample svg {
+  transform: rotate(180deg);
+}
+.ritual-chat-message {
+  width: fit-content;
+  max-width: 96%;
+  padding: 14px;
+  border: 1px solid var(--knowledge-line);
+  border-radius: 16px;
+}
+.ritual-chat-message--user {
+  align-self: flex-start;
+  border-color: #d1def0;
+  border-start-start-radius: 5px;
+  background: var(--knowledge-blue-soft);
+}
+.ritual-chat-message--assistant {
+  align-self: flex-end;
+  width: min(100%, 720px);
+  border-start-end-radius: 5px;
+  background: #fff;
+}
+.ritual-chat-message-label {
+  margin-bottom: 5px !important;
+  color: var(--knowledge-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+.ritual-chat-message > .ritual-chat-plain-text {
+  font-size: 15px;
+  line-height: 1.9;
+}
+.ritual-chat-message--failure {
+  background: #fffaf4;
+  border-color: #e6d5b7;
+}
+.ritual-chat-sources {
+  margin-top: 15px;
+  padding-top: 9px;
+  border-top: 1px solid var(--knowledge-line);
+}
+.ritual-chat-sources > summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  list-style: none;
+  color: var(--knowledge-navy);
+  font-size: 13px;
+  font-weight: 650;
+}
+.ritual-chat-sources > summary::-webkit-details-marker {
+  display: none;
+}
+.ritual-chat-sources > summary > svg:last-child {
+  margin-inline-start: auto;
+  transition: transform 150ms ease;
+}
+.ritual-chat-sources[open] > summary > svg:last-child {
+  transform: rotate(180deg);
+}
+.ritual-chat-source-list {
+  display: grid;
+  gap: 9px;
+  margin: 6px 0 0;
+  padding-inline-start: 23px;
+}
+.ritual-chat-source {
+  padding: 10px;
+  border: 1px solid var(--knowledge-line);
+  border-radius: 9px;
+  background: #f8fafd;
+  font-size: 13px;
+}
+.ritual-chat-source strong {
+  display: block;
+}
+.ritual-chat-source-page {
+  display: block;
+  color: #67738a;
+  font-size: 12px;
+}
+.ritual-chat-source p {
+  margin-top: 7px;
+  color: #42536b;
+  line-height: 1.9;
+}
+.ritual-chat-source-note,
+.ritual-chat-confidence {
+  margin-top: 10px !important;
+  color: var(--knowledge-muted);
+  font-size: 11px;
+}
+.ritual-chat-failure > strong {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 14px;
+  color: #80551d;
+}
+.ritual-chat-failure > strong svg {
+  margin-top: 4px;
+}
+.ritual-chat-failure > p {
+  margin-block: 7px 12px;
+  color: #604f39;
+  font-size: 13px;
+}
+.ritual-chat-loading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  align-self: flex-end;
+  padding: 13px;
+  color: var(--knowledge-muted);
+  font-size: 13px;
+}
+.ritual-chat-composer {
+  padding: 14px 12px;
+  border-top: 1px solid var(--knowledge-line);
+  background: #fcfdff;
+}
+.ritual-chat-input-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 650;
+}
+.ritual-chat-composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 94px;
+  max-height: 260px;
+  padding: 11px 12px;
+  border: 1px solid #c8d4e4;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--knowledge-ink);
+  font-size: 16px;
+  resize: vertical;
+  line-height: 1.7;
+}
+.ritual-chat-composer textarea::placeholder {
+  color: #768399;
+  opacity: 1;
+}
+.ritual-chat-composer textarea[readonly] {
+  background: #f3f6fa;
+}
+.ritual-chat-composer textarea[aria-invalid="true"] {
+  border-color: var(--knowledge-danger);
+}
+.ritual-chat-composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+.ritual-chat-composer-footer > p {
+  flex: 1;
+  color: var(--knowledge-muted);
+  font-size: 10px;
+}
+.ritual-chat-character-count {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+}
+.ritual-chat-validation {
+  margin-top: 7px !important;
+  color: var(--knowledge-danger);
+  font-size: 12px;
+}
+.ritual-chat-local-note {
+  margin-top: 11px !important;
+  color: var(--knowledge-muted);
+  text-align: center;
+  font-size: 11px;
+}
+
+/* Servant knowledge administration */
+.knowledge-admin-page {
+  width: min(100%, 1220px);
+  margin-inline: auto;
+  padding: 18px 12px 30px;
+}
+.knowledge-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.knowledge-heading h1 {
+  font-size: clamp(25px, 4vw, 32px);
+  line-height: 1.5;
+}
+.knowledge-heading > div > p:last-child {
+  margin-top: 5px;
+  color: var(--knowledge-muted);
+  font-size: 13px;
+}
+.knowledge-rights-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-bottom: 16px;
+  padding: 13px;
+  border: 1px solid #e5d7b4;
+  border-radius: 13px;
+  background: #fffbf0;
+  color: #715722;
+  font-size: 13px;
+}
+.knowledge-rights-note > svg {
+  margin-top: 3px;
+}
+.knowledge-inline-error,
+.knowledge-success {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 15px;
+  padding: 12px;
+  border: 1px solid #eac4cb;
+  border-radius: 12px;
+  background: #fff4f5;
+  color: #922b3d;
+  font-size: 13px;
+}
+.knowledge-inline-error > p {
+  flex: 1 1 85%;
+}
+.knowledge-inline-error > svg,
+.knowledge-success > svg {
+  margin-top: 3px;
+}
+.knowledge-success {
+  border-color: #b9ded4;
+  background: #f0faf6;
+  color: #176754;
+}
+.knowledge-success > p {
+  flex: 1;
+}
+.knowledge-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-bottom: 18px;
+}
+.knowledge-stats > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 7px;
+  border: 1px solid var(--knowledge-line);
+  border-radius: 12px;
+  background: #fff;
+}
+.knowledge-stats span {
+  color: var(--knowledge-muted);
+  font-size: 11px;
+}
+.knowledge-stats strong {
+  color: var(--knowledge-navy);
+  font-size: 25px;
+  line-height: 1.6;
+}
+.knowledge-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+.knowledge-form {
+  min-width: 0;
+  padding: 17px 14px;
+  border: 1px solid var(--knowledge-line);
+  border-radius: 16px;
+  background: #fff;
+  scroll-margin-top: 18px;
+}
+.knowledge-form-heading {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin-bottom: 17px;
+}
+.knowledge-form-heading > svg {
+  margin-top: 4px;
+  color: var(--knowledge-navy);
+}
+.knowledge-form-heading h2,
+.knowledge-list-heading h2 {
+  font-size: 18px;
+}
+.knowledge-form-heading p,
+.knowledge-list-heading p {
+  margin-top: 3px;
+  color: var(--knowledge-muted);
+  font-size: 12px;
+}
+.knowledge-fields {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.knowledge-fields > label {
+  display: block;
+  color: #263852;
+  font-size: 13px;
+  font-weight: 600;
+}
+.knowledge-fields input:not([type="checkbox"]),
+.knowledge-fields textarea,
+.knowledge-fields select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 45px;
+  margin-top: 6px;
+  padding: 10px;
+  border: 1px solid #cbd5e2;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--knowledge-ink);
+  font-size: 16px;
+  line-height: 1.6;
+}
+.knowledge-fields textarea {
+  resize: vertical;
+}
+.knowledge-fields input[type="file"] {
+  overflow: hidden;
+  background: #f8fafd;
+  font-size: 12px;
+}
+.knowledge-fields input[type="file"]::file-selector-button {
+  margin-inline-end: 8px;
+  padding: 7px 8px;
+  border: 1px solid #c9d6e8;
+  border-radius: 7px;
+  background: #fff;
+  color: var(--knowledge-navy);
+  font: inherit;
+  cursor: pointer;
+}
+.knowledge-fields input:disabled,
+.knowledge-fields textarea:disabled,
+.knowledge-fields select:disabled {
+  background: #f4f6f9;
+  color: #738095;
+  cursor: not-allowed;
+}
+.knowledge-required,
+.knowledge-optional {
+  color: var(--knowledge-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.knowledge-field-help {
+  display: block;
+  margin-top: 6px;
+  color: var(--knowledge-muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.7;
+}
+.knowledge-fields > .knowledge-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-weight: 400;
+}
+.knowledge-checkbox input {
+  flex-shrink: 0;
+  width: 19px;
+  height: 19px;
+  margin: 2px 0 0;
+  accent-color: var(--knowledge-navy);
+}
+.knowledge-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.knowledge-form-actions > .knowledge-button {
+  flex: 1;
+}
+.knowledge-source-section {
+  min-width: 0;
+}
+.knowledge-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.knowledge-list-heading > .knowledge-icon-button {
+  flex-shrink: 0;
+  border-color: var(--knowledge-line);
+  background: #fff;
+}
+.knowledge-source-list {
+  display: grid;
+  gap: 14px;
+}
+.knowledge-source-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--knowledge-line);
+  border-radius: 16px;
+  background: #fff;
+}
+.knowledge-source-card--editing {
+  border-color: #809fc8;
+  box-shadow: 0 0 0 2px #e4edf9;
+}
+.knowledge-source-heading {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.knowledge-file-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 41px;
+  height: 45px;
+  border-radius: 10px;
+  background: var(--knowledge-blue-soft);
+  color: var(--knowledge-navy);
+}
+.knowledge-source-title {
+  flex: 1;
+  min-width: 170px;
+}
+.knowledge-source-title h3 {
+  color: var(--knowledge-ink);
+  font-size: 16px;
+  line-height: 1.6;
+}
+.knowledge-source-title p {
+  margin-top: 3px;
+  color: var(--knowledge-muted);
+  font-size: 11px;
+}
+.knowledge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  background: #f4f6f9;
+  color: #52627a;
+  font-size: 11px;
+  font-weight: 600;
+}
+.knowledge-status--ready {
+  border-color: #bce0d3;
+  background: #effaf5;
+  color: #19674f;
+}
+.knowledge-status--queued,
+.knowledge-status--extracting,
+.knowledge-status--embedding {
+  border-color: #c4d5ed;
+  background: #edf4ff;
+  color: #2c5486;
+}
+.knowledge-status--needs_ocr,
+.knowledge-status--partial {
+  border-color: #ebd2a1;
+  background: #fff8e8;
+  color: #7c551c;
+}
+.knowledge-status--failed {
+  border-color: #edc8cf;
+  background: #fff2f4;
+  color: #9b3448;
+}
+.knowledge-source-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+  color: var(--knowledge-muted);
+  font-size: 12px;
+}
+.knowledge-source-tags > span:first-child {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #f4f1e9;
+  color: #7a602b;
+}
+.knowledge-source-counts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+  padding: 12px 0;
+  border-block: 1px solid #e9edf3;
+}
+.knowledge-source-counts div {
+  min-width: 0;
+}
+.knowledge-source-counts dt {
+  color: var(--knowledge-muted);
+  font-size: 11px;
+}
+.knowledge-source-counts dd {
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.knowledge-permission-details {
+  margin-bottom: 11px;
+  font-size: 12px;
+}
+.knowledge-permission-details summary {
+  min-height: 44px;
+  padding-block: 10px;
+  color: var(--knowledge-muted);
+}
+.knowledge-permission-details summary svg {
+  vertical-align: middle;
+  margin-inline: 4px;
+}
+.knowledge-permission-details p {
+  padding: 10px;
+  border-radius: 8px;
+  background: #f8fafd;
+  color: #465872;
+}
+.knowledge-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-block: 10px;
+  padding: 11px;
+  border: 1px solid #ead5ae;
+  border-radius: 10px;
+  background: #fffaef;
+  color: #7a571c;
+  font-size: 12px;
+}
+.knowledge-warning > svg {
+  margin-top: 3px;
+}
+.knowledge-warning p {
+  margin-top: 3px;
+}
+.knowledge-source-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-block: 10px !important;
+  color: var(--knowledge-danger);
+  font-size: 12px;
+}
+.knowledge-source-error > svg {
+  margin-top: 3px;
+}
+.knowledge-source-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+}
+.knowledge-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 7px 9px;
+  border: 1px solid var(--knowledge-line);
+  border-radius: 9px;
+  background: #fff;
+  color: #59677c;
+  font-size: 12px;
+}
+.knowledge-toggle > span {
+  position: relative;
+  display: inline-block;
+  width: 31px;
+  height: 18px;
+  border-radius: 20px;
+  background: #c5ceda;
+}
+.knowledge-toggle > span::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  inset-inline-start: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px #14243b26;
+  transition: transform 150ms ease;
+}
+.knowledge-toggle--active {
+  color: #19674f;
+  border-color: #c3ded2;
+}
+.knowledge-toggle--active > span {
+  background: #27775e;
+}
+.knowledge-toggle--active > span::after {
+  inset-inline-start: auto;
+  inset-inline-end: 3px;
+}
+.knowledge-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.knowledge-small-note {
+  margin-top: 7px !important;
+  color: var(--knowledge-muted);
+  font-size: 11px;
+}
+.knowledge-delete-confirm {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #e9c0c9;
+  border-radius: 10px;
+  background: #fff5f6;
+  color: #843144;
+  font-size: 13px;
+}
+.knowledge-delete-confirm > p {
+  margin-block: 6px 10px;
+  font-size: 12px;
+}
+.knowledge-delete-confirm .knowledge-actions {
+  gap: 8px;
+}
+.knowledge-inspect-button {
+  margin-top: 10px;
+  border-color: var(--knowledge-line);
+  font-size: 12px;
+}
+.knowledge-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 210px;
+  padding: 25px;
+  border: 1px dashed #c5d1e1;
+  border-radius: 15px;
+  background: #fafcff;
+  color: var(--knowledge-muted);
+  text-align: center;
+}
+.knowledge-empty h3 {
+  color: var(--knowledge-ink);
+  font-size: 17px;
+}
+.knowledge-empty p {
+  max-width: 300px;
+  font-size: 13px;
+}
+.knowledge-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--knowledge-muted);
+  font-size: 13px;
+}
+.knowledge-chunks {
+  margin-top: 13px;
+  padding: 12px;
+  border: 1px solid var(--knowledge-line);
+  border-radius: 10px;
+  background: #f8fafd;
+}
+.knowledge-chunks > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 9px;
+  font-size: 12px;
+}
+.knowledge-chunk-list {
+  display: grid;
+  gap: 11px;
+  max-height: 440px;
+  margin: 0;
+  padding-inline-start: 23px;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+.knowledge-chunk-list > li {
+  padding: 10px;
+  border: 1px solid var(--knowledge-line);
+  border-radius: 8px;
+  background: #fff;
+}
+.knowledge-chunk-list strong {
+  color: var(--knowledge-navy);
+  font-size: 11px;
+}
+.knowledge-chunk-list p {
+  margin-top: 6px;
+  color: #374b66;
+  font-size: 13px;
+  line-height: 1.9;
+}
+.knowledge-chunk-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  margin-top: 10px;
+}
+.knowledge-chunk-pagination > span {
+  color: var(--knowledge-muted);
+  font-size: 11px;
+}
+
+@media (min-width: 600px) {
+  .ritual-chat-page {
+    padding: 26px 24px 35px;
+  }
+  .ritual-chat-log {
+    padding: 24px;
+  }
+  .ritual-chat-panel-heading,
+  .ritual-chat-composer {
+    padding-inline: 22px;
+  }
+  .ritual-chat-samples {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ritual-chat-character-count {
+    display: inline;
+    margin-inline-start: 8px;
+  }
+  .ritual-chat-composer-footer > p {
+    font-size: 11px;
+  }
+  .knowledge-admin-page {
+    padding: 24px 20px 35px;
+  }
+  .knowledge-stats > div {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 14px 20px;
+  }
+  .knowledge-stats span {
+    font-size: 13px;
+  }
+  .knowledge-source-card {
+    padding: 18px;
+  }
+  .knowledge-source-counts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .knowledge-source-footer {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+@media (min-width: 980px) {
+  .knowledge-layout {
+    grid-template-columns: minmax(280px, 350px) minmax(0, 1fr);
+    gap: 24px;
+  }
+  .knowledge-form {
+    padding: 21px;
+  }
+  .ritual-chat-page {
+    padding-top: 34px;
+  }
+  .ritual-chat-health {
+    align-items: center;
+  }
+  .ritual-chat-health > svg {
+    margin-top: 0;
+  }
+}
+@media (max-width: 359px) {
+  .ritual-chat-panel-heading {
+    flex-wrap: wrap;
+  }
+  .ritual-chat-message {
+    max-width: 100%;
+  }
+  .ritual-chat-composer-footer {
+    align-items: flex-start;
+  }
+  .knowledge-actions {
+    gap: 0;
+  }
+  .knowledge-icon-button {
+    padding-inline: 7px;
+    font-size: 12px;
+  }
+  .knowledge-stats span {
+    font-size: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .knowledge-spin,
+  .ritual-chat-spin {
+    animation: none;
+  }
+  .knowledge-admin-page *,
+  .ritual-chat-page * {
+    transition: none;
+    scroll-behavior: auto;
+  }
+}

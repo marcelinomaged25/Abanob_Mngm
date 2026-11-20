@@ -3,6 +3,8 @@ using System.Text;
 using System.Text.Json;
 using System.IO.Compression;
 using Npgsql;
+using Microsoft.AspNetCore.HttpOverrides;
+using System.Net;
 using static ApiHelpers;
 
 LoadEnvironmentFile(FindEnvironmentFile());
@@ -17,6 +19,19 @@ if (string.IsNullOrWhiteSpace(appPassword)) throw new InvalidOperationException(
 
 var dataSource = NpgsqlDataSource.Create(connectionString);
 builder.Services.AddSingleton(dataSource);
+builder.Services.AddHttpClient("knowledge-ai", client => client.Timeout = Timeout.InfiniteTimeSpan);
+builder.Services.AddSingleton<IAiProvider, GeminiAiProvider>();
+builder.Services.AddSingleton<KnowledgeStore>();
+builder.Services.AddSingleton<IKnowledgeVectorStore>(services => services.GetRequiredService<KnowledgeStore>());
+builder.Services.AddSingleton<ChatSecurity>();
+builder.Services.AddSingleton<ChatEngine>();
+builder.Services.AddHostedService<KnowledgeIngestionWorker>();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor;
+    foreach (var proxy in (builder.Configuration["CHAT_TRUSTED_PROXIES"] ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        options.KnownProxies.Add(IPAddress.Parse(proxy));
+});
 builder.Services.AddCors(options => options.AddPolicy("frontend", policy => policy
     .SetIsOriginAllowed(origin =>
     {
@@ -29,6 +44,7 @@ builder.Services.AddCors(options => options.AddPolicy("frontend", policy => poli
     .AllowAnyHeader().AllowAnyMethod()));
 
 var app = builder.Build();
+app.UseForwardedHeaders();
 app.UseCors("frontend");
 
 await using (var connection = await dataSource.OpenConnectionAsync())
@@ -64,6 +80,16 @@ await using (var transaction = await connection.BeginTransactionAsync())
     await transaction.CommitAsync();
 }
 
+await KnowledgeEndpoints.InitializeAsync(dataSource);
+await ChatSecurity.InitializeAsync(dataSource);
+ChatEndpoints.Map(app);
+app.MapGet("/health", async (NpgsqlDataSource db, CancellationToken cancellationToken) =>
+{
+    await using var connection = await db.OpenConnectionAsync(cancellationToken);
+    await using var command = new NpgsqlCommand("select 1", connection);
+    await command.ExecuteScalarAsync(cancellationToken);
+    return Results.Ok(new { ok = true });
+});
 app.MapGet("/", () => Results.Ok(new { service = "Abanob Choir Follow-up API", status = "ok" }));
 app.MapGet("/api/health", async (NpgsqlDataSource db) =>
 {
@@ -288,6 +314,7 @@ api.AddEndpointFilter(async (context, next) =>
 });
 
 api.MapGet("/session", () => Results.Ok(new { role = "user" }));
+KnowledgeEndpoints.Map(api);
 api.MapGet("/notifications", async (NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();

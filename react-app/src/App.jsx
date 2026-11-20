@@ -1,4 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ChatPage from "./ChatPage";
+import KnowledgeAdminPage from "./KnowledgeAdminPage";
 import {
   BarChart3,
   Bell,
@@ -619,7 +621,7 @@ export default function App() {
           setMassSchedules(await request("/api/mass-schedules", {}, auth));
           return;
         }
-        if (nextMode === "content-admin") return;
+        if (nextMode === "content-admin" || nextMode === "knowledge-admin") return;
         if (nextMode === "notifications") return;
         if (nextMode === "attendance") {
           const result = await request(
@@ -842,7 +844,7 @@ export default function App() {
       setEditingPerson(null);
       setPersonDraft(emptyPerson);
     }
-    if (nextMode === "notifications" || nextMode === "evaluation" || nextMode === "content-admin") return;
+    if (["notifications", "evaluation", "content-admin", "knowledge-admin"].includes(nextMode)) return;
     if (nextMode === "attendance") load(nextMode, attendanceDate);
     else if (nextMode === "home" || nextMode === "stray") load(nextMode, dashboardDate);
     else if (
@@ -1173,6 +1175,8 @@ export default function App() {
   }
 
   if (publicQrToken) return <PublicAttendancePage token={publicQrToken} />;
+  if (["/ask-about-ritual", "/ask-about-ritual/"].includes(window.location.pathname))
+    return <ChatPage apiUrl={apiUrl} />;
   if (isLearningPage) return <PublicLearningPage />;
   if (isBooksPage) return <PublicBooksPage />;
   if (isBiblePage) return <PublicBiblePage />;
@@ -1226,7 +1230,7 @@ export default function App() {
       className={`sidebar-item ${
         mode === nextMode ||
         (nextMode === "content-admin" &&
-          ["learning-admin", "books-admin", "bible-admin", "mass-admin"].includes(mode)) ||
+          ["learning-admin", "books-admin", "bible-admin", "mass-admin", "knowledge-admin"].includes(mode)) ||
         (nextMode === "visit" && ["visit", "call", "reports", "notes", "requests"].includes(mode))
           ? "active"
           : ""
@@ -1551,6 +1555,14 @@ export default function App() {
           />
         )}
         {mode === "content-admin" && <ContentManagementChooser onChoose={switchMode} />}
+        {mode === "knowledge-admin" && (
+          <section>
+            <button type="button" className="secondary-button" onClick={() => switchMode("content-admin")}>
+              <ChevronRight size={17} /> العودة لإدارة المحتوى
+            </button>
+            <KnowledgeAdminPage apiUrl={apiUrl} username={username} password={password} />
+          </section>
+        )}
         {mode === "learning-admin" && (
           <LearningManagementPage
             items={learningItems}
@@ -2711,6 +2723,16 @@ function ContentManagementChooser({ onChoose }) {
           <span>أضف التصنيفات وفيديوهات الكتاب المقدس بروابطها.</span>
           <ChevronLeft size={19} />
         </button>
+        <button
+          type="button"
+          className="content-management-option"
+          onClick={() => onChoose("knowledge-admin")}
+        >
+          <BookOpen size={27} />
+          <strong>قاعدة المعرفة</strong>
+          <span>إدارة مصادر التعليم والفهرسة لشات اسأل عن الطقس.</span>
+          <ChevronLeft size={19} />
+        </button>
       </div>
     </section>
   );
@@ -3422,6 +3444,11 @@ function PublicNavigation({ subtitle, homeActions }) {
         </section>
         <section className="public-menu-section">
           <p>التعليم</p>
+          <a href="/ask-about-ritual">
+            <MessageCircle size={18} />
+            <span>اسأل عن الطقس</span>
+            <ChevronLeft size={17} />
+          </a>
           <a href="https://stgeorgesaman.com/coptic/" target="_blank" rel="noreferrer">
             <Languages size={18} />
             <span>اللغة القبطية</span>

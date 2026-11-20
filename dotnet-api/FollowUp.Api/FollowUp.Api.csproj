@@ -7,5 +7,8 @@
   <ItemGroup>
     <PackageReference Include="Npgsql" Version="8.0.6" />
   </ItemGroup>
-  <ItemGroup><Content Include="schema.sql" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+  <ItemGroup>
+    <Content Include="schema.sql" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="knowledge-schema.sql" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

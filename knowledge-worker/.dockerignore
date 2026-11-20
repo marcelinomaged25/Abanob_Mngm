@@ -1,0 +1,7 @@
+# Allowlist: PDFs, secrets, caches and unrelated repository files never enter
+# the build context/image. Build with ./knowledge-worker as the context.
+**
+!app.py
+!requirements.txt
+!Dockerfile
+!.dockerignore

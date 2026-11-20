@@ -14,3 +14,27 @@ services:
         value: admin
       - key: FRONTEND_ORIGIN
         sync: false
+      - key: AI_PROVIDER
+        value: gemini
+      - key: AI_CHAT_MODEL
+        value: gemini-3.1-flash-lite
+      - key: AI_EMBEDDING_MODEL
+        value: gemini-embedding-001
+      - key: AI_EMBEDDING_DIMENSIONS
+        value: 768
+      - key: AI_API_KEY
+        sync: false
+      - key: CHAT_SESSION_SECRET
+        sync: false
+      - key: CHAT_GLOBAL_DAILY_LIMIT
+        value: 200
+      - key: CHAT_IP_HOURLY_LIMIT
+        value: 30
+      - key: CHAT_SESSION_HOURLY_LIMIT_ASK
+        value: 12
+      - key: CHAT_TRUSTED_PROXIES
+        sync: false
+      - key: KNOWLEDGE_OCR_URL
+        sync: false
+      - key: KNOWLEDGE_OCR_SECRET
+        sync: false
