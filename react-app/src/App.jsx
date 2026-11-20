@@ -195,6 +195,7 @@ const emptyPerson = {
   phone1: "",
   phone2: "",
   address: "",
+  birthDate: "",
   note: "",
   role: "boy",
   photoUrl: "",
@@ -329,6 +330,7 @@ export default function App() {
   const [servantsText, setServantsText] = useState("");
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
+  const [exportingMembers, setExportingMembers] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -945,6 +947,31 @@ export default function App() {
     }
   }
 
+  async function exportMembers() {
+    setExportingMembers(true);
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch(`${apiUrl}/api/export/members.xlsx`, {
+        headers: { "X-App-Password": password, "X-App-Username": username },
+      });
+      if (!response.ok) throw new Error("تعذر تصدير بيانات المخدومين");
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `choir-members-${today()}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setNotice("تم تنزيل بيانات المخدومين في ملف Excel");
+    } catch (exportError) {
+      setError(exportError.message);
+    } finally {
+      setExportingMembers(false);
+    }
+  }
+
   async function exportFullReports() {
     try {
       const response = await fetch(`${apiUrl}/api/export/full-reports.xlsx`, {
@@ -1129,6 +1156,7 @@ export default function App() {
       phone1: person.phone1 || "",
       phone2: person.phone2 || "",
       address: person.address || "",
+      birthDate: person.birthDate || "",
       note: person.note || "",
       role: person.role || "boy",
       photoUrl: person.photoUrl || "",
@@ -1400,6 +1428,8 @@ export default function App() {
             personDraft={personDraft}
             setPersonDraft={setPersonDraft}
             savePerson={savePerson}
+            exportMembers={exportMembers}
+            exportingMembers={exportingMembers}
             uploadPersonPhoto={uploadPersonPhoto}
             editPerson={editPerson}
             archivePerson={archivePerson}
@@ -5680,6 +5710,8 @@ function PeopleManager({
   personDraft,
   setPersonDraft,
   savePerson,
+  exportMembers,
+  exportingMembers,
   uploadPersonPhoto,
   editPerson,
   archivePerson,
@@ -5737,6 +5769,17 @@ function PeopleManager({
             رقم الهاتف الثاني
             <input dir="ltr" value={personDraft.phone2} onChange={field("phone2")} />
           </label>
+          <label>
+            تاريخ الميلاد
+            <input
+              type="date"
+              dir="ltr"
+              min="1900-01-01"
+              max={today()}
+              value={personDraft.birthDate}
+              onChange={field("birthDate")}
+            />
+          </label>
           <label className="form-wide">
             العنوان
             <input value={personDraft.address} onChange={field("address")} />
@@ -5778,15 +5821,26 @@ function PeopleManager({
             </div>
             <h2>{scopedRows.length} اسم مسجل</h2>
           </div>
-          <label className="search-box">
-            <Search size={17} />
-            <input
-              type="search"
-              placeholder="ابحث بالاسم أو الرقم أو العنوان"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </label>
+          <div className="people-table-actions">
+            <label className="search-box">
+              <Search size={17} />
+              <input
+                type="search"
+                placeholder="ابحث بالاسم أو الرقم أو العنوان"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={exportMembers}
+              disabled={busy || exportingMembers || !state.rows.some((person) => person.role === "boy")}
+            >
+              <Download size={17} />
+              {exportingMembers ? "جاري التصدير…" : "تصدير المخدومين Excel"}
+            </button>
+          </div>
         </div>
         <div className="table-wrap">
           <table>
@@ -5797,6 +5851,7 @@ function PeopleManager({
                 <th>رقم 1</th>
                 <th>رقم 2</th>
                 <th>العنوان</th>
+                <th>تاريخ الميلاد</th>
                 <th>إجراء</th>
               </tr>
             </thead>
@@ -5825,6 +5880,7 @@ function PeopleManager({
                       "—"
                     )}
                   </td>
+                  <td className="people-birth-date">{dateLabel(person.birthDate)}</td>
                   <td className="people-actions">
                     <button className="row-action edit" title="تعديل" onClick={() => editPerson(person)}>
                       <Pencil size={15} />

@@ -489,6 +489,17 @@ api.MapGet("/qr/{token}", async (string token, NpgsqlDataSource db) =>
     if (!await reader.ReadAsync()) return Results.NotFound(new { error = "QR code غير صالح" });
     return Results.Ok(new { id = reader.GetInt64(0), recordKey = reader.GetInt32(1), name = reader.GetString(2), phone1 = reader.GetString(3), role = reader.GetString(4) });
 });
+api.MapGet("/export/members.xlsx", async (NpgsqlDataSource db) =>
+{
+    await using var connection = await db.OpenConnectionAsync();
+    await using var command = new NpgsqlCommand("select name,phone1,phone2,birth_date::text,address from people where is_active=true and role='boy' order by record_key", connection);
+    await using var reader = await command.ExecuteReaderAsync();
+    var rows = new List<string[]>();
+    while (await reader.ReadAsync())
+        rows.Add(Enumerable.Range(0, reader.FieldCount).Select(index => reader.IsDBNull(index) ? "" : reader.GetString(index)).ToArray());
+    return Results.File(MembersWorkbook(rows), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"choir-members-{CairoToday():yyyy-MM-dd}.xlsx");
+});
+
 api.MapGet("/export/visits", async (NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();
@@ -1135,8 +1146,9 @@ api.MapPost("/people", async (PersonInput payload, NpgsqlDataSource db) =>
     await using var connection = await db.OpenConnectionAsync();
     var normalizedRole = NormalizeRole(payload.Role);
     var assignedGroup = normalizedRole != "boy" ? null : string.IsNullOrWhiteSpace(payload.Group) ? await SelectLeastFilledGroupAsync(connection) : payload.Group.Trim();
-    await using var command = new NpgsqlCommand("insert into people(record_key,name,note,phone1,phone2,group_number,address,role,photo_url,qr_token) values((select coalesce(max(record_key),0)+1 from people),$1,$2,$3,$4,$5,$6,$7,$8,$9) returning id", connection);
+    await using var command = new NpgsqlCommand("insert into people(record_key,name,note,phone1,phone2,group_number,address,role,photo_url,qr_token,birth_date) values((select coalesce(max(record_key),0)+1 from people),$1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning id", connection);
     command.Parameters.AddWithValue(payload.Name.Trim()); command.Parameters.AddWithValue(payload.Note?.Trim() ?? ""); command.Parameters.AddWithValue(NormalizeEgyptianPhone(payload.Phone1)); command.Parameters.AddWithValue(NormalizeEgyptianPhone(payload.Phone2)); command.Parameters.AddWithValue(string.IsNullOrWhiteSpace(assignedGroup) ? (object)DBNull.Value : assignedGroup.Trim()); command.Parameters.AddWithValue(payload.Address?.Trim() ?? ""); command.Parameters.AddWithValue(normalizedRole); command.Parameters.AddWithValue(payload.PhotoUrl?.Trim() ?? ""); command.Parameters.AddWithValue(Convert.ToHexString(RandomNumberGenerator.GetBytes(18)).ToLowerInvariant());
+    command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Date, string.IsNullOrWhiteSpace(payload.BirthDate) ? (object)DBNull.Value : DateOnly.ParseExact(payload.BirthDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
     var id = (long)(await command.ExecuteScalarAsync())!;
     return Results.Created($"/api/people/{id}", new { id });
 });
@@ -1149,8 +1161,9 @@ api.MapPut("/people/{personId:long}", async (long personId, PersonInput payload,
     var currentPerson = await GetPersonAsync(connection, personId);
     var targetGroup = normalizedRole == "servant" ? null : string.IsNullOrWhiteSpace(payload.Group) ? currentPerson?.Group : payload.Group.Trim();
     if (normalizedRole == "boy" && string.IsNullOrWhiteSpace(targetGroup)) targetGroup = await SelectLeastFilledGroupAsync(connection, personId);
-    await using var command = new NpgsqlCommand("update people set name=$1,note=$2,phone1=$3,phone2=$4,group_number=$5,address=$6,role=$7,photo_url=$8,updated_at=now() where id=$9 and is_active=true", connection);
+    await using var command = new NpgsqlCommand("update people set name=$1,note=$2,phone1=$3,phone2=$4,group_number=$5,address=$6,role=$7,photo_url=$8,birth_date=$10,updated_at=now() where id=$9 and is_active=true", connection);
     command.Parameters.AddWithValue(payload.Name.Trim()); command.Parameters.AddWithValue(payload.Note?.Trim() ?? ""); command.Parameters.AddWithValue(NormalizeEgyptianPhone(payload.Phone1)); command.Parameters.AddWithValue(NormalizeEgyptianPhone(payload.Phone2)); command.Parameters.AddWithValue(string.IsNullOrWhiteSpace(targetGroup) ? (object)DBNull.Value : targetGroup.Trim()); command.Parameters.AddWithValue(payload.Address?.Trim() ?? ""); command.Parameters.AddWithValue(normalizedRole); command.Parameters.AddWithValue(payload.PhotoUrl?.Trim() ?? ""); command.Parameters.AddWithValue(personId);
+    command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Date, string.IsNullOrWhiteSpace(payload.BirthDate) ? (object)DBNull.Value : DateOnly.ParseExact(payload.BirthDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
     if (await command.ExecuteNonQueryAsync() == 0) return Results.NotFound(new { error = "الاسم غير موجود" });
     return Results.NoContent();
 });
@@ -1322,11 +1335,11 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
 
 app.Run();
 
-record Person(long Id, int RecordKey, string Name, string Note, string Phone1, string Phone2, string Group, string Address, string Role, string PhotoUrl, string QrToken);
+record Person(long Id, int RecordKey, string Name, string Note, string Phone1, string Phone2, string Group, string Address, string Role, string PhotoUrl, string QrToken, string? BirthDate);
 record Group(string Number, int Members, int[] RecordKeys);
 record VisitSave(string Date, Dictionary<string, bool>? Checks);
 record CallSave(string? RotationStart, string[]? Servants, Dictionary<string, bool>? Checks, bool Redistribute = false);
-record PersonInput(string Name, string? Group, string? Phone1, string? Phone2, string? Address, string? Note, string? Role, string? PhotoUrl);
+record PersonInput(string Name, string? Group, string? Phone1, string? Phone2, string? Address, string? Note, string? Role, string? PhotoUrl, string? BirthDate);
 record PhotoInput(string PhotoUrl);
 record AttendanceSave(string Type, string Date, Dictionary<string, bool>? Checks, Dictionary<string, string>? Statuses);
 record EvaluationSave(string Date, Dictionary<string, int>? Scores);

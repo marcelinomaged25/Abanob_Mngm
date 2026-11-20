@@ -1886,6 +1886,41 @@ input[type="file"]:hover::file-selector-button {
 .people-table td {
   vertical-align: middle;
 }
+.people-table-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.people-table-actions .search-box {
+  flex: 1;
+  min-width: 180px;
+}
+.people-table-actions > button,
+.people-birth-date {
+  white-space: nowrap;
+}
+@media (max-width: 680px) {
+  .people-table .table-title-row {
+    align-items: stretch;
+  }
+  .people-table-actions {
+    display: grid;
+    width: 100%;
+  }
+  .people-table th:first-child,
+  .people-table td:first-child {
+    width: 34%;
+  }
+  .people-table th:nth-child(3),
+  .people-table td:nth-child(3) {
+    width: 28%;
+  }
+  .people-table th:nth-child(6),
+  .people-table td:nth-child(6) {
+    width: 22%;
+  }
+}
 .duplicate-names-panel {
   border: 1px solid rgba(211, 166, 58, 0.22);
   border-radius: var(--radius-lg);

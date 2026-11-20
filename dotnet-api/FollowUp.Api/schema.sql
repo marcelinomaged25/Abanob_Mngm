@@ -1,6 +1,7 @@
 create table if not exists groups (number text primary key, display_order integer not null unique);
 create table if not exists people (id bigserial primary key, record_key integer not null unique, name text not null, note text not null default '', phone1 text not null default '', phone2 text not null default '', group_number text references groups(number), address text not null default '', role text not null default 'boy', photo_url text not null default '', qr_token text, is_active boolean not null default true, created_at timestamptz not null default now(), updated_at timestamptz not null default now());
 alter table people add column if not exists photo_url text not null default '';
+alter table people add column if not exists birth_date date;
 do $$ begin if exists (select 1 from information_schema.columns where table_name='people' and column_name='source_row') then alter table people rename column source_row to record_key; end if; end $$;
 alter table people add column if not exists is_active boolean not null default true;
 alter table people add column if not exists role text not null default 'boy';

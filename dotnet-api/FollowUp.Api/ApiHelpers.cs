@@ -14,9 +14,9 @@ internal static class ApiHelpers
         var availableServants = await GetServantNamesAsync(connection);
         var verse = await GetSetting<string?>(connection, "verse") ?? "";
         var people = new List<Person>();
-        await using (var command = new NpgsqlCommand("select id,record_key,name,note,phone1,phone2,group_number,address,role,photo_url,qr_token from people where is_active=true order by record_key", connection))
+        await using (var command = new NpgsqlCommand("select id,record_key,name,note,phone1,phone2,group_number,address,role,photo_url,qr_token,birth_date::text from people where is_active=true order by record_key", connection))
         await using (var reader = await command.ExecuteReaderAsync())
-            while (await reader.ReadAsync()) people.Add(new Person(reader.GetInt64(0), reader.GetInt32(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.IsDBNull(6) ? "" : reader.GetString(6), reader.GetString(7), reader.GetString(8), reader.IsDBNull(9) ? "" : reader.GetString(9), reader.IsDBNull(10) ? "" : reader.GetString(10)));
+            while (await reader.ReadAsync()) people.Add(new Person(reader.GetInt64(0), reader.GetInt32(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.IsDBNull(6) ? "" : reader.GetString(6), reader.GetString(7), reader.GetString(8), reader.IsDBNull(9) ? "" : reader.GetString(9), reader.IsDBNull(10) ? "" : reader.GetString(10), reader.IsDBNull(11) ? null : reader.GetString(11)));
         var visitedThisMonth = new HashSet<long>();
         var monthStart = new DateOnly(date.Year, date.Month, 1);
         await using (var command = new NpgsqlCommand("select person_id from visit_records where visit_date >= $1 and visit_date < $2", connection))
@@ -91,7 +91,7 @@ internal static class ApiHelpers
         {
             lastCall.TryGetValue(person.Id, out var call);
             var group = person.Role == "servant" ? "" : person.Group;
-            return new { id = person.Id, recordKey = person.RecordKey, name = person.Name, note = person.Note, phone1 = person.Phone1, phone2 = person.Phone2, photoUrl = person.PhotoUrl, group, address = person.Address, role = person.Role, qrToken = person.QrToken, visited = mode == "visit" && visits.Contains(person.Id), visitedThisMonth = visitedThisMonth.Contains(person.Id), called = calls.ContainsKey(person.Id), servant = calls.GetValueOrDefault(person.Id) ?? savedAssignments.GetValueOrDefault(person.Group) ?? autoAssignments.GetValueOrDefault(person.Group) ?? "", lastVisitedDate = lastVisit.GetValueOrDefault(person.Id) ?? "", visitCount = visitCounts.GetValueOrDefault(person.Id), lastCalledWeek = call.Week ?? "", lastCaller = call.Servant ?? "", lastChoirDate = lastChoir.GetValueOrDefault(person.Id) ?? "", lastMassDate = lastMass.GetValueOrDefault(person.Id) ?? "", callCount = person.Role == "servant" ? servantCallCounts.GetValueOrDefault(CanonicalServantName(person.Name)) : boyCallCounts.GetValueOrDefault(person.Id), choirCount = choirCounts.GetValueOrDefault(person.Id), massCount = massCounts.GetValueOrDefault(person.Id) };
+            return new { id = person.Id, recordKey = person.RecordKey, name = person.Name, note = person.Note, phone1 = person.Phone1, phone2 = person.Phone2, photoUrl = person.PhotoUrl, group, address = person.Address, birthDate = person.BirthDate, role = person.Role, qrToken = person.QrToken, visited = mode == "visit" && visits.Contains(person.Id), visitedThisMonth = visitedThisMonth.Contains(person.Id), called = calls.ContainsKey(person.Id), servant = calls.GetValueOrDefault(person.Id) ?? savedAssignments.GetValueOrDefault(person.Group) ?? autoAssignments.GetValueOrDefault(person.Group) ?? "", lastVisitedDate = lastVisit.GetValueOrDefault(person.Id) ?? "", visitCount = visitCounts.GetValueOrDefault(person.Id), lastCalledWeek = call.Week ?? "", lastCaller = call.Servant ?? "", lastChoirDate = lastChoir.GetValueOrDefault(person.Id) ?? "", lastMassDate = lastMass.GetValueOrDefault(person.Id) ?? "", callCount = person.Role == "servant" ? servantCallCounts.GetValueOrDefault(CanonicalServantName(person.Name)) : boyCallCounts.GetValueOrDefault(person.Id), choirCount = choirCounts.GetValueOrDefault(person.Id), massCount = massCounts.GetValueOrDefault(person.Id) };
         }).ToArray();
         var groupStates = groups.Select(group => new { number = group.Number, members = group.Members, recordKeys = group.RecordKeys, servant = savedAssignments.GetValueOrDefault(group.Number) ?? autoAssignments.GetValueOrDefault(group.Number) ?? "" }).ToArray();
         var weekEnd = week.AddDays(6);
@@ -376,11 +376,11 @@ internal static class ApiHelpers
 
     internal static async Task<Person?> GetPersonAsync(NpgsqlConnection connection, long personId)
     {
-        await using var command = new NpgsqlCommand("select id,record_key,name,note,phone1,phone2,group_number,address,role,photo_url,qr_token from people where id=$1 and is_active=true", connection);
+        await using var command = new NpgsqlCommand("select id,record_key,name,note,phone1,phone2,group_number,address,role,photo_url,qr_token,birth_date::text from people where id=$1 and is_active=true", connection);
         command.Parameters.AddWithValue(personId);
         await using var reader = await command.ExecuteReaderAsync();
         if (!await reader.ReadAsync()) return null;
-        return new Person(reader.GetInt64(0), reader.GetInt32(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.IsDBNull(6) ? "" : reader.GetString(6), reader.GetString(7), reader.GetString(8), reader.IsDBNull(9) ? "" : reader.GetString(9), reader.IsDBNull(10) ? "" : reader.GetString(10));
+        return new Person(reader.GetInt64(0), reader.GetInt32(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.IsDBNull(6) ? "" : reader.GetString(6), reader.GetString(7), reader.GetString(8), reader.IsDBNull(9) ? "" : reader.GetString(9), reader.IsDBNull(10) ? "" : reader.GetString(10), reader.IsDBNull(11) ? null : reader.GetString(11));
     }
 
     internal static async Task<string> SelectLeastFilledGroupAsync(NpgsqlConnection connection, long? excludedPersonId = null)
@@ -400,8 +400,49 @@ internal static class ApiHelpers
     internal static bool ValidPerson(PersonInput payload, out string error)
     {
         if (string.IsNullOrWhiteSpace(payload.Name)) { error = "اكتب اسم الشخص"; return false; }
+        if (!string.IsNullOrWhiteSpace(payload.BirthDate) &&
+            (!DateOnly.TryParseExact(payload.BirthDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var birthDate) || birthDate.Year < 1900 || birthDate > CairoToday()))
+        { error = "أدخل تاريخ ميلاد صحيحًا غير مستقبلي"; return false; }
         error = "";
         return true;
+    }
+
+    internal static byte[] MembersWorkbook(IReadOnlyList<string[]> people)
+    {
+        var rows = new[] { new[] { "الاسم", "رقم 1", "رقم 2", "تاريخ الميلاد", "العنوان" } }.Concat(people);
+        var sheetRows = rows.Select((values, rowIndex) =>
+            $"<row r=\"{rowIndex + 1}\">{string.Concat(values.Select((value, columnIndex) =>
+            {
+                var reference = $"{(char)('A' + columnIndex)}{rowIndex + 1}";
+                if (rowIndex > 0 && columnIndex == 3 && !string.IsNullOrEmpty(value))
+                {
+                    var date = DateOnly.ParseExact(value, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+                    var serial = date.DayNumber - new DateOnly(1899, 12, 30).DayNumber;
+                    if (date < new DateOnly(1900, 3, 1)) serial--;
+                    return $"<c r=\"{reference}\" s=\"2\"><v>{serial}</v></c>";
+                }
+                var text = System.Security.SecurityElement.Escape(value) ?? "";
+                return $"<c r=\"{reference}\" s=\"{(rowIndex == 0 ? 1 : 0)}\" t=\"inlineStr\"><is><t xml:space=\"preserve\">{text}</t></is></c>";
+            }))}</row>");
+        var sheet = $"<?xml version=\"1.0\" encoding=\"UTF-8\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetViews><sheetView workbookViewId=\"0\" rightToLeft=\"1\"><pane ySplit=\"1\" topLeftCell=\"A2\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight=\"24\"/><cols><col min=\"1\" max=\"1\" width=\"36\" customWidth=\"1\"/><col min=\"2\" max=\"3\" width=\"23\" customWidth=\"1\"/><col min=\"4\" max=\"4\" width=\"20\" customWidth=\"1\"/><col min=\"5\" max=\"5\" width=\"60\" customWidth=\"1\"/></cols><sheetData>{string.Concat(sheetRows)}</sheetData><autoFilter ref=\"A1:E{people.Count + 1}\"/></worksheet>";
+        const string styles = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><numFmts count=\"1\"><numFmt numFmtId=\"164\" formatCode=\"yyyy-mm-dd\"/></numFmts><fonts count=\"2\"><font><sz val=\"11\"/><name val=\"Arial\"/></font><font><b/><sz val=\"11\"/><color rgb=\"FF102B4A\"/><name val=\"Arial\"/></font></fonts><fills count=\"3\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFEFE5C8\"/><bgColor indexed=\"64\"/></patternFill></fill></fills><borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs><cellXfs count=\"3\"><xf numFmtId=\"49\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"49\" fontId=\"1\" fillId=\"2\" borderId=\"0\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\"/><xf numFmtId=\"164\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/></cellXfs><cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles></styleSheet>";
+        var files = new Dictionary<string, string>
+        {
+            ["[Content_Types].xml"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/><Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/><Override PartName=\"/xl/worksheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/><Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/></Types>",
+            ["_rels/.rels"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"xl/workbook.xml\"/></Relationships>",
+            ["xl/workbook.xml"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><sheets><sheet name=\"المخدومين\" sheetId=\"1\" r:id=\"rId1\"/></sheets></workbook>",
+            ["xl/_rels/workbook.xml.rels"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\"/><Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/></Relationships>",
+            ["xl/worksheets/sheet1.xml"] = sheet,
+            ["xl/styles.xml"] = styles,
+        };
+        using var memory = new MemoryStream();
+        using (var archive = new System.IO.Compression.ZipArchive(memory, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+            foreach (var file in files)
+            {
+                using var writer = new StreamWriter(archive.CreateEntry(file.Key).Open(), new System.Text.UTF8Encoding(false));
+                writer.Write(file.Value);
+            }
+        return memory.ToArray();
     }
 
     internal static string CsvCell(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
