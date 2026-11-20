@@ -90,6 +90,19 @@ const dateLabel = (value) =>
         new Date(`${value}T12:00:00`),
       )
     : "—";
+const createdAtLabel = (value) => {
+  const [date, time] = String(value || "").split("T");
+  if (!date) return "—";
+  if (!time) return dateLabel(date.slice(0, 10));
+  const [year, month, day] = date.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+  const formattedTime = new Intl.DateTimeFormat("ar-EG", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date(year, month - 1, day, hour, minute));
+  return `${dateLabel(date.slice(0, 10))} · ${formattedTime}`;
+};
 const weekdayLabel = (value) =>
   value ? new Intl.DateTimeFormat("ar-EG", { weekday: "long" }).format(new Date(`${value}T12:00:00`)) : "";
 const isGoogleMapsUrl = (value) => {
@@ -326,6 +339,7 @@ export default function App() {
   const [attendanceRole, setAttendanceRole] = useState("boy");
   const [attendanceDate, setAttendanceDate] = useState(() => stored("choir-attendance-date", today()));
   const [attendanceChecks, setAttendanceChecks] = useState({});
+  const [attendanceStatuses, setAttendanceStatuses] = useState({});
   const [dashboard, setDashboard] = useState({ summary: {}, people: [] });
   const [whatsappTemplate, setWhatsappTemplate] = useState(defaultWhatsAppTemplate);
   const [learningItems, setLearningItems] = useState([]);
@@ -622,6 +636,13 @@ export default function App() {
                 .map((row) => [String(row.recordKey), true]),
             ),
           );
+          setAttendanceStatuses(
+            Object.fromEntries(
+              Object.entries(result.statuses || {})
+                .filter(([key]) => attendedKeys.has(key))
+                .map(([key, value]) => [key, String(value)]),
+            ),
+          );
           return;
         }
         const params = new URLSearchParams({ mode: nextMode === "visit" ? "visit" : "call" });
@@ -889,11 +910,16 @@ export default function App() {
     localStorage.setItem(`choir-notification-read-state-${username}`, JSON.stringify(nextReadMap));
   }
 
-  async function markAttendance(recordKey, present, type = attendanceType, date = attendanceDate) {
+  async function markAttendance(recordKey, present, type = attendanceType, date = attendanceDate, status) {
     try {
       await request("/api/attendance", {
         method: "POST",
-        body: JSON.stringify({ type, date, checks: { [recordKey]: present } }),
+        body: JSON.stringify({
+          type,
+          date,
+          checks: { [recordKey]: present },
+          statuses: present && status ? { [recordKey]: status } : {},
+        }),
       });
     } catch (saveError) {
       setError(saveError.message);
@@ -1049,9 +1075,19 @@ export default function App() {
     setError("");
     setNotice("");
     try {
+      const statusesToSave = Object.fromEntries(
+        Object.entries(attendanceStatuses).filter(
+          ([key, value]) => checksToSave[key] && (value === "on_time" || value === "late"),
+        ),
+      );
       await request("/api/attendance", {
         method: "POST",
-        body: JSON.stringify({ type: attendanceType, date: attendanceDate, checks: checksToSave }),
+        body: JSON.stringify({
+          type: attendanceType,
+          date: attendanceDate,
+          checks: checksToSave,
+          statuses: statusesToSave,
+        }),
       });
       setNotice("تم حفظ الحضور");
       if (refresh) {
@@ -1386,6 +1422,7 @@ export default function App() {
             setAttendanceRole={(role) => {
               setAttendanceRole(role);
               setAttendanceChecks({});
+              setAttendanceStatuses({});
             }}
             attendanceDate={attendanceDate}
             setAttendanceDate={(date) => {
@@ -1395,6 +1432,8 @@ export default function App() {
             }}
             checks={attendanceChecks}
             setChecks={setAttendanceChecks}
+            statuses={attendanceStatuses}
+            setStatuses={setAttendanceStatuses}
             save={(checks) =>
               saveAttendance(
                 Object.fromEntries(
@@ -4120,6 +4159,11 @@ function PublicAttendancePage({ token }) {
               <div>
                 <strong>{dateLabel(item.date)}</strong>
                 <small>{publicTimeLabel(item.recordedAt)}</small>
+                {item.status && (
+                  <span className={`public-arrival ${item.status === "late" ? "late" : "on-time"}`}>
+                    {item.status === "late" ? "متأخر" : "في الميعاد"}
+                  </span>
+                )}
               </div>
             </article>
           ))}
@@ -4439,7 +4483,7 @@ function FollowUpRequestsPage({ requests, request, password, reload }) {
             <tbody>
               {requests.map((item) => (
                 <tr key={item.id}>
-                  <td>{dateLabel(item.createdAt.slice(0, 10))}</td>
+                  <td>{createdAtLabel(item.createdAt)}</td>
                   <td className="name-cell">{item.name}</td>
                   <td>{item.type === "call" ? "اتصال" : "زيارة"}</td>
                   <td>{item.message || "بدون رسالة"}</td>
@@ -4509,7 +4553,7 @@ function NotificationsPage({ notifications, readMap, onOpen, onMarkAllRead, onCl
             <div className="notification-entry-content">
               <div className="notification-entry-meta">
                 <span>{item.sourceLabel}</span>
-                <time>{dateLabel(String(item.createdAt || item.date || "").slice(0, 10))}</time>
+                <time>{createdAtLabel(item.createdAt || item.date || "")}</time>
               </div>
               <h2>{item.title}</h2>
               <p>{item.body}</p>
@@ -6054,6 +6098,8 @@ function AttendanceManager({
   setAttendanceDate,
   checks,
   setChecks,
+  statuses = {},
+  setStatuses,
   save,
   markAttendance,
   onComment,
@@ -6075,7 +6121,20 @@ function AttendanceManager({
   const toggle = (recordKey) => {
     const nextValue = !checks[recordKey];
     setChecks({ ...checks, [recordKey]: nextValue });
-    markAttendance(recordKey, nextValue, attendanceType, attendanceDate);
+    if (nextValue) {
+      const nextStatus = statuses[recordKey] || "on_time";
+      setStatuses({ ...statuses, [recordKey]: nextStatus });
+      markAttendance(recordKey, true, attendanceType, attendanceDate, nextStatus);
+    } else {
+      const { [recordKey]: _removed, ...rest } = statuses;
+      setStatuses(rest);
+      markAttendance(recordKey, false, attendanceType, attendanceDate);
+    }
+  };
+  const setStatus = (recordKey, status) => {
+    if (!checks[recordKey] || statuses[recordKey] === status) return;
+    setStatuses({ ...statuses, [recordKey]: status });
+    markAttendance(recordKey, true, attendanceType, attendanceDate, status);
   };
   return (
     <section className="attendance-page">
@@ -6161,17 +6220,33 @@ function AttendanceManager({
                 return (
                   <>
                     {letter !== previousLetter && <div className="attendance-letter">{letter}</div>}
-                    <button
-                      className={`attendance-person ${checks[key] ? "present" : ""}`}
-                      key={row.id}
-                      onClick={() => toggle(key)}
-                    >
-                      <span className="attendance-check">{checks[key] ? <Check size={18} /> : null}</span>
-                      <span className="attendance-name">{row.name}</span>
-                      <span className="attendance-meta">
-                        {attendanceRole === "servant" ? "خادم" : "مخدوم"}
-                      </span>
-                    </button>
+                    <div className={`attendance-person ${checks[key] ? "present" : ""}`} key={row.id}>
+                      <button type="button" className="attendance-person-toggle" onClick={() => toggle(key)}>
+                        <span className="attendance-check">{checks[key] ? <Check size={18} /> : null}</span>
+                        <span className="attendance-name">{row.name}</span>
+                        <span className="attendance-meta">
+                          {attendanceRole === "servant" ? "خادم" : "مخدوم"}
+                        </span>
+                      </button>
+                      {checks[key] && (
+                        <div className="attendance-status" role="group" aria-label="وقت الحضور">
+                          <button
+                            type="button"
+                            className={statuses[key] === "on_time" ? "on-time active" : "on-time"}
+                            onClick={() => setStatus(key, "on_time")}
+                          >
+                            في الميعاد
+                          </button>
+                          <button
+                            type="button"
+                            className={statuses[key] === "late" ? "late active" : "late"}
+                            onClick={() => setStatus(key, "late")}
+                          >
+                            متأخر
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </>
                 );
               })()}

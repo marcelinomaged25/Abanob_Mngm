@@ -1921,6 +1921,57 @@ input[type="file"]:hover::file-selector-button {
     background 0.16s ease,
     transform 0.16s var(--ease);
 }
+.attendance-person {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto;
+}
+.attendance-person-toggle {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 3px 10px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: right;
+  cursor: pointer;
+}
+/* Arrival state: optional so records saved before this feature stay unlabeled. */
+.attendance-status {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+.attendance-status button {
+  flex: 1;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid rgba(18, 33, 56, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease;
+}
+.attendance-status .on-time.active {
+  border-color: #1f9250;
+  background: rgba(31, 146, 80, 0.12);
+  color: #1f7c45;
+}
+.attendance-status .late.active {
+  border-color: #d64545;
+  background: rgba(214, 69, 69, 0.12);
+  color: #c03434;
+}
 .attendance-person:hover,
 .attendance-check:hover {
   border-color: rgba(211, 166, 58, 0.4);
@@ -2945,6 +2996,23 @@ input[type="file"]:hover::file-selector-button {
 }
 .public-rate {
   color: var(--gold-deep);
+}
+/* Only records with an explicit arrival state get a chip; older rows stay plain. */
+.public-arrival {
+  justify-self: start;
+  margin-top: 2px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.public-arrival.on-time {
+  background: rgba(31, 146, 80, 0.12);
+  color: #1f7c45;
+}
+.public-arrival.late {
+  background: rgba(214, 69, 69, 0.12);
+  color: #c03434;
 }
 .public-report-error,
 .public-report-loading {

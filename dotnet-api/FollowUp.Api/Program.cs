@@ -87,13 +87,13 @@ app.MapGet("/api/public/qr/{token}", async (string token, NpgsqlDataSource db) =
     await personReader.CloseAsync();
 
     var attendance = new List<PublicAttendanceItem>();
-    await using (var attendanceCommand = new NpgsqlCommand("select a.attendance_type,a.attendance_date::text,to_char(a.recorded_at at time zone 'Africa/Cairo','YYYY-MM-DD\"T\"HH24:MI:SS'),coalesce(c.comment,'') from attendance_records a left join attendance_comments c on c.person_id=a.person_id and c.attendance_type=a.attendance_type and c.attendance_date=a.attendance_date where a.person_id=$1 and a.attendance_date >= $2 and a.attendance_date <= $3 order by a.attendance_date desc,a.recorded_at desc", connection))
+    await using (var attendanceCommand = new NpgsqlCommand("select a.attendance_type,a.attendance_date::text,to_char(a.recorded_at at time zone 'Africa/Cairo','YYYY-MM-DD\"T\"HH24:MI:SS'),coalesce(c.comment,''),a.status from attendance_records a left join attendance_comments c on c.person_id=a.person_id and c.attendance_type=a.attendance_type and c.attendance_date=a.attendance_date where a.person_id=$1 and a.attendance_date >= $2 and a.attendance_date <= $3 order by a.attendance_date desc,a.recorded_at desc", connection))
     {
         attendanceCommand.Parameters.AddWithValue(personId);
         attendanceCommand.Parameters.AddWithValue(attendanceStart);
         attendanceCommand.Parameters.AddWithValue(attendanceThrough);
         await using var attendanceReader = await attendanceCommand.ExecuteReaderAsync();
-        while (await attendanceReader.ReadAsync()) attendance.Add(new PublicAttendanceItem(attendanceReader.GetString(0), attendanceReader.GetString(1), $"{attendanceReader.GetString(2)}|{attendanceReader.GetString(3)}", attendanceReader.GetString(3)));
+        while (await attendanceReader.ReadAsync()) attendance.Add(new PublicAttendanceItem(attendanceReader.GetString(0), attendanceReader.GetString(1), $"{attendanceReader.GetString(2)}|{attendanceReader.GetString(3)}", attendanceReader.GetString(3), attendanceReader.IsDBNull(4) ? null : attendanceReader.GetString(4)));
     }
     var sessionTotals = new Dictionary<string, int>();
     for (var session = attendanceStart; session <= attendanceThrough; session = session.AddDays(7))
@@ -983,11 +983,17 @@ api.MapGet("/attendance", async (string? type, string? date, NpgsqlDataSource db
     var attendanceDate = ParseDate(date, CairoToday());
     await using var connection = await db.OpenConnectionAsync();
     var attended = new HashSet<long>();
-    await using var command = new NpgsqlCommand("select p.record_key from attendance_records a join people p on p.id=a.person_id where a.attendance_type=$1 and a.attendance_date=$2", connection);
+    var statuses = new Dictionary<long, string>();
+    await using var command = new NpgsqlCommand("select p.record_key,a.status from attendance_records a join people p on p.id=a.person_id where a.attendance_type=$1 and a.attendance_date=$2", connection);
     command.Parameters.AddWithValue(attendanceType); command.Parameters.AddWithValue(attendanceDate);
     await using var reader = await command.ExecuteReaderAsync();
-    while (await reader.ReadAsync()) attended.Add(reader.GetInt64(0));
-    return Results.Ok(new { type = attendanceType, date = attendanceDate.ToString("yyyy-MM-dd"), attended });
+    while (await reader.ReadAsync())
+    {
+        var recordKey = reader.GetInt64(0);
+        attended.Add(recordKey);
+        if (!reader.IsDBNull(1)) statuses[recordKey] = reader.GetString(1);
+    }
+    return Results.Ok(new { type = attendanceType, date = attendanceDate.ToString("yyyy-MM-dd"), attended, statuses });
 });
 
 api.MapPost("/attendance", async (AttendanceSave payload, NpgsqlDataSource db) =>
@@ -996,12 +1002,15 @@ api.MapPost("/attendance", async (AttendanceSave payload, NpgsqlDataSource db) =
     if (attendanceType.Length == 0) return Results.BadRequest(new { error = "اختر نوع الحضور" });
     var attendanceDate = ParseDate(payload.Date, CairoToday());
     var checksJson = JsonSerializer.Serialize(payload.Checks ?? new Dictionary<string, bool>());
+    var statusesJson = JsonSerializer.Serialize(payload.Statuses ?? new Dictionary<string, string>());
     await using var connection = await db.OpenConnectionAsync();
     await using var transaction = await connection.BeginTransactionAsync();
     await using (var insert = new NpgsqlCommand("insert into attendance_records(person_id,attendance_type,attendance_date) select p.id,$1,$2 from jsonb_each_text($3::jsonb) checks join people p on p.record_key=checks.key::integer where checks.value='true' and p.is_active=true on conflict do nothing", connection, transaction))
     { insert.Parameters.AddWithValue(attendanceType); insert.Parameters.AddWithValue(attendanceDate); insert.Parameters.AddWithValue(checksJson); await insert.ExecuteNonQueryAsync(); }
     await using (var delete = new NpgsqlCommand("delete from attendance_records a using people p, jsonb_each_text($3::jsonb) checks where a.person_id=p.id and p.record_key=checks.key::integer and checks.value='false' and a.attendance_type=$1 and a.attendance_date=$2", connection, transaction))
     { delete.Parameters.AddWithValue(attendanceType); delete.Parameters.AddWithValue(attendanceDate); delete.Parameters.AddWithValue(checksJson); await delete.ExecuteNonQueryAsync(); }
+    await using (var statusUpdate = new NpgsqlCommand("update attendance_records a set status=s.value from people p, jsonb_each_text($3::jsonb) s where a.person_id=p.id and p.record_key=s.key::integer and a.attendance_type=$1 and a.attendance_date=$2 and s.value in ('on_time','late')", connection, transaction))
+    { statusUpdate.Parameters.AddWithValue(attendanceType); statusUpdate.Parameters.AddWithValue(attendanceDate); statusUpdate.Parameters.AddWithValue(statusesJson); await statusUpdate.ExecuteNonQueryAsync(); }
     await transaction.CommitAsync();
     return Results.Ok(new { type = attendanceType, date = attendanceDate.ToString("yyyy-MM-dd") });
 });
@@ -1106,7 +1115,7 @@ api.MapDelete("/followup-notes/{id:long}", async (long id, NpgsqlDataSource db) 
 api.MapGet("/followup-requests", async (NpgsqlDataSource db) =>
 {
     await using var connection = await db.OpenConnectionAsync();
-    await using var command = new NpgsqlCommand("select r.id,r.request_type,r.status,r.message,r.created_at::text,p.id,p.name,p.group_number from followup_requests r join people p on p.id=r.person_id where p.is_active=true order by r.created_at desc", connection);
+    await using var command = new NpgsqlCommand("select r.id,r.request_type,r.status,r.message,to_char(r.created_at at time zone 'Africa/Cairo','YYYY-MM-DD\"T\"HH24:MI:SS'),p.id,p.name,p.group_number from followup_requests r join people p on p.id=r.person_id where p.is_active=true order by r.created_at desc", connection);
     await using var reader = await command.ExecuteReaderAsync();
     var requests = new List<object>();
     while (await reader.ReadAsync()) requests.Add(new { id = reader.GetInt64(0), type = reader.GetString(1), status = reader.GetString(2), message = reader.GetString(3), createdAt = reader.GetString(4), personId = reader.GetInt64(5), name = reader.GetString(6), group = reader.IsDBNull(7) ? "" : reader.GetString(7) });
@@ -1319,7 +1328,7 @@ record VisitSave(string Date, Dictionary<string, bool>? Checks);
 record CallSave(string? RotationStart, string[]? Servants, Dictionary<string, bool>? Checks, bool Redistribute = false);
 record PersonInput(string Name, string? Group, string? Phone1, string? Phone2, string? Address, string? Note, string? Role, string? PhotoUrl);
 record PhotoInput(string PhotoUrl);
-record AttendanceSave(string Type, string Date, Dictionary<string, bool>? Checks);
+record AttendanceSave(string Type, string Date, Dictionary<string, bool>? Checks, Dictionary<string, string>? Statuses);
 record EvaluationSave(string Date, Dictionary<string, int>? Scores);
 record AttendanceCommentSave(string Type, string Date, int RecordKey, string Comment);
 record FollowUpNoteSave(long PersonId, string? Servant, string Type, string Date, string Note);
@@ -1332,4 +1341,4 @@ record BibleVideoSave(string Category, string Title, string Url, string? Descrip
 record MoveContentRequest(string Direction);
 record MassScheduleSave(string Date, string Time, string Location);
 record FollowUpRequestStatus(string Status);
-record PublicAttendanceItem(string Type, string Date, string RecordedAt, string Comment);
+record PublicAttendanceItem(string Type, string Date, string RecordedAt, string Comment, string? Status);
