@@ -295,6 +295,10 @@ function parentRequestNotifications(requests = []) {
   }));
 }
 
+function isEvaluationNotification(item) {
+  return item?.title === "تمت إضافة تقييم جديد" || /#grades$/.test(item?.targetUrl || "");
+}
+
 export default function App() {
   // Older sessions were saved before the username header was required by the API.
   // Keep those sessions compatible with the backend's default username.
@@ -672,9 +676,10 @@ export default function App() {
         ]);
         if (stopped) return;
         setFollowUpRequests(requests);
-        const notifications = [...parentRequestNotifications(requests), ...serviceNotifications].sort(
-          (a, b) => String(b.date || "").localeCompare(String(a.date || "")),
-        );
+        const notifications = [
+          ...parentRequestNotifications(requests),
+          ...serviceNotifications.filter((item) => !isEvaluationNotification(item)),
+        ].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
         setNotificationItems(notifications);
         try {
           const savedState = localStorage.getItem(storageKey);

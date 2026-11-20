@@ -2108,6 +2108,32 @@ input[type="file"]:hover::file-selector-button {
   background: var(--gold);
   box-shadow: 0 0 0 3px rgba(211, 166, 58, 0.14);
 }
+@media (max-width: 680px) {
+  .notification-center-heading {
+    align-items: stretch;
+    gap: 12px;
+    padding: 18px 16px 14px;
+  }
+  .notification-center-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .notification-center-actions .secondary-button {
+    min-height: 40px;
+    padding: 8px 10px;
+    font-size: 12.5px;
+  }
+  .notification-feed {
+    max-height: none;
+  }
+  .notification-entry {
+    padding: 14px 16px;
+  }
+  .notification-center > .empty-row {
+    padding: 20px 16px;
+  }
+}
 
 /* ==================================================================
    Content management
