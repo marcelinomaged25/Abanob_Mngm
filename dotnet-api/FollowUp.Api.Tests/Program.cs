@@ -47,6 +47,9 @@ foreach (var length in new[] { 1501, 1700, 2000, 2600, 6000 })
 Check(KnowledgeIngestionWorker.ChunkPage("صفحة قصيرة حقيقية", CancellationToken.None).Single() == "صفحة قصيرة حقيقية", "short true page preserved");
 Check(KnowledgeEndpoints.ValidateMetadata(new KnowledgeSourceSave("عنوان", "الطقوس", "مؤلف", "", true)) is null, "permission note is optional");
 Check(KnowledgeEndpoints.ValidateMetadata(new KnowledgeSourceSave("", "الطقوس", "", "", true)) is null, "title is optional");
+Check(KnowledgeEndpoints.DetectType(System.Text.Encoding.UTF8.GetBytes("{\"source\":\"a\",\"page\":1,\"chunk\":0,\"text\":\"نص\"}")) == ".jsonl", "jsonl detected without extension");
+Check(KnowledgeEndpoints.DetectType(System.Text.Encoding.UTF8.GetBytes("نص عربي عادي")) == ".txt", "text detected without extension");
+Check(KnowledgeEndpoints.DetectType(System.Text.Encoding.ASCII.GetBytes("%PDF-1.7\n")) == ".pdf", "pdf detected without extension");
 Check(KnowledgeEndpoints.WithDefaultPermissionNote(new KnowledgeSourceSave("عنوان", "الطقوس", "مؤلف", "", true)).PermissionNote == KnowledgeEndpoints.DefaultPermissionNote, "blank permission note records site ownership");
 Console.WriteLine("All grounding, ingestion and session unit checks passed.");
 

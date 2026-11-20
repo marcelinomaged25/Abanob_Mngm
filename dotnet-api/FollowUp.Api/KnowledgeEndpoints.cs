@@ -92,22 +92,45 @@ internal static class KnowledgeEndpoints
             var fileName = Path.GetFileName(file.FileName.Replace('\\', '/'));
             if (string.IsNullOrWhiteSpace(fileName) || fileName.Length > 250 || fileName.Any(char.IsControl))
                 return Results.BadRequest(new { error = "Invalid file name." });
-            var type = Path.GetExtension(fileName).ToLowerInvariant();
-            if (type is not (".txt" or ".jsonl" or ".pdf")) return Results.BadRequest(new { error = "Only UTF-8 TXT, JSONL, and PDF are supported." });
+            await using var input = file.OpenReadStream();
+            var bytes = await ReadLimitedAsync(input, MaxFileBytes, ct);
+            var type = DetectType(bytes);
+            ValidateFile(type, bytes);
             var title = form["title"].ToString().Trim();
             if (title.Length == 0) title = Path.GetFileNameWithoutExtension(fileName);
             var metadata = WithDefaultPermissionNote(new KnowledgeSourceSave(title, form["category"].ToString(), form["author"].ToString(), form["permissionNote"].ToString(), active));
             var error = ValidateMetadata(metadata);
             if (error is not null) return Results.BadRequest(new { error });
-            await using var input = file.OpenReadStream();
-            var bytes = await ReadLimitedAsync(input, MaxFileBytes, ct);
-            ValidateFile(type, bytes);
             var source = await store.CreateAsync(metadata, fileName, type, bytes, Hash(bytes), false, ct);
             return Results.Created($"/api/knowledge/sources/{source.SourceId}", source);
         }
         catch (DecoderFallbackException) { return Results.BadRequest(new { error = "TXT and JSONL must be valid UTF-8." }); }
         catch (InvalidDataException error) { return Results.BadRequest(new { error = error.Message }); }
         catch (BadHttpRequestException error) { return Results.Json(new { error = "Invalid or oversized multipart upload." }, statusCode: error.StatusCode); }
+    }
+
+    // Phones often deliver shared files without an extension, so the content decides the type.
+    internal static string DetectType(byte[] bytes)
+    {
+        if (bytes.Length >= 5 && bytes.AsSpan(0, 5).SequenceEqual("%PDF-"u8)) return ".pdf";
+        string text;
+        try { text = StrictUtf8.GetString(bytes); }
+        catch (DecoderFallbackException) { throw new InvalidDataException("Only UTF-8 TXT, JSONL, and PDF are supported."); }
+        var lines = text.Split('\n');
+        foreach (var line in lines.Take(20))
+        {
+            var candidate = line.TrimStart('\uFEFF', ' ', '\t', '\r');
+            if (candidate.Length == 0) continue;
+            if (!candidate.StartsWith('{')) break;
+            try
+            {
+                using var document = System.Text.Json.JsonDocument.Parse(candidate);
+                if (document.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object) return ".jsonl";
+            }
+            catch (System.Text.Json.JsonException) { break; }
+            break;
+        }
+        return ".txt";
     }
 
     internal static string? ValidateMetadata(KnowledgeSourceSave metadata)

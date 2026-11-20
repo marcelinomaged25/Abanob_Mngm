@@ -572,8 +572,15 @@ export default function KnowledgeAdminPage({ apiUrl, username, password }) {
       );
       return;
     }
-    if (!file || !/\.(txt|jsonl|pdf)$/i.test(file.name) || file.size > MAX_FILE_SIZE || file.size === 0) {
-      setActionError("اختر ملف TXT أو JSONL أو PDF غير فارغ، بحجم لا يتجاوز ٢٠ ميجابايت.");
+    if (!file || file.size === 0) {
+      setActionError("الملف فارغ. اختر ملفًا آخر.");
+      fileRef.current?.focus();
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setActionError(
+        `حجم الملف ${Math.round(file.size / (1024 * 1024))} ميجابايت، والحد الأقصى ٢٠ ميجابايت. ارفع نسخة TXT أو JSONL من الكتاب.`,
+      );
       fileRef.current?.focus();
       return;
     }
@@ -776,7 +783,7 @@ export default function KnowledgeAdminPage({ apiUrl, username, password }) {
                   id={`${formId}-file`}
                   ref={fileRef}
                   type="file"
-                  accept=".txt,.jsonl,.pdf,text/plain,application/pdf,application/x-ndjson"
+                  accept=".txt,.jsonl,.pdf,text/plain,text/*,application/pdf,application/json,application/x-ndjson"
                   required
                   onChange={(event) => {
                     setFile(event.target.files?.[0] || null);
@@ -784,7 +791,8 @@ export default function KnowledgeAdminPage({ apiUrl, username, password }) {
                   }}
                 />
                 <span className="knowledge-field-help">
-                  ملفات PDF المصوّرة قد تحتاج إلى OCR؛ لا تُعد جاهزة بمجرد رفعها.
+                  النوع يُحدَّد من محتوى الملف نفسه، فلا يحتاج اسمًا ينتهي بامتداد. ملفات PDF المصوّرة قد
+                  تحتاج إلى OCR؛ لا تُعد جاهزة بمجرد رفعها.
                 </span>
               </label>
             )}
