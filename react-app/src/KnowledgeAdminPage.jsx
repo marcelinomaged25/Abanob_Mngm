@@ -164,11 +164,10 @@ function SourceCard({
       </dl>
       <details className="knowledge-permission-details">
         <summary>
-          <ShieldCheck size={15} aria-hidden="true" /> ملاحظة الإذن وحقوق الاستخدام
+          <ShieldCheck size={15} aria-hidden="true" /> ملاحظة الإذن
         </summary>
         <p className="knowledge-plain-text">
-          {asText(source.permissionNote) ||
-            "لم تُسجّل ملاحظة إذن لهذا المصدر. راجع حقوق الاستخدام قبل تفعيله."}
+          {asText(source.permissionNote) || "لم تُسجَّل ملاحظة إذن لهذا المصدر."}
         </p>
       </details>
       {(status === "needs_ocr" || failedPages.length > 0) && (
@@ -552,8 +551,8 @@ export default function KnowledgeAdminPage({ apiUrl, username, password }) {
       author: draft.author.trim(),
       permissionNote: draft.permissionNote.trim(),
     };
-    if (!metadata.title || !metadata.permissionNote || !CATEGORIES.includes(metadata.category)) {
-      setActionError("أدخل العنوان، والتصنيف، وملاحظة إذن الاستخدام قبل الحفظ.");
+    if (!metadata.title || !CATEGORIES.includes(metadata.category)) {
+      setActionError("أدخل العنوان، والتصنيف قبل الحفظ.");
       return;
     }
     if (editingId !== null) {
@@ -706,14 +705,13 @@ export default function KnowledgeAdminPage({ apiUrl, username, password }) {
         <div>
           <p className="knowledge-kicker">إدارة المحتوى · للخدام فقط</p>
           <h1>مصادر المعرفة</h1>
-          <p>أضف المصادر المصرّح باستخدامها وراجع جاهزيتها قبل الاستناد إليها في «اسأل عن الطقس».</p>
+          <p>أضف مصادرك التعليمية وراجع جاهزيتها قبل الاستناد إليها في «اسأل عن الطقس».</p>
         </div>
       </header>
       <aside className="knowledge-rights-note">
         <ShieldCheck size={19} aria-hidden="true" />
         <p>
-          ارفع فقط محتوى تملكه أو لديك إذن باستخدامه وفهرسته. سجّل أساس الإذن وحدوده؛ رفع الملف أو كتابة
-          ملاحظة لا يمنح ترخيصًا ولا يثبت وجوده.
+          المحتوى المرفوع مملوك لك، ولذلك تلزمك ملاحظة الإذن فقط إن أردت توضيح حدود الاستخدام.
         </p>
       </aside>
       {!hasCredentials && (
@@ -830,21 +828,20 @@ export default function KnowledgeAdminPage({ apiUrl, username, password }) {
               />
             </label>
             <label htmlFor={`${formId}-permission`}>
-              ملاحظة إذن الاستخدام <span className="knowledge-required">(مطلوب)</span>
+              ملاحظة إذن الاستخدام <span className="knowledge-optional">(اختياري)</span>
               <textarea
                 id={`${formId}-permission`}
-                required
                 maxLength={2000}
                 rows={4}
                 value={draft.permissionNote}
                 aria-describedby={`${formId}-rights`}
-                placeholder="اذكر صاحب الحق، وأساس الإذن، وحدود الاستخدام المسموح."
+                placeholder="اتركها فارغة إن كان المحتوى مملوكًا لك بالكامل."
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, permissionNote: event.target.value }))
                 }
               />
               <span id={`${formId}-rights`} className="knowledge-field-help">
-                هذه الملاحظة سجل للإذن، وليست منحًا لترخيص أو ضمانًا قانونيًا.
+                عند تركها فارغة يُسجَّل تلقائيًا أن المحتوى مملوك لك.
               </span>
             </label>
             <label className="knowledge-checkbox" htmlFor={`${formId}-active`}>
@@ -928,7 +925,7 @@ export default function KnowledgeAdminPage({ apiUrl, username, password }) {
             <div className="knowledge-empty">
               <BookOpen size={34} aria-hidden="true" />
               <h3>لا توجد مصادر بعد</h3>
-              <p>ارفع أول مصدر مع ملاحظة إذن الاستخدام، ثم ابدأ فهرسته.</p>
+              <p>ارفع أول مصدر ثم ابدأ فهرسته.</p>
             </div>
           )}
           <div className="knowledge-source-list">

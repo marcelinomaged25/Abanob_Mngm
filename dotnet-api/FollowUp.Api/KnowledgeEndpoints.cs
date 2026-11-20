@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 internal static class KnowledgeEndpoints
 {
     internal const int MaxFileBytes = 20 * 1024 * 1024;
+    internal const string DefaultPermissionNote = "محتوى مملوك لإدارة الموقع ومصادرها التعليمية.";
     internal static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
     public static void Map(RouteGroupBuilder api)
@@ -20,6 +21,7 @@ internal static class KnowledgeEndpoints
             .DisableAntiforgery(); // Only multipart; authentication is supplied through headers, not cookies.
         knowledge.MapPut("/sources/{sourceId:guid}", async (Guid sourceId, KnowledgeSourceSave payload, KnowledgeStore store, CancellationToken ct) =>
         {
+            payload = WithDefaultPermissionNote(payload);
             var error = ValidateMetadata(payload);
             if (error is not null) return Results.BadRequest(new { error });
             var source = await store.UpdateAsync(sourceId, payload, ct);
@@ -85,7 +87,7 @@ internal static class KnowledgeEndpoints
             var activeText = form["isActive"].ToString();
             var active = true;
             if (activeText.Length > 0 && !bool.TryParse(activeText, out active)) return Results.BadRequest(new { error = "isActive must be true or false." });
-            var metadata = new KnowledgeSourceSave(form["title"].ToString(), form["category"].ToString(), form["author"].ToString(), form["permissionNote"].ToString(), active);
+            var metadata = WithDefaultPermissionNote(new KnowledgeSourceSave(form["title"].ToString(), form["category"].ToString(), form["author"].ToString(), form["permissionNote"].ToString(), active));
             var error = ValidateMetadata(metadata);
             if (error is not null) return Results.BadRequest(new { error });
             var file = form.Files[0];
@@ -109,13 +111,15 @@ internal static class KnowledgeEndpoints
     internal static string? ValidateMetadata(KnowledgeSourceSave metadata)
     {
         if (string.IsNullOrWhiteSpace(metadata.Title) || metadata.Title.Trim().Length > 300) return "Title is required (maximum 300 characters).";
-        if (string.IsNullOrWhiteSpace(metadata.PermissionNote) || metadata.PermissionNote.Trim().Length > 4000)
-            return "An explicit permission note is required (maximum 4000 characters); do not invent a legal license.";
+        if (metadata.PermissionNote?.Trim().Length > 4000) return "Permission note is too long (maximum 4000 characters).";
         if (!(new[] { "الكتاب المقدس", "الطقوس", "العقيدة", "التفاسير", "الألحان", "اللغة القبطية", "كتب أخرى" }).Contains(metadata.Category?.Trim())) return "Choose a supported source category.";
         if (metadata.Author?.Length > 300) return "Author is too long.";
         if (new[] { metadata.Title, metadata.Category, metadata.Author, metadata.PermissionNote }.Any(value => value?.Contains('\0') == true)) return "Metadata cannot contain NUL characters.";
         return null;
     }
+
+    internal static KnowledgeSourceSave WithDefaultPermissionNote(KnowledgeSourceSave metadata) =>
+        metadata with { PermissionNote = string.IsNullOrWhiteSpace(metadata.PermissionNote) ? DefaultPermissionNote : metadata.PermissionNote.Trim() };
 
     internal static void ValidateFile(string type, byte[] bytes)
     {

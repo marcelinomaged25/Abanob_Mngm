@@ -425,7 +425,7 @@ internal sealed class KnowledgeIngestionWorker : BackgroundService
         var bytes = await KnowledgeEndpoints.ReadLimitedAsync(input, KnowledgeEndpoints.MaxFileBytes, ct);
         KnowledgeEndpoints.ValidateFile(".jsonl", bytes);
         var metadata = new KnowledgeSourceSave("كنيستي الأرثوذكسية... ما أجملك", "الطقوس", "الشماس الإكليريكى الدكتور / سامح حلمى إبراهيم",
-            "المصدر مقدم من مسؤول الخدمة للاستخدام التعليمي؛ يجب مراجعة حق الاستخدام قبل النشر.", true);
+            "محتوى مملوك لإدارة الموقع ومصادرها التعليمية.", true);
         var source = await store.CreateAsync(metadata, Path.GetFileName(path), ".jsonl", bytes, KnowledgeEndpoints.Hash(bytes), true, ct);
         logger.LogInformation("Durable bootstrap source {SourceId} has status {Status}; file-hash import is idempotent.", source.SourceId, source.Status);
     }
