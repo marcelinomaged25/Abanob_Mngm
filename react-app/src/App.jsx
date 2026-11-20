@@ -4159,12 +4159,12 @@ function PublicAttendancePage({ token }) {
               <div>
                 <strong>{dateLabel(item.date)}</strong>
                 <small>{publicTimeLabel(item.recordedAt)}</small>
-                {item.status && (
-                  <span className={`public-arrival ${item.status === "late" ? "late" : "on-time"}`}>
-                    {item.status === "late" ? "متأخر" : "في الميعاد"}
-                  </span>
-                )}
               </div>
+              {item.status && (
+                <span className={`public-arrival ${item.status === "late" ? "late" : "on-time"}`}>
+                  {item.status === "late" ? "متأخر" : "في الميعاد"}
+                </span>
+              )}
             </article>
           ))}
           {!data.attendance.length && <p className="empty-row">لا توجد تسجيلات حضور حتى الآن</p>}

@@ -2997,14 +2997,15 @@ input[type="file"]:hover::file-selector-button {
 .public-rate {
   color: var(--gold-deep);
 }
-/* Only records with an explicit arrival state get a chip; older rows stay plain. */
+/* Only records with an explicit arrival state get a chip; older rows stay plain.
+   The chip sits at the far edge of the row, opposite the date and time. */
 .public-arrival {
-  justify-self: start;
-  margin-top: 2px;
-  padding: 2px 9px;
+  margin-inline-start: auto;
+  padding: 4px 12px;
   border-radius: 999px;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
 }
 .public-arrival.on-time {
   background: rgba(31, 146, 80, 0.12);
