@@ -551,8 +551,8 @@ export default function KnowledgeAdminPage({ apiUrl, username, password }) {
       author: draft.author.trim(),
       permissionNote: draft.permissionNote.trim(),
     };
-    if (!metadata.title || !CATEGORIES.includes(metadata.category)) {
-      setActionError("أدخل العنوان، والتصنيف قبل الحفظ.");
+    if (!CATEGORIES.includes(metadata.category)) {
+      setActionError("اختر تصنيف المصدر قبل الحفظ.");
       return;
     }
     if (editingId !== null) {
@@ -789,14 +789,13 @@ export default function KnowledgeAdminPage({ apiUrl, username, password }) {
               </label>
             )}
             <label htmlFor={`${formId}-title`}>
-              عنوان المصدر <span className="knowledge-required">(مطلوب)</span>
+              عنوان المصدر <span className="knowledge-optional">(اختياري)</span>
               <input
                 id={`${formId}-title`}
                 ref={titleRef}
-                required
                 maxLength={200}
                 value={draft.title}
-                placeholder="اسم الكتاب أو المرجع"
+                placeholder="اتركه فارغًا لاستخدام اسم الملف"
                 onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
               />
             </label>

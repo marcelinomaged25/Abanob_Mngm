@@ -87,9 +87,6 @@ internal static class KnowledgeEndpoints
             var activeText = form["isActive"].ToString();
             var active = true;
             if (activeText.Length > 0 && !bool.TryParse(activeText, out active)) return Results.BadRequest(new { error = "isActive must be true or false." });
-            var metadata = WithDefaultPermissionNote(new KnowledgeSourceSave(form["title"].ToString(), form["category"].ToString(), form["author"].ToString(), form["permissionNote"].ToString(), active));
-            var error = ValidateMetadata(metadata);
-            if (error is not null) return Results.BadRequest(new { error });
             var file = form.Files[0];
             if (file.Length is <= 0 or > MaxFileBytes) return Results.BadRequest(new { error = "File must be nonempty and at most 20 MB." });
             var fileName = Path.GetFileName(file.FileName.Replace('\\', '/'));
@@ -97,6 +94,11 @@ internal static class KnowledgeEndpoints
                 return Results.BadRequest(new { error = "Invalid file name." });
             var type = Path.GetExtension(fileName).ToLowerInvariant();
             if (type is not (".txt" or ".jsonl" or ".pdf")) return Results.BadRequest(new { error = "Only UTF-8 TXT, JSONL, and PDF are supported." });
+            var title = form["title"].ToString().Trim();
+            if (title.Length == 0) title = Path.GetFileNameWithoutExtension(fileName);
+            var metadata = WithDefaultPermissionNote(new KnowledgeSourceSave(title, form["category"].ToString(), form["author"].ToString(), form["permissionNote"].ToString(), active));
+            var error = ValidateMetadata(metadata);
+            if (error is not null) return Results.BadRequest(new { error });
             await using var input = file.OpenReadStream();
             var bytes = await ReadLimitedAsync(input, MaxFileBytes, ct);
             ValidateFile(type, bytes);
@@ -110,7 +112,7 @@ internal static class KnowledgeEndpoints
 
     internal static string? ValidateMetadata(KnowledgeSourceSave metadata)
     {
-        if (string.IsNullOrWhiteSpace(metadata.Title) || metadata.Title.Trim().Length > 300) return "Title is required (maximum 300 characters).";
+        if (metadata.Title?.Trim().Length > 300) return "Title is too long (maximum 300 characters).";
         if (metadata.PermissionNote?.Trim().Length > 4000) return "Permission note is too long (maximum 4000 characters).";
         if (!(new[] { "الكتاب المقدس", "الطقوس", "العقيدة", "التفاسير", "الألحان", "اللغة القبطية", "كتب أخرى" }).Contains(metadata.Category?.Trim())) return "Choose a supported source category.";
         if (metadata.Author?.Length > 300) return "Author is too long.";

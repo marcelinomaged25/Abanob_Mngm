@@ -57,7 +57,7 @@ internal sealed class KnowledgeStore(NpgsqlDataSource db) : IKnowledgeVectorStor
             """, connection, transaction))
         {
             command.Parameters.AddWithValue(id);
-            command.Parameters.AddWithValue(metadata.Title!.Trim());
+            command.Parameters.AddWithValue(metadata.Title?.Trim() ?? "");
             command.Parameters.AddWithValue(metadata.Category?.Trim() ?? "");
             command.Parameters.AddWithValue(metadata.Author?.Trim() ?? "");
             command.Parameters.AddWithValue(fileName);
@@ -91,11 +91,11 @@ internal sealed class KnowledgeStore(NpgsqlDataSource db) : IKnowledgeVectorStor
     internal async Task<KnowledgeSourceDto?> UpdateAsync(Guid id, KnowledgeSourceSave metadata, CancellationToken ct)
     {
         await using var command = db.CreateCommand($"""
-            UPDATE knowledge_sources SET title=$2,category=$3,author=$4,permission_note=$5,is_active=$6
+            UPDATE knowledge_sources SET title=coalesce(nullif($2,''),title),category=$3,author=$4,permission_note=$5,is_active=$6
             WHERE source_id=$1 RETURNING {SourceColumns}
             """);
         command.Parameters.AddWithValue(id);
-        command.Parameters.AddWithValue(metadata.Title!.Trim());
+        command.Parameters.AddWithValue(metadata.Title?.Trim() ?? "");
         command.Parameters.AddWithValue(metadata.Category?.Trim() ?? "");
         command.Parameters.AddWithValue(metadata.Author?.Trim() ?? "");
         command.Parameters.AddWithValue(metadata.PermissionNote!.Trim());
