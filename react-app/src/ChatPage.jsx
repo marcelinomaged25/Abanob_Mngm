@@ -201,7 +201,8 @@ export default function ChatPage({ apiUrl }) {
 
   useEffect(() => {
     const log = logRef.current;
-    if (log) log.scrollTo({ top: log.scrollHeight, behavior: "auto" });
+    if (!log) return;
+    log.scrollTo({ top: messages.length || loading ? log.scrollHeight : 0, behavior: "auto" });
   }, [messages, loading]);
 
   const rememberSession = (token) => {
@@ -515,7 +516,7 @@ export default function ChatPage({ apiUrl }) {
             )}
             <div className="ritual-chat-composer-footer">
               <p id={helpId}>
-                Enter للإرسال · Shift + Enter لسطر جديد{" "}
+                <span className="ritual-chat-enter-hint">Enter للإرسال · Shift + Enter لسطر جديد</span>
                 <span className="ritual-chat-character-count">
                   <bdi>{question.length}/1000</bdi> حرف
                 </span>

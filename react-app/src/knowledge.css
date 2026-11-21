@@ -150,34 +150,50 @@
 /* Public chat */
 .ritual-chat-page {
   min-height: 100svh;
-  padding: 18px 12px 24px;
-  background: #f3f5f9;
+  padding: 0;
+  background:
+    radial-gradient(120% 380px at 50% -140px, #e6edf8 0%, rgba(230, 237, 248, 0) 72%),
+    linear-gradient(#f4f6fa 0%, #eef1f7 100%);
 }
 .ritual-chat-shell {
-  width: min(100%, 920px);
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 980px);
+  height: 100svh;
   margin-inline: auto;
+  padding: 14px 12px 12px;
+}
+@supports (height: 100dvh) {
+  .ritual-chat-shell {
+    height: 100dvh;
+  }
 }
 .ritual-chat-heading {
-  margin-bottom: 18px;
+  flex-shrink: 0;
+  margin-bottom: 12px;
 }
 .ritual-chat-home {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 4px 0;
+  gap: 5px;
+  min-height: 40px;
+  margin-inline-start: -8px;
+  padding: 4px 8px;
+  border-radius: 9px;
   color: var(--knowledge-navy);
   text-decoration: none;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 140ms ease;
 }
 .ritual-chat-home:hover {
-  text-decoration: underline;
+  background: rgba(255, 255, 255, 0.72);
 }
 .ritual-chat-title-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-block: 9px 12px;
+  gap: 13px;
+  margin-block: 4px 10px;
 }
 .ritual-chat-brand-icon,
 .knowledge-heading-icon {
@@ -191,17 +207,30 @@
   background: #fffaf0;
   color: #85651f;
 }
+.ritual-chat-brand-icon {
+  width: 50px;
+  height: 50px;
+  border-color: #e2d2a8;
+  border-radius: 15px;
+  background: linear-gradient(160deg, #fffdf7, #fbf1dc);
+  box-shadow: 0 12px 24px -18px #b18a37, inset 0 0 0 1px #ffffff;
+  color: #8a6824;
+}
 .ritual-chat-heading h1 {
-  font-size: clamp(25px, 5vw, 34px);
+  font-size: clamp(23px, 4.6vw, 32px);
   font-weight: 750;
-  line-height: 1.5;
+  line-height: 1.35;
+  letter-spacing: -0.2px;
+  color: #10233c;
 }
 .ritual-chat-disclaimer {
   display: flex;
   align-items: flex-start;
   gap: 7px;
+  max-width: 660px;
   color: var(--knowledge-muted);
-  font-size: 13px;
+  font-size: 12.5px;
+  line-height: 1.7;
 }
 .ritual-chat-disclaimer svg {
   margin-top: 3px;
@@ -211,9 +240,10 @@
   display: flex;
   align-items: flex-start;
   flex-wrap: wrap;
+  flex-shrink: 0;
   gap: 8px;
-  margin-bottom: 14px;
-  padding: 12px;
+  margin-bottom: 12px;
+  padding: 11px 12px;
   border: 1px solid #e3ce9d;
   border-radius: 12px;
   background: #fffaec;
@@ -237,156 +267,207 @@
   color: var(--knowledge-muted);
 }
 .ritual-chat-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
   overflow: hidden;
-  border: 1px solid var(--knowledge-line);
-  border-radius: 18px;
+  border: 1px solid #dbe2ee;
+  border-radius: 20px;
   background: #fff;
-  box-shadow: 0 12px 38px -25px #17365c5c;
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 24px 60px -40px #17365c73,
+    0 2px 10px -6px #17365c24;
 }
 .ritual-chat-panel-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
   gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--knowledge-line);
-  background: #fafbfd;
+  min-height: 52px;
+  padding: 6px 8px 6px 14px;
+  border-bottom: 1px solid #e6ebf3;
+  background: linear-gradient(#fbfcfe, #f5f8fc);
 }
 .ritual-chat-panel-heading > span {
   display: flex;
   align-items: center;
-  gap: 7px;
-  color: var(--knowledge-muted);
+  gap: 8px;
+  color: #4c5f78;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.ritual-chat-panel-heading .ritual-chat-text-button {
+  min-height: 40px;
+  padding: 4px 10px;
+  color: #5b6d86;
   font-size: 12px;
 }
 .ritual-chat-status-dot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: #b18a37;
+  background: #c79b3f;
+  box-shadow: 0 0 0 2px #c79b3f26;
+  animation: ritual-chat-pulse 2.6s ease-in-out infinite;
+}
+@keyframes ritual-chat-pulse {
+  50% {
+    box-shadow: 0 0 0 4px #c79b3f1a;
+  }
 }
 .ritual-chat-log {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: 18px;
-  min-height: 320px;
-  height: clamp(320px, 49svh, 600px);
+  gap: 16px;
+  min-height: 140px;
   padding: 18px 12px;
   overflow-y: auto;
-  overscroll-behavior-y: contain;
+  overscroll-behavior: contain;
   scrollbar-gutter: stable;
+  background: radial-gradient(90% 220px at 50% 0%, #f7faff 0%, rgba(247, 250, 255, 0) 82%);
 }
 .ritual-chat-welcome {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex: 1;
-  padding: 14px 0;
+  flex: 1 0 auto;
+  padding: 6px 0 10px;
   text-align: center;
 }
 .ritual-chat-welcome-icon {
   display: grid;
   place-items: center;
-  width: 65px;
-  height: 65px;
-  margin-bottom: 14px;
-  border: 1px solid #e1d4b5;
-  border-radius: 22px;
-  background: #fffbf2;
-  color: #907031;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 12px;
+  border: 1px solid #e6d8b6;
+  border-radius: 18px;
+  background: linear-gradient(160deg, #fffdf8, #fbf2df);
+  box-shadow: 0 14px 28px -22px #b18a37;
+  color: #8e6c28;
 }
 .ritual-chat-welcome h2 {
-  font-size: 21px;
-  line-height: 1.6;
+  font-size: 20px;
+  line-height: 1.5;
+  color: #132a47;
 }
 .ritual-chat-welcome > p {
   max-width: 410px;
-  margin-top: 5px;
+  margin-top: 3px;
   color: var(--knowledge-muted);
   font-size: 13px;
 }
 .ritual-chat-samples {
   display: grid;
   width: min(100%, 540px);
-  gap: 9px;
-  margin-top: 22px;
+  gap: 8px;
+  margin-top: 16px;
 }
 .ritual-chat-sample {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 48px;
-  padding: 12px;
+  min-height: 46px;
+  padding: 9px 12px;
   border: 1px solid var(--knowledge-line);
   border-radius: 12px;
   background: #fff;
+  box-shadow: 0 1px 2px #17365c12;
   color: var(--knowledge-navy);
   font-size: 13px;
   text-align: start;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
 }
 .ritual-chat-sample:hover:not(:disabled) {
-  background: var(--knowledge-blue-soft);
-  border-color: #a9bfdc;
+  background: #f7fafe;
+  border-color: #b9cbe1;
+  transform: translateY(-1px);
 }
 .ritual-chat-sample svg {
   transform: rotate(180deg);
+  color: #b18a37;
 }
 .ritual-chat-message {
   width: fit-content;
-  max-width: 96%;
-  padding: 14px;
+  max-width: 94%;
+  padding: 12px 14px;
   border: 1px solid var(--knowledge-line);
   border-radius: 16px;
 }
 .ritual-chat-message--user {
   align-self: flex-start;
-  border-color: #d1def0;
-  border-start-start-radius: 5px;
-  background: var(--knowledge-blue-soft);
+  max-width: min(86%, 620px);
+  border-color: transparent;
+  border-start-start-radius: 6px;
+  background: linear-gradient(165deg, #204a78, #17365c);
+  color: #fff;
+  box-shadow: 0 14px 30px -24px #17365c;
+}
+.ritual-chat-message--user .ritual-chat-message-label {
+  color: rgba(255, 255, 255, 0.72);
 }
 .ritual-chat-message--assistant {
   align-self: flex-end;
   width: min(100%, 720px);
-  border-start-end-radius: 5px;
+  border-color: #e3e9f2;
+  border-start-end-radius: 6px;
   background: #fff;
+  box-shadow: 0 18px 40px -34px #17365c;
 }
 .ritual-chat-message-label {
-  margin-bottom: 5px !important;
+  margin-bottom: 3px !important;
   color: var(--knowledge-muted);
-  font-size: 11px;
-  font-weight: 650;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
 }
 .ritual-chat-message > .ritual-chat-plain-text {
   font-size: 15px;
-  line-height: 1.9;
+  line-height: 1.95;
 }
 .ritual-chat-message--failure {
-  background: #fffaf4;
-  border-color: #e6d5b7;
+  background: #fff9f1;
+  border-color: #eadcc4;
 }
 .ritual-chat-sources {
-  margin-top: 15px;
-  padding-top: 9px;
-  border-top: 1px solid var(--knowledge-line);
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed #e1e8f1;
 }
 .ritual-chat-sources > summary {
   display: flex;
   align-items: center;
   gap: 7px;
-  min-height: 44px;
+  min-height: 40px;
+  padding: 4px 10px;
+  border: 1px solid #e6ebf3;
+  border-radius: 10px;
+  background: #f8fafd;
   list-style: none;
   color: var(--knowledge-navy);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 650;
+  transition: background 140ms ease;
+}
+.ritual-chat-sources > summary:hover {
+  background: #f1f6fc;
 }
 .ritual-chat-sources > summary::-webkit-details-marker {
   display: none;
 }
+.ritual-chat-sources > summary > svg:first-child {
+  color: #a8822f;
+}
 .ritual-chat-sources > summary > svg:last-child {
   margin-inline-start: auto;
+  color: #7c8aa0;
   transition: transform 150ms ease;
 }
 .ritual-chat-sources[open] > summary > svg:last-child {
@@ -394,35 +475,74 @@
 }
 .ritual-chat-source-list {
   display: grid;
-  gap: 9px;
-  margin: 6px 0 0;
-  padding-inline-start: 23px;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: ritual-source;
 }
 .ritual-chat-source {
+  position: relative;
   padding: 10px;
-  border: 1px solid var(--knowledge-line);
-  border-radius: 9px;
-  background: #f8fafd;
-  font-size: 13px;
+  padding-inline-start: 42px;
+  border: 1px solid #e6ebf3;
+  border-radius: 11px;
+  background: #fbfcfe;
+  font-size: 12.5px;
+  counter-increment: ritual-source;
+}
+.ritual-chat-source::before {
+  content: counter(ritual-source);
+  position: absolute;
+  inset-inline-start: 10px;
+  top: 10px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #f5ecd8;
+  color: #85651f;
+  font-size: 11px;
+  font-weight: 700;
 }
 .ritual-chat-source strong {
   display: block;
+  color: #1c3350;
+  font-size: 13px;
 }
 .ritual-chat-source-page {
-  display: block;
-  color: #67738a;
-  font-size: 12px;
+  display: inline-flex;
+  margin-top: 3px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #eef3fa;
+  color: #52698a;
+  font-size: 11px;
+  line-height: 1.8;
 }
 .ritual-chat-source p {
-  margin-top: 7px;
-  color: #42536b;
-  line-height: 1.9;
+  margin-top: 6px;
+  color: #465a75;
+  font-size: 12.5px;
+  line-height: 1.85;
 }
-.ritual-chat-source-note,
-.ritual-chat-confidence {
+.ritual-chat-source-note {
   margin-top: 10px !important;
   color: var(--knowledge-muted);
   font-size: 11px;
+}
+.ritual-chat-confidence {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px !important;
+  padding: 2px 10px;
+  border: 1px solid #e7edf5;
+  border-radius: 999px;
+  background: #f4f7fb;
+  color: #5b6d86;
+  font-size: 10.5px;
 }
 .ritual-chat-failure > strong {
   display: flex;
@@ -442,36 +562,53 @@
 .ritual-chat-loading {
   display: flex;
   align-items: center;
-  gap: 9px;
   align-self: flex-end;
-  padding: 13px;
+  gap: 9px;
+  padding: 10px 14px;
+  border: 1px solid #e4eaf2;
+  border-radius: 14px;
+  border-start-end-radius: 6px;
+  background: #fbfcfe;
+  box-shadow: 0 12px 26px -24px #17365c;
   color: var(--knowledge-muted);
-  font-size: 13px;
+  font-size: 12.5px;
+}
+.ritual-chat-loading svg {
+  color: #a8822f;
 }
 .ritual-chat-composer {
-  padding: 14px 12px;
-  border-top: 1px solid var(--knowledge-line);
-  background: #fcfdff;
+  flex-shrink: 0;
+  padding: 12px 12px 14px;
+  border-top: 1px solid #e6ebf3;
+  background: linear-gradient(#ffffff, #f8fafe);
 }
 .ritual-chat-input-label {
   display: block;
   margin-bottom: 6px;
-  font-size: 13px;
+  color: #43556d;
+  font-size: 12px;
   font-weight: 650;
 }
 .ritual-chat-composer textarea {
   display: block;
   width: 100%;
-  min-height: 94px;
-  max-height: 260px;
-  padding: 11px 12px;
-  border: 1px solid #c8d4e4;
-  border-radius: 12px;
+  min-height: 76px;
+  max-height: 220px;
+  padding: 10px 12px;
+  border: 1.5px solid #cdd9e8;
+  border-radius: 14px;
   background: #fff;
+  box-shadow: inset 0 1px 2px #17365c0d;
   color: var(--knowledge-ink);
   font-size: 16px;
   resize: vertical;
-  line-height: 1.7;
+  line-height: 1.65;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.ritual-chat-composer textarea:focus {
+  outline: none;
+  border-color: #b18a37;
+  box-shadow: 0 0 0 3px #b18a3726;
 }
 .ritual-chat-composer textarea::placeholder {
   color: #768399;
@@ -488,17 +625,30 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 .ritual-chat-composer-footer > p {
   flex: 1;
-  color: var(--knowledge-muted);
+  color: #7a879b;
   font-size: 10px;
 }
 .ritual-chat-character-count {
-  display: block;
-  margin-top: 3px;
-  font-size: 11px;
+  display: inline-flex;
+  margin-inline-start: 6px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #eef3fa;
+  color: #5d7089;
+  font-size: 10px;
+  line-height: 1.9;
+}
+.ritual-chat-button {
+  background: linear-gradient(160deg, #204a78, #17365c);
+  box-shadow: 0 12px 24px -16px #17365c;
+}
+.ritual-chat-button--secondary {
+  background: #fff;
+  box-shadow: none;
 }
 .ritual-chat-validation {
   margin-top: 7px !important;
@@ -506,10 +656,11 @@
   font-size: 12px;
 }
 .ritual-chat-local-note {
-  margin-top: 11px !important;
-  color: var(--knowledge-muted);
+  flex-shrink: 0;
+  margin-top: 8px !important;
+  color: #8491a4;
   text-align: center;
-  font-size: 11px;
+  font-size: 10.5px;
 }
 
 /* Servant knowledge administration */
@@ -1066,22 +1217,50 @@
   font-size: 11px;
 }
 
-@media (min-width: 600px) {
-  .ritual-chat-page {
-    padding: 26px 24px 35px;
+@media (max-width: 599px) {
+  .ritual-chat-shell {
+    padding-bottom: 10px;
+  }
+  .ritual-chat-heading {
+    margin-bottom: 10px;
+  }
+  .ritual-chat-title-row {
+    margin-block: 2px 8px;
+  }
+  .ritual-chat-disclaimer {
+    line-height: 1.65;
   }
   .ritual-chat-log {
-    padding: 24px;
+    padding: 14px 12px;
+  }
+  .ritual-chat-composer {
+    padding-bottom: 12px;
+  }
+  .ritual-chat-composer textarea {
+    min-height: 70px;
+  }
+  .ritual-chat-composer-footer {
+    margin-top: 7px;
+  }
+  .ritual-chat-enter-hint {
+    display: none;
+  }
+}
+@media (min-width: 600px) {
+  .ritual-chat-shell {
+    padding: 22px 24px 18px;
+  }
+  .ritual-chat-log {
+    padding: 22px 24px;
   }
   .ritual-chat-panel-heading,
   .ritual-chat-composer {
-    padding-inline: 22px;
+    padding-inline: 20px;
   }
   .ritual-chat-samples {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .ritual-chat-character-count {
-    display: inline;
     margin-inline-start: 8px;
   }
   .ritual-chat-composer-footer > p {
@@ -1118,8 +1297,8 @@
   .knowledge-form {
     padding: 21px;
   }
-  .ritual-chat-page {
-    padding-top: 34px;
+  .ritual-chat-shell {
+    padding-top: 28px;
   }
   .ritual-chat-health {
     align-items: center;
@@ -1128,7 +1307,16 @@
     margin-top: 0;
   }
 }
-@media (max-width: 359px) {
+@media (max-width: 379px) {
+  .ritual-chat-welcome-icon {
+    display: none;
+  }
+  .ritual-chat-welcome h2 {
+    font-size: 19px;
+  }
+  .ritual-chat-samples {
+    margin-top: 12px;
+  }
   .ritual-chat-panel-heading {
     flex-wrap: wrap;
   }
@@ -1151,7 +1339,8 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .knowledge-spin,
-  .ritual-chat-spin {
+  .ritual-chat-spin,
+  .ritual-chat-status-dot {
     animation: none;
   }
   .knowledge-admin-page *,
