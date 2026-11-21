@@ -34,7 +34,7 @@ for (const question of ["", "<script>alert(1)</script>", "س".repeat(1001)]) ass
 assert.equal((await request("/api/chat/ask", { method: "POST", headers: { "Content-Type": "application/json", "X-Chat-Session": "invalid" }, body: JSON.stringify({ question: "ما معنى الإبصالتس؟" }) })).status, 401);
 
 const cases = [
-  ["ما هي رتب الشمامسة؟", [/ابصالتس/, /اناغنوستيس|اغنسطس/, /ايبوذياكون/, /ذياكون/, /ارشي ذياكون/]],
+  ["ما هي رتب الشمامسة؟", [/ابصالتس/, /اناغنوستيس|اغنسطس/, /ايبو[ذد]ياكون/, /ذياكون/, /ارشي ?ذياكون/]],
   ["ما معنى الإبصالتس؟", [/مرتل|منشد/]],
   ["ما الزيوت المستخدمة في المعمودية؟", [/ميرون/, /غاليلاون/, /ابو\s*غالمسيس|ابو\s*غلمسيس/]],
   ["ما وظيفة الإيبوذياكون؟", [/مساعد شماس|تنظيم الجلوس|حراسة|ايقاد|تجفيف/]],
@@ -46,7 +46,7 @@ for (const [question, expected] of cases) {
   for (const source of result.body.sources) {
     assert.ok(pages.has(source.page), `Missing original page ${source.page}`);
     assert.ok(normalize(pages.get(source.page)).includes(normalize(source.snippet)), `Quote not in original page ${source.page}`);
-    assert.ok(result.body.answer.includes(source.snippet));
+    assert.ok(!result.body.answer.includes(source.snippet), `Answer should rewrite, not paste, page ${source.page}`);
   }
   for (const pattern of expected) assert.match(arabic(result.body.answer), pattern, question);
   console.log(JSON.stringify({ question, status: result.status, sources: result.body.sources, confidence: result.body.confidence }));

@@ -67,8 +67,14 @@ internal sealed class ChatEngine(KnowledgeStore store, IKnowledgeVectorStore vec
         try
         {
             using var document = JsonDocument.Parse(json);
-            if (!document.RootElement.TryGetProperty("evidence", out var evidence) || evidence.ValueKind != JsonValueKind.Array || evidence.GetArrayLength() > 3)
+            var root = document.RootElement;
+            if (!root.TryGetProperty("evidence", out var evidence) || evidence.ValueKind != JsonValueKind.Array || evidence.GetArrayLength() > 3)
                 throw new AiProviderException("invalid_evidence");
+            if (evidence.GetArrayLength() == 0) return new ChatAnswer(Absent, [], 0, conversationId);
+            if (!root.TryGetProperty("answer", out var answerElement) || answerElement.ValueKind != JsonValueKind.String)
+                throw new AiProviderException("invalid_evidence");
+            var rewrite = Normalize(answerElement.GetString() ?? "");
+            if (rewrite.Length is < 15 or > 4000 || rewrite.Contains('\0')) throw new AiProviderException("invalid_evidence");
             var citations = new List<ChatCitation>();
             var similarities = new List<double>();
             foreach (var item in evidence.EnumerateArray())
@@ -86,8 +92,8 @@ internal sealed class ChatEngine(KnowledgeStore store, IKnowledgeVectorStore vec
                 similarities.Add(hit.Similarity);
             }
             if (citations.Count == 0) return new ChatAnswer(Absent, [], 0, conversationId);
-            var answer = "بحسب المصدر:\n" + string.Join("\n\n", citations.Select(value => $"«{value.Snippet}»"))
-                + "\n\nهذه الإجابة من المصدر التعليمي، وليست بديلًا عن إرشاد الكاهن في الأمور العقائدية أو الطقسية.";
+            var answer = rewrite
+                + "\n\nهذه الإجابة ملخّص من المصادر التعليمية، وليست بديلًا عن إرشاد الكاهن في الأمور العقائدية أو الطقسية.";
             return new ChatAnswer(answer, citations, Math.Round(Math.Clamp(similarities.Average(), 0, 0.99), 2), conversationId);
         }
         catch (JsonException) { throw new AiProviderException("invalid_evidence"); }
