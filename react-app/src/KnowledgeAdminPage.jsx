@@ -382,10 +382,11 @@ export default function KnowledgeAdminPage({ apiUrl, username, password }) {
       if (options.signal?.aborted) controller.abort();
       else options.signal?.addEventListener("abort", forwardAbort, { once: true });
       let timedOut = false;
+      const isUpload = typeof FormData !== "undefined" && options.body instanceof FormData;
       const timeout = setTimeout(() => {
         timedOut = true;
         controller.abort();
-      }, 90000);
+      }, isUpload ? 300000 : 90000);
       try {
         const response = await fetch(`${baseUrl}${path}`, {
           method: options.method || "GET",
@@ -409,10 +410,19 @@ export default function KnowledgeAdminPage({ apiUrl, username, password }) {
         }
         return { data, status: response.status };
       } catch (error) {
-        if (timedOut) throw new Error("انتهت مهلة الاتصال بالخادم. تحقق من الحالة قبل إعادة إجراء تغيير.");
+        if (timedOut)
+          throw new Error(
+            isUpload
+              ? "انتهت مهلة رفع الملف. الملفات الكبيرة تفشل على شبكات الهاتف؛ جرّب واي فاي أو ارفع نسخة TXT أو JSONL."
+              : "انتهت مهلة الاتصال بالخادم. تحقق من الحالة قبل إعادة إجراء تغيير.",
+          );
         if (error.name === "AbortError") throw error;
         if (error instanceof TypeError)
-          throw new Error("تعذر الاتصال بالخادم. تحقق من الإنترنت ثم أعد المحاولة.");
+          throw new Error(
+            isUpload
+              ? "انقطع الاتصال أثناء رفع الملف. راجع قائمة المصادر أولًا حتى لا يتكرر الرفع، ثم أعد المحاولة على واي فاي أو ارفع نسخة TXT أو JSONL الأصغر."
+              : "تعذر الاتصال بالخادم. تحقق من الإنترنت ثم أعد المحاولة.",
+          );
         throw error;
       } finally {
         clearTimeout(timeout);
@@ -790,6 +800,13 @@ export default function KnowledgeAdminPage({ apiUrl, username, password }) {
                     setActionError("");
                   }}
                 />
+                {file && (
+                  <span className="knowledge-field-help">
+                    الحجم المختار: {(file.size / (1024 * 1024)).toFixed(2)} ميجابايت
+                    {file.size > 5 * 1024 * 1024 &&
+                      " — الملفات الكبيرة تُبطئ الرفع على بيانات الهاتف؛ نسخة TXT أو JSONL أسرع."}
+                  </span>
+                )}
                 <span className="knowledge-field-help">
                   النوع يُحدَّد من محتوى الملف نفسه، فلا يحتاج اسمًا ينتهي بامتداد. ملفات PDF المصوّرة قد
                   تحتاج إلى OCR؛ لا تُعد جاهزة بمجرد رفعها.
