@@ -71,6 +71,14 @@ internal sealed class KnowledgeIngestionWorker : BackgroundService
                 JsonException => "The extraction service returned invalid JSON.",
                 HttpRequestException => "The extraction service could not be reached or rejected the request.",
                 OperationCanceledException => "Extraction or embedding exceeded its bounded timeout.",
+                AiProviderException aiProvider => aiProvider.Code switch
+                {
+                    "provider_rate_limit" => "حصة مزود الذكاء الاصطناعي مستنفدة اليوم. انتظر تجددها أو ارفع حد الحساب، ثم أعد الفهرسة.",
+                    "provider_timeout" => "تجاوز مزود الذكاء الاصطناعي المهلة أثناء التضمين. أعد الفهرسة بعد قليل.",
+                    "provider_not_configured" => "مزود الذكاء الاصطناعي غير مهيأ. اضبط AI_API_KEY ثم أعد الفهرسة.",
+                    "provider_unavailable" => "تعذر الوصول إلى مزود الذكاء الاصطناعي. أعد الفهرسة بعد قليل.",
+                    _ => $"رفض مزود الذكاء الاصطناعي طلب التضمين ({aiProvider.Code}). أعد الفهرسة أو راجع إعدادات المزود."
+                },
                 _ => "Ingestion failed; review the worker logs and requeue this source."
             };
             logger.LogWarning("Knowledge source {SourceId} failed ingestion: {Code}", lease.SourceId, error is AiProviderException providerError ? providerError.Code : error.GetType().Name);
@@ -143,6 +151,8 @@ internal sealed class KnowledgeIngestionWorker : BackgroundService
         var profile = provider.EmbeddingProfile;
         var dimensions = provider.Dimensions;
         if (string.IsNullOrWhiteSpace(profile) || dimensions <= 0) throw new InvalidDataException("The embedding provider profile or dimensions are invalid.");
+        await store.DeleteForeignProfileChunksAsync(lease, profile, ct);
+        var embedded = await store.ChunkContentsAsync(lease.SourceId, profile, ct);
         var batch = new List<KnowledgePendingChunk>(20);
         var chunkCount = 0;
         foreach (var page in extraction.Pages)
@@ -151,7 +161,9 @@ internal sealed class KnowledgeIngestionWorker : BackgroundService
             foreach (var content in ChunkPage(page.Text, ct))
             {
                 if (++chunkCount > MaxChunks) throw new InvalidDataException("Source exceeds the safe 10000-chunk ingestion limit.");
-                batch.Add(new KnowledgePendingChunk(Guid.NewGuid(), page.PageNumber, ++number, content));
+                // A requeue after a partial run keeps already embedded chunks, so quota is spent only on the rest.
+                if (embedded.TryGetValue((page.PageNumber, ++number), out var stored) && stored == content) continue;
+                batch.Add(new KnowledgePendingChunk(Guid.NewGuid(), page.PageNumber, number, content));
                 if (batch.Count == 20) { await EmbedBatchAsync(lease, batch, profile, dimensions, ct); batch.Clear(); }
             }
         }

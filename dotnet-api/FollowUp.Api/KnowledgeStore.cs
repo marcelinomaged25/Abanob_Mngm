@@ -134,6 +134,8 @@ internal sealed class KnowledgeStore(NpgsqlDataSource db) : IKnowledgeVectorStor
             job.Parameters.AddWithValue(id);
             if (await job.ExecuteNonQueryAsync(ct) == 0) return false;
         }
+        // Pages and embedded chunks from an interrupted attempt are kept so a requeue resumes instead of
+        // overspending provider quota on the whole book again.
         await using (var source = new NpgsqlCommand("""
             UPDATE knowledge_sources SET status='queued',error_message=NULL,indexed_at=NULL WHERE source_id=$1
             """, connection, transaction))
@@ -203,14 +205,12 @@ internal sealed class KnowledgeStore(NpgsqlDataSource db) : IKnowledgeVectorStor
             if (!await reader.ReadAsync(ct)) throw new KnowledgeLeaseLostException();
             lease = new KnowledgeLease(id, token, reader.GetString(0), reader.GetString(1), reader.GetFieldValue<byte[]>(2));
         }
-        foreach (var sql in new[]
+        // Pages and chunks from an earlier attempt stay: the worker re-extracts and reuses every chunk whose
+        // content is unchanged, so requeues spend provider quota only on what is still missing.
+        await using (var clear = new NpgsqlCommand("""
+            UPDATE knowledge_sources SET status='extracting',error_message=NULL,indexed_at=NULL WHERE source_id=$1
+            """, connection, transaction))
         {
-            "DELETE FROM knowledge_chunks WHERE source_id=$1",
-            "DELETE FROM knowledge_pages WHERE source_id=$1",
-            "UPDATE knowledge_sources SET status='extracting',page_count=0,chunk_count=0,failed_pages='{}',error_message=NULL,indexed_at=NULL WHERE source_id=$1"
-        })
-        {
-            await using var clear = new NpgsqlCommand(sql, connection, transaction);
             clear.Parameters.AddWithValue(id);
             await clear.ExecuteNonQueryAsync(ct);
         }
@@ -252,7 +252,10 @@ internal sealed class KnowledgeStore(NpgsqlDataSource db) : IKnowledgeVectorStor
             await LockLeaseAsync(connection, transaction, lease, ct);
             foreach (var page in pages.Skip(offset).Take(20))
             {
-                await using var command = new NpgsqlCommand("INSERT INTO knowledge_pages(source_id,page_number,content) VALUES($1,$2,$3)", connection, transaction);
+                await using var command = new NpgsqlCommand("""
+                    INSERT INTO knowledge_pages(source_id,page_number,content) VALUES($1,$2,$3)
+                    ON CONFLICT (source_id,page_number) DO UPDATE SET content=EXCLUDED.content
+                    """, connection, transaction);
                 command.Parameters.AddWithValue(lease.SourceId); command.Parameters.AddWithValue(page.PageNumber); command.Parameters.AddWithValue(page.Text);
                 await command.ExecuteNonQueryAsync(ct);
             }
@@ -272,6 +275,36 @@ internal sealed class KnowledgeStore(NpgsqlDataSource db) : IKnowledgeVectorStor
         await finalTransaction.CommitAsync(ct);
     }
 
+    internal async Task<IReadOnlyDictionary<(int Page, int Number), string>> ChunkContentsAsync(Guid sourceId, string profile, CancellationToken ct)
+    {
+        await using var connection = await db.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand("SELECT page_number,chunk_number,content FROM knowledge_chunks WHERE source_id=$1 AND profile=$2", connection);
+        command.Parameters.AddWithValue(sourceId); command.Parameters.AddWithValue(profile);
+        var contents = new Dictionary<(int, int), string>();
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct)) contents[(reader.GetInt32(0), reader.GetInt32(1))] = reader.GetString(2);
+        return contents;
+    }
+
+    internal async Task DeleteForeignProfileChunksAsync(KnowledgeLease lease, string profile, CancellationToken ct)
+    {
+        // Chunks from a different embedding profile cannot be reused and would collide with new chunk keys.
+        await using var connection = await db.OpenConnectionAsync(ct);
+        await using var transaction = await connection.BeginTransactionAsync(ct);
+        await LockLeaseAsync(connection, transaction, lease, ct);
+        await using (var delete = new NpgsqlCommand("DELETE FROM knowledge_chunks WHERE source_id=$1 AND profile<>$2", connection, transaction))
+        {
+            delete.Parameters.AddWithValue(lease.SourceId); delete.Parameters.AddWithValue(profile);
+            await delete.ExecuteNonQueryAsync(ct);
+        }
+        await using (var stats = new NpgsqlCommand("UPDATE knowledge_sources SET chunk_count=(SELECT count(*)::integer FROM knowledge_chunks WHERE source_id=$1) WHERE source_id=$1", connection, transaction))
+        {
+            stats.Parameters.AddWithValue(lease.SourceId);
+            await stats.ExecuteNonQueryAsync(ct);
+        }
+        await transaction.CommitAsync(ct);
+    }
+
     internal async Task SaveBatchAsync(KnowledgeLease lease, IReadOnlyList<KnowledgePendingChunk> chunks,
         float[][] embeddings, string profile, int dimensions, CancellationToken ct)
     {
@@ -288,6 +321,9 @@ internal sealed class KnowledgeStore(NpgsqlDataSource db) : IKnowledgeVectorStor
             await using var command = new NpgsqlCommand("""
                 INSERT INTO knowledge_chunks(id,source_id,page_number,chunk_number,content,embedding,metadata,profile)
                 VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+                ON CONFLICT (source_id,page_number,chunk_number) DO UPDATE SET
+                    content=EXCLUDED.content,embedding=EXCLUDED.embedding,metadata=EXCLUDED.metadata,
+                    profile=EXCLUDED.profile,created_at=clock_timestamp()
                 """, connection, transaction);
             command.Parameters.AddWithValue(chunk.Id); command.Parameters.AddWithValue(lease.SourceId);
             command.Parameters.AddWithValue(chunk.PageNumber); command.Parameters.AddWithValue(chunk.ChunkNumber);
@@ -304,12 +340,15 @@ internal sealed class KnowledgeStore(NpgsqlDataSource db) : IKnowledgeVectorStor
             try
             {
                 // Only a catalog-derived, quoted identifier is interpolated; all values are parameters.
+                // Re-upserted chunks keep their stored id, so the optional vector is refreshed by chunk key.
                 await using var vector = new NpgsqlCommand($"""
-                    UPDATE knowledge_chunks SET embedding_vector=('[' || array_to_string(embedding, ',') || ']')::{Quote(vectorSchema)}.vector
-                    WHERE source_id=$1 AND id=ANY($2)
+                    UPDATE knowledge_chunks c SET embedding_vector=('[' || array_to_string(c.embedding, ',') || ']')::{Quote(vectorSchema)}.vector
+                    FROM unnest($2::int[], $3::int[]) AS k(page_number, chunk_number)
+                    WHERE c.source_id=$1 AND c.page_number=k.page_number AND c.chunk_number=k.chunk_number
                     """, connection, transaction);
                 vector.Parameters.AddWithValue(lease.SourceId);
-                vector.Parameters.AddWithValue(chunks.Select(chunk => chunk.Id).ToArray());
+                vector.Parameters.AddWithValue(chunks.Select(chunk => chunk.PageNumber).ToArray());
+                vector.Parameters.AddWithValue(chunks.Select(chunk => chunk.ChunkNumber).ToArray());
                 await vector.ExecuteNonQueryAsync(ct);
             }
             catch (PostgresException error) when (!ct.IsCancellationRequested && error.SqlState is "42703" or "42883" or "42704" or "42501" or "22023" or "54000")
