@@ -722,7 +722,7 @@ export default function KnowledgeAdminPage({ apiUrl, username, password }) {
         <div>
           <p className="knowledge-kicker">إدارة المحتوى · للخدام فقط</p>
           <h1>مصادر المعرفة</h1>
-          <p>أضف مصادرك التعليمية وراجع جاهزيتها قبل الاستناد إليها في «اسأل عن الكنيسة».</p>
+          <p>أضف مصادرك التعليمية وراجع جاهزيتها قبل الاستناد إليها في «شات خادم الكنيسة».</p>
         </div>
       </header>
       <aside className="knowledge-rights-note">

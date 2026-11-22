@@ -2732,7 +2732,7 @@ function ContentManagementChooser({ onChoose }) {
         >
           <BookOpen size={27} />
           <strong>قاعدة المعرفة</strong>
-          <span>إدارة مصادر التعليم والفهرسة لشات اسأل عن الكنيسة.</span>
+          <span>إدارة مصادر التعليم والفهرسة لشات خادم الكنيسة.</span>
           <ChevronLeft size={19} />
         </button>
       </div>

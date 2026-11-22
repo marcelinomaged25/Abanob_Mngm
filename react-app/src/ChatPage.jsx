@@ -514,8 +514,8 @@ export default function ChatPage({ apiUrl, autoFocus = false }) {
               <BookOpen size={27} aria-hidden="true" />
             </span>
             <div>
-              <p className="ritual-chat-kicker">شات مع خادم</p>
-              <h1>اسأل عن الكنيسة</h1>
+              <p className="ritual-chat-kicker">خورس القديس أبانوب</p>
+              <h1>شات مع خادم</h1>
             </div>
           </div>
         </header>
@@ -540,7 +540,7 @@ export default function ChatPage({ apiUrl, autoFocus = false }) {
           </aside>
         )}
 
-        <section className="ritual-chat-panel" aria-label="محادثة اسأل عن الكنيسة">
+        <section className="ritual-chat-panel" aria-label="محادثة مع خادم">
           <div className="ritual-chat-panel-bar">
             <div className="ritual-chat-panel-heading">
               <span>

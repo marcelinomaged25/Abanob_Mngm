@@ -8,13 +8,13 @@ export default function ChatMascot() {
       className="chat-mascot"
       href="/ask-about-ritual"
       onClick={unlockChat}
-      aria-label="افتح الشات واسأل خادم الكنيسة"
-      title="اسأل عن الكنيسة"
+      aria-label="افتح الشات مع خادم الكنيسة"
+      title="شات مع خادم"
     >
       <span className="chat-mascot-ripple" aria-hidden="true" />
       <img src="/app-icon.png" alt="" width="76" height="76" />
       <span className="chat-mascot-label" aria-hidden="true">
-        اسأل عن الكنيسة
+        شات مع خادم
       </span>
     </a>
   );
