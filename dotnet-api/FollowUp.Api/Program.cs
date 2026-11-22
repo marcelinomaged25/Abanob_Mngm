@@ -20,7 +20,8 @@ if (string.IsNullOrWhiteSpace(appPassword)) throw new InvalidOperationException(
 var dataSource = NpgsqlDataSource.Create(connectionString);
 builder.Services.AddSingleton(dataSource);
 builder.Services.AddHttpClient("knowledge-ai", client => client.Timeout = Timeout.InfiniteTimeSpan);
-builder.Services.AddSingleton<IAiProvider, GeminiAiProvider>();
+builder.Services.AddSingleton<GeminiAiProvider>();
+builder.Services.AddSingleton<IAiProvider, AiProviderRouter>();
 builder.Services.AddSingleton<KnowledgeStore>();
 builder.Services.AddSingleton<IKnowledgeVectorStore>(services => services.GetRequiredService<KnowledgeStore>());
 builder.Services.AddSingleton<ChatSecurity>();

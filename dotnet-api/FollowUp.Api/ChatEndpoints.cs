@@ -8,7 +8,7 @@ internal sealed record ChatRequest(string? Question, string? ConversationId = nu
 internal sealed record ChatCitation(string Title, int Page, string Snippet);
 internal sealed record ChatAnswer(string Answer, IReadOnlyList<ChatCitation> Sources, double Confidence, string ConversationId, string Summary = "");
 
-internal sealed class ChatEngine(KnowledgeStore store, ChatStore chats, IKnowledgeVectorStore vectors, IAiProvider provider, IConfiguration configuration) : IDisposable
+internal sealed class ChatEngine(KnowledgeStore store, ChatStore chats, IKnowledgeVectorStore vectors, IAiProvider provider) : IDisposable
 {
     internal const string Absent = "المعلومة غير موجودة في المصادر المتاحة حاليًا.";
     private const int SummaryEveryMessages = 4;
@@ -21,7 +21,7 @@ internal sealed class ChatEngine(KnowledgeStore store, ChatStore chats, IKnowled
     private static readonly Regex Identity = new(@"^(?:مين\s+انت|انت\s+مين|إنت\s+مين|اسمك\s+إيه|اسمك\s+ايه|بتعمل\s+إيه|بتعمل\s+ايه)(?:\s+يا\s+[\p{L}\s]+)?[\s!؟.،]*$", RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromSeconds(1));
     private static readonly Regex Farewell = new(@"^(?:باي|وداعا|وداعًا|إلى\s+اللقاء|الى\s+اللقاء|تصبح\s+على\s+خير|bye|goodbye)(?:\s+يا\s+[\p{L}\s]+)?[\s!؟.،]*$", RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromSeconds(1));
     private static readonly Regex Confused = new(@"^(?:مش\s+فاهم(?:ة)?(?:\s+حاجة)?|وضح(?:لي|لى)?(?:\s+شوية)?|مش\s+واضح)[\s!؟.،]*$", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
-    private readonly string modelKey = $"{configuration["AI_CHAT_MODEL"] ?? "gemini-3.1-flash-lite"}:{configuration["AI_ADVANCED_CHAT_MODEL"] ?? "default"}";
+    private readonly string modelKey = provider.ChatProfile;
 
     internal async Task<ChatAnswer> AskAsync(ChatRequest input, string session, CancellationToken cancellationToken)
     {
