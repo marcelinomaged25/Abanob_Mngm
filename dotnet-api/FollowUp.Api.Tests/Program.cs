@@ -8,7 +8,7 @@ var rewrite = "الإبصالتس كلمة يونانية تعني المرتل 
 var evidence = JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, segment = 0 } }, answer = rewrite });
 var answer = ChatEngine.Ground(evidence, [hit], Guid.NewGuid().ToString());
 Check(answer.Sources.Count == 1 && answer.Sources[0].Page == 135, "citation page preserved");
-Check(answer.Answer.StartsWith(rewrite) && answer.Answer.Contains("إرشاد الكاهن"), "answer uses the model rewriting and is qualified");
+Check(answer.Answer == rewrite, "answer uses only the model rewriting");
 Check(!answer.Answer.Contains($"«{answer.Sources[0].Snippet}»"), "answer does not paste the stored chunk verbatim");
 Check(ChatEngine.Ground("{\"evidence\":[]}", [hit], "test").Answer == ChatEngine.Absent, "exact abstention");
 Reject(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, quote = "هذا تفسير لم يرد مطلقًا في المصدر." } }, answer = rewrite }), "fabricated quotation rejected");

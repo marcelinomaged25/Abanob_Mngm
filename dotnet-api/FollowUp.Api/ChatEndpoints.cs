@@ -164,9 +164,7 @@ internal sealed class ChatEngine(KnowledgeStore store, ChatStore chats, IKnowled
                 similarities.Add(hit.Similarity);
             }
             if (citations.Count == 0) return new ChatAnswer(Absent, [], 0, conversationId);
-            var answer = rewrite
-                + "\n\nالإجابة دي ملخّص من المصادر التعليمية المتاحة، ومش بديل عن إرشاد الكاهن في أمور العقيدة أو الطقس.";
-            return new ChatAnswer(answer, citations, Math.Round(Math.Clamp(similarities.Average(), 0, 0.99), 2), conversationId);
+            return new ChatAnswer(rewrite, citations, Math.Round(Math.Clamp(similarities.Average(), 0, 0.99), 2), conversationId);
         }
         catch (JsonException) { throw new AiProviderException("invalid_evidence"); }
         catch (InvalidOperationException) { throw new AiProviderException("invalid_evidence"); }

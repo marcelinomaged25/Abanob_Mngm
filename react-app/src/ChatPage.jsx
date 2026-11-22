@@ -3,12 +3,10 @@ import {
   AlertCircle,
   ArrowRight,
   BookOpen,
-  ChevronDown,
   History,
   Plus,
   RefreshCw,
   Send,
-  ShieldCheck,
   Trash2,
   WifiOff,
 } from "lucide-react";
@@ -87,31 +85,6 @@ function describeChatError(error, timedOut) {
     message: error.message || "تعذر الاتصال بالخدمة. حاول مرة أخرى.",
     retryable: true,
   };
-}
-
-function AnswerSources({ sources }) {
-  if (!sources.length) return <p className="ritual-chat-source-note">لم تُرفق إحالات بهذه الإجابة.</p>;
-  return (
-    <details className="ritual-chat-sources">
-      <summary>
-        <BookOpen size={16} aria-hidden="true" /> المصادر والإحالات ({sources.length}){" "}
-        <ChevronDown size={16} aria-hidden="true" />
-      </summary>
-      <ol className="ritual-chat-source-list">
-        {sources.map((source, index) => (
-          <li className="ritual-chat-source" key={index}>
-            <strong>{textValue(source?.title) || "مصدر دون عنوان"}</strong>
-            {textValue(source?.page) && (
-              <span className="ritual-chat-source-page">الصفحة: {textValue(source.page)}</span>
-            )}
-            {textValue(source?.snippet) && (
-              <p className="ritual-chat-plain-text">{textValue(source.snippet)}</p>
-            )}
-          </li>
-        ))}
-      </ol>
-    </details>
-  );
 }
 
 export default function ChatPage({ apiUrl }) {
@@ -537,14 +510,10 @@ export default function ChatPage({ apiUrl }) {
               <BookOpen size={27} aria-hidden="true" />
             </span>
             <div>
-              <p className="ritual-chat-kicker">محادثة تعليمية من المصادر الكنسية</p>
+              <p className="ritual-chat-kicker">شات مع خادم</p>
               <h1>اسأل عن الكنيسة</h1>
             </div>
           </div>
-          <p className="ritual-chat-disclaimer">
-            <ShieldCheck size={17} aria-hidden="true" /> الإجابات من المصادر المتاحة فقط، وليست إرشادًا شخصيًا
-            أو بديلًا عن الرجوع إلى أب اعترافك.
-          </p>
         </header>
 
         {health.kind !== "healthy" && (
@@ -571,7 +540,7 @@ export default function ChatPage({ apiUrl }) {
           <div className="ritual-chat-panel-bar">
             <div className="ritual-chat-panel-heading">
               <span>
-                <span className="ritual-chat-status-dot" aria-hidden="true" /> محادثة كنسية من المصادر
+                <span className="ritual-chat-status-dot" aria-hidden="true" /> شات مع خادم
               </span>
               <div className="ritual-chat-panel-actions">
                 <button
@@ -700,11 +669,9 @@ export default function ChatPage({ apiUrl }) {
               <article
                 className={`ritual-chat-message ritual-chat-message--${message.role}${message.failure ? " ritual-chat-message--failure" : ""}`}
                 key={message.id}
-                aria-label={message.role === "user" ? "سؤالك" : "رد الخدمة"}
+                aria-label={message.role === "user" ? "سؤالك" : "رد الخادم"}
               >
-                <p className="ritual-chat-message-label">
-                  {message.role === "user" ? "أنت" : "اسأل عن الكنيسة"}
-                </p>
+                <p className="ritual-chat-message-label">{message.role === "user" ? "أنت" : "خادم"}</p>
                 {message.failure ? (
                   <div className={`ritual-chat-failure ritual-chat-failure--${message.failure.kind}`}>
                     <strong>
@@ -724,28 +691,13 @@ export default function ChatPage({ apiUrl }) {
                     )}
                   </div>
                 ) : (
-                  <>
-                    <p className="ritual-chat-plain-text">{message.text}</p>
-                    {message.role === "assistant" && (
-                      <>
-                        {Array.isArray(message.sources) && message.sources.length > 0 && (
-                          <AnswerSources sources={message.sources} />
-                        )}
-                        {Number(message.confidence) > 0 && (
-                          <p className="ritual-chat-confidence">
-                            مؤشر الثقة من الخدمة: <bdi>{textValue(message.confidence)}</bdi>
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </>
+                  <p className="ritual-chat-plain-text">{message.text}</p>
                 )}
               </article>
             ))}
             {loading && (
               <div className="ritual-chat-loading" role="status">
-                <RefreshCw className="ritual-chat-spin" size={18} aria-hidden="true" /> بيدور في المصادر ويكتب
-                لك الإجابة…
+                <RefreshCw className="ritual-chat-spin" size={18} aria-hidden="true" /> بيكتب لك…
               </div>
             )}
           </div>
