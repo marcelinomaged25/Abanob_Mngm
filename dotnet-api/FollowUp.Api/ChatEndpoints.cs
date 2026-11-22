@@ -110,12 +110,17 @@ internal sealed class ChatEngine(KnowledgeStore store, ChatStore chats, IKnowled
     private static string ConversationContext(string summary, IReadOnlyList<ChatMessageDto> messages)
     {
         if (summary.Length == 0 && messages.Count == 0) return "";
+        const string header =
+            "ذاكرة المحادثة: الملخص السابق وآخر الرسائل من نفس الحوار. استخدمها لفهم إن سؤال الولد الجديد مكمّل للكلام اللي قبله، ولو السؤال قصير أو ضميره راجع لحاجة اتقالت قبل كده ففسّره على أساسها. الذاكرة للفهم فقط وليست مصدرًا للمعلومات.";
         var builder = new StringBuilder();
-        if (summary.Length > 0) builder.AppendLine("ملخص المحادثة: " + summary);
+        if (summary.Length > 0) builder.AppendLine("الملخص السابق: " + summary);
         foreach (var message in messages.TakeLast(8))
             builder.AppendLine((message.Role == "user" ? "الولد: " : "الخادم: ") + Clip(message.Text, 600));
-        var text = builder.ToString();
-        return text.Length > 3000 ? text[^3000..] : text;
+        var body = builder.ToString();
+        const int budget = 3000;
+        var room = Math.Max(0, budget - header.Length - 1);
+        if (body.Length > room) body = body[^room..];
+        return header + "\n" + body;
     }
 
     private static string Transcript(ChatConversation? conversation, string question, string answer)
@@ -146,6 +151,7 @@ internal sealed class ChatEngine(KnowledgeStore store, ChatStore chats, IKnowled
             if (!root.TryGetProperty("answer", out var answerElement) || answerElement.ValueKind != JsonValueKind.String)
                 throw new AiProviderException("invalid_evidence");
             var rewrite = Normalize(answerElement.GetString() ?? "");
+            if (rewrite.Length == 0) return new ChatAnswer(Absent, [], 0, conversationId);
             if (rewrite.Length is < 15 or > 4000 || rewrite.Contains('\0')) throw new AiProviderException("invalid_evidence");
             var citations = new List<ChatCitation>();
             var similarities = new List<double>();

@@ -622,15 +622,6 @@ export default function ChatPage({ apiUrl, autoFocus = false }) {
             )}
           </div>
 
-          {summary && (
-            <aside className="ritual-chat-summary" aria-label="ملخص المحادثة">
-              <span className="ritual-chat-summary-title">
-                <BookOpen size={15} aria-hidden="true" /> ملخص المحادثة
-              </span>
-              <p className="ritual-chat-plain-text">{summary}</p>
-            </aside>
-          )}
-
           <div
             className="ritual-chat-log"
             ref={logRef}
@@ -755,9 +746,6 @@ export default function ChatPage({ apiUrl, autoFocus = false }) {
             </div>
           </form>
         </section>
-        <p className="ritual-chat-local-note">
-          المحادثات بتتحفظ على الخادم وترجع لك من نفس المتصفح، وتقدر تحذف أي محادثة في أي وقت.
-        </p>
       </div>
     </main>
   );

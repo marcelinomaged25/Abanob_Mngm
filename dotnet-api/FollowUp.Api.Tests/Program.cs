@@ -13,6 +13,7 @@ Check(!answer.Answer.Contains($"«{answer.Sources[0].Snippet}»"), "answer does 
 Check(ChatEngine.Ground("{\"evidence\":[]}", [hit], "test").Answer == ChatEngine.Absent, "exact abstention");
 Reject(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, quote = "هذا تفسير لم يرد مطلقًا في المصدر." } }, answer = rewrite }), "fabricated quotation rejected");
 Reject(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, segment = 0 } } }), "evidence without a rewritten answer rejected");
+Check(ChatEngine.Ground(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, segment = 0 } }, answer = " " }), [hit], "test").Answer == ChatEngine.Absent, "empty rewriting yields exact abstention");
 Reject(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, segment = 0 } }, answer = "قصير" }), "too short rewritten answer rejected");
 Reject(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = Guid.NewGuid(), segment = 0 } }, answer = rewrite }), "unknown chunk rejected");
 Reject(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, segment = 9 } }, answer = rewrite }), "unknown evidence segment rejected");

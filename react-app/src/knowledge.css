@@ -420,30 +420,6 @@
   font-size: 12px;
   line-height: 1.8;
 }
-.ritual-chat-summary {
-  flex-shrink: 0;
-  max-height: 104px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 9px 14px;
-  border-bottom: 1px solid #efe3c9;
-  background: #fffdf5;
-}
-.ritual-chat-summary-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin-bottom: 3px;
-  color: #806222;
-  font-size: 11px;
-  font-weight: 700;
-}
-.ritual-chat-summary p {
-  margin: 0 !important;
-  color: #4f5c70;
-  font-size: 12.5px;
-  line-height: 1.8;
-}
 @keyframes ritual-chat-pulse {
   50% {
     box-shadow: 0 0 0 4px #c79b3f1a;
@@ -681,13 +657,6 @@
   margin-top: 7px !important;
   color: var(--knowledge-danger);
   font-size: 12px;
-}
-.ritual-chat-local-note {
-  flex-shrink: 0;
-  margin-top: 8px !important;
-  color: #8491a4;
-  text-align: center;
-  font-size: 10.5px;
 }
 
 /* Servant knowledge administration */
