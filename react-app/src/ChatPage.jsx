@@ -87,7 +87,7 @@ function describeChatError(error, timedOut) {
   };
 }
 
-export default function ChatPage({ apiUrl }) {
+export default function ChatPage({ apiUrl, autoFocus = false }) {
   const baseUrl = (apiUrl || "").replace(/\/+$/, "");
   const storageKey = `ritual-chat-session:${baseUrl || "same-origin"}`;
   const lastKey = `ritual-chat-last:${baseUrl || "same-origin"}`;
@@ -116,6 +116,10 @@ export default function ChatPage({ apiUrl }) {
   const nextMessageId = useRef(0);
   const logRef = useRef(null);
   const questionRef = useRef(null);
+
+  useEffect(() => {
+    if (autoFocus) questionRef.current?.focus();
+  }, [autoFocus]);
 
   const rememberSession = useCallback(
     (token) => {

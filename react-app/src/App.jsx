@@ -1,5 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ChatPage from "./ChatPage";
+import ChatGate from "./ChatGate";
+import { isChatUnlocked } from "./chatAccess.js";
 import KnowledgeAdminPage from "./KnowledgeAdminPage";
 import {
   BarChart3,
@@ -1176,7 +1178,7 @@ export default function App() {
 
   if (publicQrToken) return <PublicAttendancePage token={publicQrToken} />;
   if (["/ask-about-ritual", "/ask-about-ritual/"].includes(window.location.pathname))
-    return <ChatPage apiUrl={apiUrl} />;
+    return isChatUnlocked() ? <ChatPage apiUrl={apiUrl} autoFocus /> : <ChatGate />;
   if (isLearningPage) return <PublicLearningPage />;
   if (isBooksPage) return <PublicBooksPage />;
   if (isBiblePage) return <PublicBiblePage />;
@@ -3444,11 +3446,6 @@ function PublicNavigation({ subtitle, homeActions }) {
         </section>
         <section className="public-menu-section">
           <p>التعليم</p>
-          <a href="/ask-about-ritual">
-            <MessageCircle size={18} />
-            <span>اسأل عن الكنيسة</span>
-            <ChevronLeft size={17} />
-          </a>
           <a href="https://stgeorgesaman.com/coptic/" target="_blank" rel="noreferrer">
             <Languages size={18} />
             <span>اللغة القبطية</span>
