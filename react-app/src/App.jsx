@@ -3456,15 +3456,6 @@ function PublicNavigation({ subtitle, homeActions }) {
             <span>الألحان</span>
             <ExternalLink size={15} />
           </a>
-          <a
-            href="https://drive.google.com/file/d/1KINWJOvsqfj-I8X7k6cOu1toDTW-SXSu/view?usp=drive_link"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <Church size={18} />
-            <span>الطقس</span>
-            <ExternalLink size={15} />
-          </a>
           <a href="/books">
             <BookOpen size={18} />
             <span>كتب</span>
