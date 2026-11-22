@@ -10,6 +10,7 @@ internal interface IAiProvider
     bool IsConfigured { get; }
     Task<float[][]> EmbedAsync(IReadOnlyList<string> texts, bool query, CancellationToken cancellationToken);
     Task<string> SelectEvidenceAsync(string question, IReadOnlyList<KnowledgeHit> hits, bool advanced, string conversation, CancellationToken cancellationToken);
+    Task<string> VerifyAsync(string question, string answer, IReadOnlyList<ChatCitation> sources, CancellationToken cancellationToken);
     Task<string> SummarizeAsync(string previousSummary, string transcript, CancellationToken cancellationToken);
     Task<bool> CheckAsync(CancellationToken cancellationToken);
 }
@@ -20,6 +21,7 @@ internal interface IChatCompletion
     string Profile { get; }
     bool IsConfigured { get; }
     Task<string> SelectEvidenceAsync(string question, IReadOnlyList<KnowledgeHit> hits, bool advanced, string conversation, CancellationToken cancellationToken);
+    Task<string> VerifyAsync(string question, string answer, IReadOnlyList<ChatCitation> sources, CancellationToken cancellationToken);
     Task<string> SummarizeAsync(string previousSummary, string transcript, CancellationToken cancellationToken);
     Task<bool> CheckAsync(CancellationToken cancellationToken);
 }

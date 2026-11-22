@@ -21,11 +21,21 @@ Reject(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = Guid.Ne
 Reject(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, segment = 9 } }, answer = rewrite }), "unknown evidence segment rejected");
 var extraText = JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, segment = 0, quote = "نص مختلق من النموذج" } }, answer = rewrite });
 Check(ChatEngine.Ground(extraText, [hit], "test").Sources[0].Snippet == hit.Content, "only original server text can be quoted");
+var fourHits = Enumerable.Range(0, 4).Select(index => hit with { Id = Guid.NewGuid(), PageNumber = 100 + index }).ToArray();
+var fourSegments = JsonSerializer.Serialize(new { evidence = fourHits.Select(value => new { chunkId = value.Id, segment = 0 }).ToArray(), answer = rewrite });
+Check(ChatEngine.Ground(fourSegments, fourHits, "test").Sources.Count == 4, "up to four evidence segments accepted");
+Reject(JsonSerializer.Serialize(new { evidence = Enumerable.Range(0, 5).Select(_ => new { chunkId = id, segment = 0 }).ToArray(), answer = rewrite }), "more than four evidence segments rejected");
 var segmentText = string.Join(" ", Enumerable.Repeat("نص عربي أصلي لا يتغير.", 100));
 Check(ChatEngine.EvidenceSegments(segmentText).All(segment => segment.Length <= 1000 && ChatEngine.Normalize(segmentText).Contains(segment)), "evidence segments are bounded literal substrings");
 var glossary = hit with { Id = Guid.NewGuid(), Content = "رتب الشمامسة هي رتب للخدمة.", Similarity = 0.70 };
 var generic = hit with { Id = Guid.NewGuid(), Content = "خدمة الشمامسة داخل الكنيسة.", Similarity = 0.74 };
 Check(ChatEngine.SelectHits("ما هي رتب الشمامسة؟", [generic, glossary])[0].Id == glossary.Id, "hybrid reranking retains exact source terminology");
+var noise = hit with { Id = Guid.NewGuid(), Content = "موضوع تاني خالص", Similarity = 0.30 };
+var strong = hit with { Id = Guid.NewGuid(), Similarity = 0.80 };
+Check(ChatEngine.SelectHits("ما هي رتب الشمامسة؟", [strong, noise]).Length == 1, "weak unrelated tail hits dropped");
+Check(!ChatEngine.IsFollowUp("ما هي رتب الشمامسة؟") && !ChatEngine.IsFollowUp("ما معنى الإبصالتس؟"), "standalone questions with هو/هي are not treated as follow-ups");
+Check(ChatEngine.IsFollowUp("ليه؟") && ChatEngine.IsFollowUp("طب ليه؟") && ChatEngine.IsFollowUp("وكمان إيه؟") && ChatEngine.IsFollowUp("هو مين؟"), "short pronoun and connective questions are follow-ups");
+Check(ChatPrompts.IsSupported("{\"supported\":true}") && !ChatPrompts.IsSupported("{\"supported\":false}") && !ChatPrompts.IsSupported("{}"), "verification verdict parsed strictly");
 Reject("not json", "invalid provider JSON rejected");
 Reject("{\"evidence\":{}}", "invalid evidence structure rejected");
 Check(ChatPrompts.ExtractJson("```json\n{\"evidence\":[],\"answer\":\"\"}\n```") == "{\"evidence\":[],\"answer\":\"\"}", "fenced provider JSON unwrapped");
@@ -79,6 +89,11 @@ catch (AiProviderException exception) when (exception.Code == "invalid_provider_
 {
     Console.WriteLine("PASS last provider failure surfaces when all providers fail");
 }
+var verified = await AiProviderRouter.ChooseAsync(
+    new IChatCompletion[] { new FakeChat("limited", fail: "provider_rate_limit"), new FakeChat("reviewer", "{\"supported\":true}") },
+    provider => provider.VerifyAsync("ما معنى الإبصالتس؟", "الإبصالتس مرتل.", [], CancellationToken.None),
+    json => json.Contains("supported"), (_, _) => { }, CancellationToken.None);
+Check(ChatPrompts.IsSupported(verified), "verification falls back to the next provider after a rate limit");
 var stubListener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
 stubListener.Start();
 var stubPort = ((System.Net.IPEndPoint)stubListener.LocalEndpoint).Port;
@@ -241,6 +256,7 @@ sealed class FakeChat(string name, string? reply = null, string? fail = null) : 
     public string Profile => name;
     public bool IsConfigured => true;
     public Task<string> SelectEvidenceAsync(string question, IReadOnlyList<KnowledgeHit> hits, bool advanced, string conversation, CancellationToken cancellationToken) => Run();
+    public Task<string> VerifyAsync(string question, string answer, IReadOnlyList<ChatCitation> sources, CancellationToken cancellationToken) => Run();
     public Task<string> SummarizeAsync(string previousSummary, string transcript, CancellationToken cancellationToken) => Run();
     public Task<bool> CheckAsync(CancellationToken cancellationToken) => Task.FromResult(true);
     private Task<string> Run() => fail is null ? Task.FromResult(reply ?? "") : Task.FromException<string>(new AiProviderException(fail));

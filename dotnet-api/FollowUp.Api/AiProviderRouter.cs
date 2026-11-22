@@ -38,6 +38,9 @@ internal sealed class AiProviderRouter : IAiProvider
     public Task<string> SelectEvidenceAsync(string question, IReadOnlyList<KnowledgeHit> hits, bool advanced, string conversation, CancellationToken cancellationToken) =>
         RunAsync(provider => provider.SelectEvidenceAsync(question, hits, advanced, conversation, cancellationToken), HasEvidence, cancellationToken);
 
+    public Task<string> VerifyAsync(string question, string answer, IReadOnlyList<ChatCitation> sources, CancellationToken cancellationToken) =>
+        RunAsync(provider => provider.VerifyAsync(question, answer, sources, cancellationToken), HasVerdict, cancellationToken);
+
     public Task<string> SummarizeAsync(string previousSummary, string transcript, CancellationToken cancellationToken) =>
         RunAsync(provider => provider.SummarizeAsync(previousSummary, transcript, cancellationToken), HasSummary, cancellationToken);
 
@@ -149,6 +152,17 @@ internal sealed class AiProviderRouter : IAiProvider
         {
             using var document = JsonDocument.Parse(ChatPrompts.ExtractJson(json));
             return document.RootElement.TryGetProperty("summary", out var summary) && summary.ValueKind == JsonValueKind.String;
+        }
+        catch (JsonException) { return false; }
+    }
+
+    private static bool HasVerdict(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(ChatPrompts.ExtractJson(json));
+            return document.RootElement.TryGetProperty("supported", out var supported)
+                && supported.ValueKind is JsonValueKind.True or JsonValueKind.False;
         }
         catch (JsonException) { return false; }
     }

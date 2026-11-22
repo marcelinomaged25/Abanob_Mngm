@@ -76,6 +76,7 @@ internal sealed class GeminiAiProvider : IChatCompletion, IEmbeddingProvider
                 evidence = new
                 {
                     type = "ARRAY",
+                    maxItems = 4,
                     items = new
                     {
                         type = "OBJECT",
@@ -91,7 +92,7 @@ internal sealed class GeminiAiProvider : IChatCompletion, IEmbeddingProvider
         {
             systemInstruction = new { parts = new[] { new { text = ChatPrompts.EvidenceInstruction } } },
             contents = new[] { new { role = "user", parts = new[] { new { text = payload } } } },
-            generationConfig = new { temperature = 0, maxOutputTokens = 2200, responseMimeType = "application/json", responseSchema = schema }
+            generationConfig = new { temperature = 0.2, maxOutputTokens = 2200, responseMimeType = "application/json", responseSchema = schema }
         }, cancellationToken, requireChat: true);
         if (!response.RootElement.TryGetProperty("candidates", out var candidates) || candidates.GetArrayLength() == 0)
             throw new AiProviderException("invalid_evidence");
@@ -101,6 +102,38 @@ internal sealed class GeminiAiProvider : IChatCompletion, IEmbeddingProvider
         return string.Concat(candidate.GetProperty("content").GetProperty("parts").EnumerateArray()
             .Where(part => part.TryGetProperty("text", out _) && !(part.TryGetProperty("thought", out var thought) && thought.GetBoolean()))
             .Select(part => part.GetProperty("text").GetString()));
+    }
+
+    public async Task<string> VerifyAsync(string question, string answer, IReadOnlyList<ChatCitation> sources, CancellationToken cancellationToken)
+    {
+        var payload = ChatPrompts.VerifyPayload(question, answer, sources);
+        var schema = new
+        {
+            type = "OBJECT",
+            properties = new { supported = new { type = "BOOLEAN" } },
+            required = new[] { "supported" }
+        };
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(20));
+        try
+        {
+            using var response = await SendAsync(chatModel, "generateContent", new
+            {
+                systemInstruction = new { parts = new[] { new { text = ChatPrompts.VerifyInstruction } } },
+                contents = new[] { new { role = "user", parts = new[] { new { text = payload } } } },
+                generationConfig = new { temperature = 0, maxOutputTokens = 64, responseMimeType = "application/json", responseSchema = schema }
+            }, deadline.Token, requireChat: true);
+            if (!response.RootElement.TryGetProperty("candidates", out var candidates) || candidates.GetArrayLength() == 0)
+                throw new AiProviderException("invalid_verification");
+            var candidate = candidates[0];
+            if (!candidate.TryGetProperty("finishReason", out var finish) || finish.GetString() != "STOP")
+                throw new AiProviderException("invalid_verification");
+            var text = string.Concat(candidate.GetProperty("content").GetProperty("parts").EnumerateArray()
+                .Where(part => part.TryGetProperty("text", out _) && !(part.TryGetProperty("thought", out var thought) && thought.GetBoolean()))
+                .Select(part => part.GetProperty("text").GetString()));
+            return ChatPrompts.ExtractJson(text);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { throw new AiProviderException("provider_timeout"); }
     }
 
     public async Task<string> SummarizeAsync(string previousSummary, string transcript, CancellationToken cancellationToken)

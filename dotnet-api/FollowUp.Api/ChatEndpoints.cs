@@ -15,7 +15,8 @@ internal sealed class ChatEngine(KnowledgeStore store, ChatStore chats, IKnowled
     private readonly MemoryCache cache = new(new MemoryCacheOptions { SizeLimit = 512 });
     private readonly SemaphoreSlim concurrent = new(2);
     private static readonly Regex Spaces = new(@"\s+", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
-    private static readonly Regex FollowUp = new(@"(^|\s)(و|وبعدين|بعدين|طيب|كمان|وكمان|تاني|تانى|ده|دي|دول|هو|هي|هم|ليه|ازاي|إزاي|يعني|برضه|بردو|فين|امتى|إمتى|وايه|وإيه|بس|وماذا|وما هو|وما هي|وظيفته|معناه|معناها|دوره)(\s|$|؟|\?)", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+    private static readonly Regex FollowUp = new(@"^(?:طب|طيب|كمان|وكمان|بعدين|وبعدين|تاني|تانى|بس|يعني|برضه|بردو|وايه|وإيه|وماذا|وما|وليه|ليه|ولماذا|وازاي|وإزاي|وفين|وامتى|وإمتى|ومين|وهل|وهو|وهي|وده|ودي|ودول|ومعناه|ومعناها|ووظيفته|ووظيفتها|مثال|أكتر|اكتر)(?:\s|$|؟|\?)", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+    private static readonly Regex PronounOnly = new(@"^(?:هو|هي|هم|ده|دا|دي|دول|كده|كدا|فين|امتى|إمتى|ليه|ازاي|إزاي|إيه|ايه)(?:\s+\S+){0,2}[\s؟?!.]*$", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
     private static readonly Regex Greeting = new(@"^(?:السلام(?:\s+عليكم)?|سلام(?:\s+عليكم)?|أهلا(?:\s+وسهلا)?|اهلا(?:\s+وسهلا)?|هلا(?:\s+بيك)?|هاي|hello|hi|صباح(?:\s+الخير|\s+النور)|مساء(?:\s+الخير|\s+النور)|إزيك|ازيك|إزاي\s+حالك|ازاي\s+حالك|عامل\s+إيه|عامل\s+ايه|إيه\s+الأخبار|ايه\s+الاخبار|أخبارك\s+إيه|اخبارك\s+ايه|وحشتني)(?:\s+يا\s+[\p{L}\s]+)?[\s!؟.،]*$", RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromSeconds(1));
     private static readonly Regex Thanks = new(@"^(?:شكرا|شكرًا|متشكر(?:ة)?|ربنا\s+يخليك|ربنا\s+يباركك|تسلم|ميرسي|thanks|thank\s+you)(?:\s+يا\s+[\p{L}\s]+)?[\s!؟.،]*$", RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromSeconds(1));
     private static readonly Regex Identity = new(@"^(?:مين\s+انت|انت\s+مين|إنت\s+مين|اسمك\s+إيه|اسمك\s+ايه|بتعمل\s+إيه|بتعمل\s+ايه)(?:\s+يا\s+[\p{L}\s]+)?[\s!؟.،]*$", RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromSeconds(1));
@@ -35,7 +36,7 @@ internal sealed class ChatEngine(KnowledgeStore store, ChatStore chats, IKnowled
             var summary = conversation?.Summary ?? "";
             var title = conversation?.Title ?? Title(question);
             var lastUser = history.LastOrDefault(message => message.Role == "user");
-            var contextualQuestion = lastUser is not null && (question.Length < 25 || FollowUp.IsMatch(question))
+            var contextualQuestion = lastUser is not null && IsFollowUp(question)
                 ? $"{lastUser.Text}\nسؤال متابعة: {question}"
                 : question;
             var contextKey = ChatSecurity.Hash(summary + "\u0001" + string.Join("\u0001", history.TakeLast(2).Select(message => message.Text)));
@@ -65,6 +66,7 @@ internal sealed class ChatEngine(KnowledgeStore store, ChatStore chats, IKnowled
                     {
                         var json = await provider.SelectEvidenceAsync(contextualQuestion, relevant, input.Advanced, ConversationContext(summary, history), cancellationToken);
                         answer = Ground(json, relevant, conversationId);
+                        if (answer.Answer != Absent) answer = await VerifiedAsync(contextualQuestion, answer, cancellationToken);
                     }
                     cache.Set(answerKey, answer, new MemoryCacheEntryOptions { Size = 1, AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10) });
                 }
@@ -96,6 +98,18 @@ internal sealed class ChatEngine(KnowledgeStore store, ChatStore chats, IKnowled
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { return previous; }
         catch (NpgsqlException) { return previous; }
     }
+
+    private async Task<ChatAnswer> VerifiedAsync(string question, ChatAnswer answer, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var verdict = await provider.VerifyAsync(question, answer.Answer, answer.Sources, cancellationToken);
+            return ChatPrompts.IsSupported(verdict) ? answer : new ChatAnswer(Absent, [], 0, answer.ConversationId);
+        }
+        catch (AiProviderException) { return answer; }
+    }
+
+    internal static bool IsFollowUp(string question) => FollowUp.IsMatch(question) || PronounOnly.IsMatch(question);
 
     private static string? SmallTalk(string question)
     {
@@ -145,7 +159,7 @@ internal sealed class ChatEngine(KnowledgeStore store, ChatStore chats, IKnowled
         {
             using var document = JsonDocument.Parse(json);
             var root = document.RootElement;
-            if (!root.TryGetProperty("evidence", out var evidence) || evidence.ValueKind != JsonValueKind.Array || evidence.GetArrayLength() > 3)
+            if (!root.TryGetProperty("evidence", out var evidence) || evidence.ValueKind != JsonValueKind.Array || evidence.GetArrayLength() > 4)
                 throw new AiProviderException("invalid_evidence");
             if (evidence.GetArrayLength() == 0) return new ChatAnswer(Absent, [], 0, conversationId);
             if (!root.TryGetProperty("answer", out var answerElement) || answerElement.ValueKind != JsonValueKind.String)
@@ -203,9 +217,24 @@ internal sealed class ChatEngine(KnowledgeStore store, ChatStore chats, IKnowled
         var terms = Regex.Matches(SearchText(question), @"[\p{L}\p{N}]+")
             .Select(match => match.Value).Where(term => term.Length > 1 && !stopWords.Contains(term))
             .Select(term => term.StartsWith("ال", StringComparison.Ordinal) ? term[2..] : term).Where(term => term.Length > 1).Distinct().ToArray();
-        return hits.Where(hit => hit.Similarity >= 0.25)
-            .OrderByDescending(hit => hit.Similarity + (terms.Length == 0 ? 0 : 0.12 * terms.Count(term => SearchText(hit.Content).Contains(term, StringComparison.Ordinal)) / terms.Length))
-            .Take(6).ToArray();
+        var candidates = hits.Where(hit => hit.Similarity >= 0.25).ToArray();
+        if (candidates.Length == 0) return [];
+        var cutoff = Math.Max(0.25, candidates.Max(hit => hit.Similarity) - 0.12);
+        candidates = candidates.Where(hit => hit.Similarity >= cutoff).ToArray();
+        var texts = candidates.Select(hit => SearchText(hit.Content)).ToArray();
+        var weights = terms.Select(term => 1.0 / (1 + texts.Count(text => text.Contains(term, StringComparison.Ordinal)))).ToArray();
+        var totalWeight = weights.Sum();
+        return candidates
+            .Select((hit, index) => new
+            {
+                hit,
+                score = hit.Similarity + (totalWeight == 0 ? 0
+                    : 0.12 * terms.Select((term, termIndex) => texts[index].Contains(term, StringComparison.Ordinal) ? weights[termIndex] : 0).Sum() / totalWeight)
+            })
+            .OrderByDescending(value => value.score)
+            .Take(8)
+            .Select(value => value.hit)
+            .ToArray();
     }
 
     private static string SearchText(string text) => Regex.Replace(Normalize(text), "[\u064b-\u065f\u0670]", "").Replace('أ', 'ا').Replace('إ', 'ا').Replace('آ', 'ا').Replace('ى', 'ي');

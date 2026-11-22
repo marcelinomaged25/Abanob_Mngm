@@ -37,8 +37,14 @@ internal sealed class OpenAiChatProvider : IChatCompletion
 
     public async Task<string> SelectEvidenceAsync(string question, IReadOnlyList<KnowledgeHit> hits, bool advanced, string conversation, CancellationToken cancellationToken)
     {
-        var content = await CompleteAsync(advanced ? advancedModel : chatModel, 0, 2200, ChatPrompts.EvidenceInstruction,
+        var content = await CompleteAsync(advanced ? advancedModel : chatModel, 0.2, 2200, ChatPrompts.EvidenceInstruction,
             ChatPrompts.EvidencePayload(question, hits, conversation), cancellationToken);
+        return ChatPrompts.ExtractJson(content);
+    }
+
+    public async Task<string> VerifyAsync(string question, string answer, IReadOnlyList<ChatCitation> sources, CancellationToken cancellationToken)
+    {
+        var content = await CompleteAsync(chatModel, 0, 64, ChatPrompts.VerifyInstruction, ChatPrompts.VerifyPayload(question, answer, sources), cancellationToken, 20);
         return ChatPrompts.ExtractJson(content);
     }
 
@@ -65,11 +71,11 @@ internal sealed class OpenAiChatProvider : IChatCompletion
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { return false; }
     }
 
-    private async Task<string> CompleteAsync(string model, double temperature, int maxTokens, string instruction, string payload, CancellationToken cancellationToken)
+    private async Task<string> CompleteAsync(string model, double temperature, int maxTokens, string instruction, string payload, CancellationToken cancellationToken, int timeoutSeconds = 45)
     {
         if (!IsConfigured) throw new AiProviderException("provider_not_configured");
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(TimeSpan.FromSeconds(45));
+        deadline.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, $"{endpoint}/chat/completions");
