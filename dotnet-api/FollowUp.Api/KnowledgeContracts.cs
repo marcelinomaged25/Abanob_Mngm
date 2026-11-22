@@ -8,7 +8,8 @@ internal interface IAiProvider
     int Dimensions { get; }
     bool IsConfigured { get; }
     Task<float[][]> EmbedAsync(IReadOnlyList<string> texts, bool query, CancellationToken cancellationToken);
-    Task<string> SelectEvidenceAsync(string question, IReadOnlyList<KnowledgeHit> hits, bool advanced, CancellationToken cancellationToken);
+    Task<string> SelectEvidenceAsync(string question, IReadOnlyList<KnowledgeHit> hits, bool advanced, string conversation, CancellationToken cancellationToken);
+    Task<string> SummarizeAsync(string previousSummary, string transcript, CancellationToken cancellationToken);
     Task<bool> CheckAsync(CancellationToken cancellationToken);
 }
 

@@ -137,7 +137,7 @@ internal static class KnowledgeEndpoints
     {
         if (metadata.Title?.Trim().Length > 300) return "Title is too long (maximum 300 characters).";
         if (metadata.PermissionNote?.Trim().Length > 4000) return "Permission note is too long (maximum 4000 characters).";
-        if (!(new[] { "الكتاب المقدس", "الطقوس", "العقيدة", "التفاسير", "الألحان", "اللغة القبطية", "كتب أخرى" }).Contains(metadata.Category?.Trim())) return "Choose a supported source category.";
+        if (!(new[] { "الكتاب المقدس", "الطقوس", "العقيدة", "التفاسير", "الألحان", "اللغة القبطية", "القديسون", "تاريخ الكنيسة", "كتب أخرى" }).Contains(metadata.Category?.Trim())) return "Choose a supported source category.";
         if (metadata.Author?.Length > 300) return "Author is too long.";
         if (new[] { metadata.Title, metadata.Category, metadata.Author, metadata.PermissionNote }.Any(value => value?.Contains('\0') == true)) return "Metadata cannot contain NUL characters.";
         return null;

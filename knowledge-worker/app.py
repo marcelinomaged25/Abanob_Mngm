@@ -334,7 +334,7 @@ def _emit_page(pipe: Connection, number: int, text: str, needs_ocr: bool, trunca
     })
 
 
-def _extract_job(pipe: Connection, pdf_path: str, directory: str, ocr: bool, tesseract: str | None) -> None:
+def _extract_job(pipe: Connection, pdf_path: str, directory: str, ocr: bool, tesseract: str | None, start_page: int | None, end_page: int | None) -> None:
     """No threads/queues: bounded progress frames are drained before joining."""
     started = time.monotonic()
     try:
@@ -364,16 +364,22 @@ def _extract_job(pipe: Connection, pdf_path: str, directory: str, ocr: bool, tes
                 doc.close()
                 _send(pipe, {"type": "error", "status": 413, "detail": "PDF exceeds 500 pages"})
                 return
+            start = start_page or 1
+            end = min(end_page or count, count)
+            if start < 1 or start > count or end < start:
+                doc.close()
+                _send(pipe, {"type": "error", "status": 400, "detail": "Invalid page range"})
+                return
         except Exception:
             _send(pipe, {"type": "error", "status": 400, "detail": "Invalid or encrypted PDF"})
             return
-        _send(pipe, {"type": "opened", "pageCount": count})
+        _send(pipe, {"type": "opened", "pageCount": count, "startPage": start, "endPage": end})
         budget = TEXT_BUDGET
         pending = []
         with doc:
             # Native pass completes before any expensive OCR: preserve later native
             # pages even when an early scanned page times out during Tesseract.
-            for index in range(count):
+            for index in range(start - 1, end):
                 if time.monotonic() - started >= EXTRACTION_TIMEOUT:
                     break
                 number = index + 1
@@ -454,6 +460,8 @@ def _extract_job(pipe: Connection, pdf_path: str, directory: str, ocr: bool, tes
 class _Progress:
     def __init__(self) -> None:
         self.count: int | None = None
+        self.start = 1
+        self.end = 0
         self.pages: dict[int, str] = {}
         self.failed: set[int] = set()
         self.needs_ocr: set[int] = set()
@@ -479,13 +487,19 @@ class _Progress:
         kind = event["type"]
         if kind == "opened":
             count = event["pageCount"]
-            if not isinstance(count, int) or not 1 <= count <= MAX_PAGES or self.count is not None:
-                raise ValueError("Invalid worker page count")
-            self.count = count
-            self.failed = set(range(1, count + 1))
+            start = event.get("startPage", 1)
+            end = event.get("endPage", count)
+            if (
+                not isinstance(count, int) or not 1 <= count <= MAX_PAGES
+                or not isinstance(start, int) or not isinstance(end, int)
+                or not 1 <= start <= end <= count or self.count is not None
+            ):
+                raise ValueError("Invalid worker page range")
+            self.count, self.start, self.end = count, start, end
+            self.failed = set(range(start, end + 1))
             return
         number = event.get("pageNumber")
-        if self.count is None or not isinstance(number, int) or not 1 <= number <= self.count:
+        if self.count is None or not isinstance(number, int) or not self.start <= number <= self.end:
             raise ValueError("Invalid worker page number")
         if kind == "page_started":
             if self.number is not None or event.get("phase") not in {"native", "ocr"}:
@@ -527,6 +541,7 @@ class _Progress:
             "pages": [{"pageNumber": number, "text": text} for number, text in sorted(self.pages.items())],
             "failedPages": sorted(self.failed),
             "requiresOcr": bool(self.needs_ocr),
+            "pageCount": self.count,
         }
         response = JSONResponse(payload)
         if len(response.body) > MAX_OUTPUT_BYTES:
@@ -541,12 +556,12 @@ async def _disconnect(request: Request) -> None:
             return
 
 
-async def _run_job(request: Request, path: Path, directory: str) -> JSONResponse:
+async def _run_job(request: Request, path: Path, directory: str, start_page: int | None, end_page: int | None) -> JSONResponse:
     context = mp.get_context("spawn")
     parent, child = context.Pipe(duplex=True)
     process = context.Process(
         target=_extract_job,
-        args=(child, str(path), directory, request.app.state.ocr_enabled, request.app.state.tesseract),
+        args=(child, str(path), directory, request.app.state.ocr_enabled, request.app.state.tesseract, start_page, end_page),
         daemon=False,
     )
     progress = _Progress()
@@ -637,6 +652,18 @@ async def _run_job(request: Request, path: Path, directory: str) -> JSONResponse
         child.close()
 
 
+def _page_field(fields: list[tuple[str, Any]], name: str) -> int | None:
+    values = [value for field, value in fields if field == name]
+    if not values:
+        return None
+    if len(values) != 1 or not isinstance(values[0], str) or not values[0].isascii() or not values[0].isdigit():
+        raise HTTPException(400, f"Invalid {name}")
+    number = int(values[0])
+    if not 1 <= number <= MAX_PAGES:
+        raise HTTPException(400, f"Invalid {name}")
+    return number
+
+
 @app.post("/extract")
 async def extract(request: Request) -> JSONResponse:
     if request.query_params:
@@ -645,11 +672,18 @@ async def extract(request: Request) -> JSONResponse:
     if content_type != "multipart/form-data":
         raise HTTPException(415, "Expected multipart/form-data with one PDF file")
     try:
-        async with request.form(max_files=1, max_fields=0, max_part_size=MAX_UPLOAD_BYTES) as form:
+        async with request.form(max_files=1, max_fields=2, max_part_size=MAX_UPLOAD_BYTES) as form:
             fields = list(form.multi_items())
-            if len(fields) != 1 or fields[0][0] != "file" or not isinstance(fields[0][1], UploadFile):
+            if any(field not in {"file", "startPage", "endPage"} for field, _ in fields):
+                raise HTTPException(400, "Unknown multipart field")
+            uploads = [value for field, value in fields if field == "file"]
+            if len(uploads) != 1 or not isinstance(uploads[0], UploadFile):
                 raise HTTPException(400, "Supply exactly one multipart file named file")
-            upload = fields[0][1]
+            start_page = _page_field(fields, "startPage")
+            end_page = _page_field(fields, "endPage")
+            if start_page is not None and end_page is not None and end_page < start_page:
+                raise HTTPException(400, "Invalid page range")
+            upload = uploads[0]
             mime = (upload.content_type or "").split(";", 1)[0].strip().lower()
             if mime != "application/pdf":
                 raise HTTPException(415, "File MIME type must be application/pdf")
@@ -666,7 +700,7 @@ async def extract(request: Request) -> JSONResponse:
                         output.write(chunk)
                 if size == 0:
                     raise HTTPException(400, "Empty PDF upload")
-                return await _run_job(request, path, directory)
+                return await _run_job(request, path, directory, start_page, end_page)
     except HTTPException:
         raise
     except StarletteHTTPException as exc:

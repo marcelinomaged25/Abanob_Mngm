@@ -185,26 +185,85 @@ internal sealed class KnowledgeIngestionWorker : BackgroundService
         await store.SaveBatchAsync(lease, batch, vectors, profile, dimensions, ct);
     }
 
+    private sealed record OcrBatchResult(int PageCount, IReadOnlyList<KnowledgePage> Pages, int[] FailedPages, bool RequiresOcr);
+
     private async Task<KnowledgeExtraction> ExtractPdfAsync(KnowledgeLease lease, CancellationToken ct)
     {
         var configuredUrl = configuration["KNOWLEDGE_OCR_URL"]?.Trim();
         if (string.IsNullOrWhiteSpace(configuredUrl))
             return new KnowledgeExtraction([], [], true, "PDF extraction is unavailable: configure KNOWLEDGE_OCR_URL and KNOWLEDGE_OCR_SECRET, then requeue. No pages have been indexed.");
+        if (!configuredUrl.Contains("://", StringComparison.Ordinal)) configuredUrl = "https://" + configuredUrl;
         if (!Uri.TryCreate(configuredUrl, UriKind.Absolute, out var baseUri) || baseUri.Scheme is not ("http" or "https") || !string.IsNullOrEmpty(baseUri.UserInfo) || !string.IsNullOrEmpty(baseUri.Query) || !string.IsNullOrEmpty(baseUri.Fragment))
             throw new InvalidDataException("KNOWLEDGE_OCR_URL must be an HTTP(S) service URL without embedded credentials, query, or fragment.");
         var secret = configuration["KNOWLEDGE_OCR_SECRET"];
         if (string.IsNullOrWhiteSpace(secret))
             return new KnowledgeExtraction([], [], true, "PDF extraction is unavailable: KNOWLEDGE_OCR_SECRET is not configured. No pages have been indexed.");
         var endpoint = new Uri(baseUri.AbsoluteUri.TrimEnd('/') + (baseUri.AbsolutePath.TrimEnd('/').EndsWith("/extract", StringComparison.Ordinal) ? "" : "/extract"));
+        var batchPages = int.TryParse(configuration["KNOWLEDGE_OCR_BATCH_PAGES"], out var configuredBatch) ? Math.Clamp(configuredBatch, 3, 60) : 12;
+        var seconds = int.TryParse(configuration["KNOWLEDGE_OCR_TIMEOUT_SECONDS"], out var configuredSeconds) ? Math.Clamp(configuredSeconds, 20, 180) : 110;
+        var pages = new SortedDictionary<int, string>();
+        var failed = new SortedSet<int>();
+        var total = 0;
+        var requiresOcr = false;
+        var pageCount = 0;
+        for (var start = 1; pageCount == 0 || start <= pageCount;)
+        {
+            var end = pageCount == 0 ? batchPages : Math.Min(start + batchPages - 1, pageCount);
+            var batch = await ExtractPdfBatchAsync(lease, endpoint, secret, start, end, seconds, ct);
+            if (batch.PageCount < 1 || batch.PageCount > MaxPages) throw new InvalidDataException("The OCR service reported an invalid page count.");
+            if (pageCount == 0) pageCount = batch.PageCount;
+            else if (pageCount != batch.PageCount) throw new InvalidDataException("The OCR service changed the PDF page count during extraction.");
+            foreach (var page in batch.Pages)
+            {
+                if (page.PageNumber < start || page.PageNumber > end) throw new InvalidDataException("The OCR service returned pages outside the requested range.");
+                if (pages.ContainsKey(page.PageNumber)) { failed.Add(page.PageNumber); continue; }
+                if (!UsableText(page.Text)) { failed.Add(page.PageNumber); continue; }
+                total += page.Text.Length;
+                if (total > MaxExtractedChars || pages.Count >= MaxPages) throw new InvalidDataException("OCR extraction exceeds the safe page/text limit.");
+                pages.Add(page.PageNumber, page.Text);
+            }
+            foreach (var number in batch.FailedPages)
+                if (number >= 1 && number <= pageCount) failed.Add(number);
+            requiresOcr |= batch.RequiresOcr;
+            if (end >= pageCount) break;
+            start = end + 1;
+        }
+        for (var number = 1; number <= pageCount; number++)
+            if (!pages.ContainsKey(number) && !failed.Contains(number)) failed.Add(number);
+        if (failed.Count > MaxPages) throw new InvalidDataException("OCR extraction exceeds the safe failed-page limit.");
+        return new KnowledgeExtraction(pages.Select(page => new KnowledgePage(page.Key, page.Value)).ToArray(), failed.ToArray(), requiresOcr,
+            failed.Count > 0 ? "Some PDF pages failed extraction; this source is not searchable until all failed pages are recovered." :
+            requiresOcr ? "The extraction service reports that OCR is still required; this source is not searchable." : null);
+    }
+
+    private async Task<OcrBatchResult> ExtractPdfBatchAsync(KnowledgeLease lease, Uri endpoint, string secret, int start, int end, int seconds, CancellationToken ct)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                return await SendOcrBatchAsync(lease, endpoint, secret, start, end, seconds, ct);
+            }
+            catch (Exception error) when (attempt < 2 && !ct.IsCancellationRequested &&
+                (error is OperationCanceledException || error is HttpRequestException { StatusCode: null or System.Net.HttpStatusCode.TooManyRequests or System.Net.HttpStatusCode.RequestTimeout or System.Net.HttpStatusCode.BadGateway or System.Net.HttpStatusCode.ServiceUnavailable or System.Net.HttpStatusCode.GatewayTimeout }))
+            {
+                await Task.Delay(TimeSpan.FromSeconds(2 + attempt * 2), ct);
+            }
+        }
+    }
+
+    private async Task<OcrBatchResult> SendOcrBatchAsync(KnowledgeLease lease, Uri endpoint, string secret, int start, int end, int seconds, CancellationToken ct)
+    {
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
         request.Headers.Add("X-Worker-Secret", secret);
         using var multipart = new MultipartFormDataContent();
         using var file = new ByteArrayContent(lease.Bytes);
         file.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
-        multipart.Add(file, "file", lease.FileName);
+        multipart.Add(file, "file", "source.pdf");
+        multipart.Add(new StringContent(start.ToString(System.Globalization.CultureInfo.InvariantCulture)), "startPage");
+        multipart.Add(new StringContent(end.ToString(System.Globalization.CultureInfo.InvariantCulture)), "endPage");
         request.Content = multipart;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var seconds = int.TryParse(configuration["KNOWLEDGE_OCR_TIMEOUT_SECONDS"], out var configuredSeconds) ? Math.Clamp(configuredSeconds, 10, 180) : 120;
         timeout.CancelAfter(TimeSpan.FromSeconds(seconds));
         using var response = await ocrClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
         response.EnsureSuccessStatusCode();
@@ -214,10 +273,11 @@ internal sealed class KnowledgeIngestionWorker : BackgroundService
         var root = document.RootElement;
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("pages", out var pageArray) || pageArray.ValueKind != JsonValueKind.Array ||
             !root.TryGetProperty("failedPages", out var failures) || failures.ValueKind != JsonValueKind.Array ||
-            !root.TryGetProperty("requiresOcr", out var needsOcr) || needsOcr.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
-            throw new InvalidDataException("OCR response must contain pages, failedPages, and requiresOcr.");
-        var pages = new SortedDictionary<int, string>();
-        var failed = new SortedSet<int>();
+            !root.TryGetProperty("requiresOcr", out var needsOcr) || needsOcr.ValueKind is not (JsonValueKind.True or JsonValueKind.False) ||
+            !root.TryGetProperty("pageCount", out var countValue) || !countValue.TryGetInt32(out var pageCount))
+            throw new InvalidDataException("OCR response must contain pages, failedPages, requiresOcr, and pageCount.");
+        var pages = new List<KnowledgePage>();
+        var failed = new List<int>();
         foreach (var failure in failures.EnumerateArray())
         {
             if (!failure.TryGetInt32(out var number) || number <= 0) throw new InvalidDataException("OCR failedPages must contain positive page numbers.");
@@ -227,20 +287,15 @@ internal sealed class KnowledgeIngestionWorker : BackgroundService
         foreach (var page in pageArray.EnumerateArray())
         {
             ct.ThrowIfCancellationRequested();
-            if (page.ValueKind != JsonValueKind.Object || !page.TryGetProperty("pageNumber", out var numberValue) || !numberValue.TryGetInt32(out var number) || number <= 0 ||
+            if (page.ValueKind != JsonValueKind.Object || !page.TryGetProperty("pageNumber", out var numberValue) || !numberValue.TryGetInt32(out var number) || number < start || number > end ||
                 !page.TryGetProperty("text", out var textValue) || textValue.ValueKind != JsonValueKind.String)
-                throw new InvalidDataException("OCR pages must have a positive pageNumber and text.");
+                throw new InvalidDataException("OCR pages must have a pageNumber inside the requested range and text.");
             var text = Normalize(textValue.GetString()!);
-            if (pages.ContainsKey(number)) { failed.Add(number); continue; }
-            if (!UsableText(text)) { failed.Add(number); continue; }
             total += text.Length;
-            if (total > MaxExtractedChars || pages.Count >= MaxPages) throw new InvalidDataException("OCR extraction exceeds the safe page/text limit.");
-            pages.Add(number, text);
+            if (total > MaxExtractedChars) throw new InvalidDataException("OCR extraction exceeds the safe text limit.");
+            pages.Add(new KnowledgePage(number, text));
         }
-        if (failed.Count > MaxPages) throw new InvalidDataException("OCR extraction exceeds the safe failed-page limit.");
-        return new KnowledgeExtraction(pages.Select(page => new KnowledgePage(page.Key, page.Value)).ToArray(), failed.ToArray(), needsOcr.GetBoolean(),
-            failed.Count > 0 ? "Some PDF pages failed extraction; this source is not searchable until all failed pages are recovered." :
-            needsOcr.GetBoolean() ? "The extraction service reports that OCR is still required; this source is not searchable." : null);
+        return new OcrBatchResult(pageCount, pages, failed.ToArray(), needsOcr.GetBoolean());
     }
 
     internal static KnowledgeExtraction ParseJsonl(string text, CancellationToken ct)

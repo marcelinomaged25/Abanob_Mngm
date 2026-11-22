@@ -24,6 +24,7 @@ builder.Services.AddSingleton<IAiProvider, GeminiAiProvider>();
 builder.Services.AddSingleton<KnowledgeStore>();
 builder.Services.AddSingleton<IKnowledgeVectorStore>(services => services.GetRequiredService<KnowledgeStore>());
 builder.Services.AddSingleton<ChatSecurity>();
+builder.Services.AddSingleton<ChatStore>();
 builder.Services.AddSingleton<ChatEngine>();
 builder.Services.AddHostedService<KnowledgeIngestionWorker>();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -82,6 +83,7 @@ await using (var transaction = await connection.BeginTransactionAsync())
 
 await KnowledgeEndpoints.InitializeAsync(dataSource);
 await ChatSecurity.InitializeAsync(dataSource);
+await ChatStore.InitializeAsync(dataSource);
 ChatEndpoints.Map(app);
 app.MapGet("/health", async (NpgsqlDataSource db, CancellationToken cancellationToken) =>
 {

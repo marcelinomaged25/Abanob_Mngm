@@ -4,6 +4,8 @@ import {
   ArrowRight,
   BookOpen,
   ChevronDown,
+  History,
+  Plus,
   RefreshCw,
   Send,
   ShieldCheck,
@@ -13,10 +15,10 @@ import {
 import "./knowledge.css";
 
 const SAMPLE_QUESTIONS = [
-  "ما هي رتب الشمامسة؟",
+  "من هو مارمرقس؟",
+  "ما هي أسرار الكنيسة السبعة؟",
   "ما معنى الإبصالتس؟",
-  "ما الزيوت المستخدمة في المعمودية؟",
-  "ما وظيفة الإيبوذياكون؟",
+  "لماذا نصوم؟",
 ];
 const textValue = (value) => (typeof value === "string" || typeof value === "number" ? String(value) : "");
 const normalizedCode = (value) =>
@@ -24,6 +26,17 @@ const normalizedCode = (value) =>
     .replace(/([a-z])([A-Z])/g, "$1_$2")
     .replace(/[\s-]+/g, "_")
     .toUpperCase();
+const formatDate = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("ar-EG", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+};
 
 async function readChatResponse(response) {
   const data = await response.json().catch(() => null);
@@ -104,12 +117,19 @@ function AnswerSources({ sources }) {
 export default function ChatPage({ apiUrl }) {
   const baseUrl = (apiUrl || "").replace(/\/+$/, "");
   const storageKey = `ritual-chat-session:${baseUrl || "same-origin"}`;
+  const lastKey = `ritual-chat-last:${baseUrl || "same-origin"}`;
   const questionId = useId();
   const helpId = useId();
   const validationId = useId();
+  const historyId = useId();
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
+  const [summary, setSummary] = useState("");
+  const [conversations, setConversations] = useState([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [restoringId, setRestoringId] = useState("");
   const [loading, setLoading] = useState(false);
   const [validation, setValidation] = useState("");
   const [failedRequest, setFailedRequest] = useState(null);
@@ -117,18 +137,32 @@ export default function ChatPage({ apiUrl }) {
   const sessionRef = useRef("");
   const askController = useRef(null);
   const healthController = useRef(null);
+  const historyController = useRef(null);
   const requestVersion = useRef(0);
   const busyRef = useRef(false);
   const nextMessageId = useRef(0);
   const logRef = useRef(null);
   const questionRef = useRef(null);
 
+  const rememberSession = useCallback(
+    (token) => {
+      sessionRef.current = token;
+      try {
+        if (token) localStorage.setItem(storageKey, token);
+        else localStorage.removeItem(storageKey);
+      } catch {
+        /* The current mount still has an in-memory session. */
+      }
+    },
+    [storageKey],
+  );
+
   const checkHealth = useCallback(async () => {
     healthController.current?.abort();
     const controller = new AbortController();
     healthController.current = controller;
     if (typeof navigator !== "undefined" && !navigator.onLine) {
-      setHealth({ kind: "offline", message: "أنت غير متصل بالإنترنت. ستظل المحادثة الحالية ظاهرة هنا." });
+      setHealth({ kind: "offline", message: "أنت غير متصل بالإنترنت. ستظل المحادثة المحفوظة ظاهرة هنا." });
       return;
     }
     setHealth({ kind: "checking", message: "جارٍ التحقق من اتصال الخدمة…" });
@@ -168,10 +202,162 @@ export default function ChatPage({ apiUrl }) {
     }
   }, [baseUrl]);
 
+  const loadHistory = useCallback(
+    async ({ silent = false } = {}) => {
+      if (!sessionRef.current) return;
+      historyController.current?.abort();
+      const controller = new AbortController();
+      historyController.current = controller;
+      if (!silent) setHistoryLoading(true);
+      try {
+        const response = await fetch(`${baseUrl}/api/chat/conversations`, {
+          credentials: "omit",
+          cache: "no-store",
+          signal: controller.signal,
+          headers: { "X-Chat-Session": sessionRef.current },
+        });
+        const data = await readChatResponse(response);
+        if (controller.signal.aborted) return;
+        setConversations(
+          Array.isArray(data.conversations)
+            ? data.conversations.filter((item) => item && item.conversationId)
+            : [],
+        );
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        if (error.status === 401) rememberSession("");
+      } finally {
+        if (!controller.signal.aborted) setHistoryLoading(false);
+      }
+    },
+    [baseUrl, rememberSession],
+  );
+
+  const startNewConversation = useCallback(() => {
+    requestVersion.current += 1;
+    askController.current?.abort();
+    busyRef.current = false;
+    setLoading(false);
+    setMessages([]);
+    setConversationId(null);
+    setSummary("");
+    setFailedRequest(null);
+    setQuestion("");
+    setValidation("");
+    setHistoryOpen(false);
+    setRestoringId("");
+    try {
+      localStorage.removeItem(lastKey);
+    } catch {
+      /* Last conversation id is optional. */
+    }
+    questionRef.current?.focus();
+  }, [lastKey]);
+
+  const openConversation = useCallback(
+    async (id) => {
+      if (!id || busyRef.current || !sessionRef.current) return;
+      const version = ++requestVersion.current;
+      askController.current?.abort();
+      busyRef.current = false;
+      setLoading(false);
+      setFailedRequest(null);
+      setValidation("");
+      setQuestion("");
+      setRestoringId(id);
+      try {
+        const response = await fetch(`${baseUrl}/api/chat/conversations/${encodeURIComponent(id)}`, {
+          credentials: "omit",
+          cache: "no-store",
+          headers: { "X-Chat-Session": sessionRef.current },
+        });
+        if (response.status === 404) {
+          try {
+            localStorage.removeItem(lastKey);
+          } catch {
+            /* Stale id is harmless. */
+          }
+          return;
+        }
+        const data = await response.json().catch(() => null);
+        if (response.status === 401) {
+          rememberSession("");
+          return;
+        }
+        if (!response.ok) throw new Error(textValue(data?.message) || "تعذر تحميل المحادثة.");
+        const conversation = data?.conversation;
+        if (!conversation || !Array.isArray(conversation.messages))
+          throw new Error("وصلت محادثة غير مكتملة من الخدمة.");
+        if (requestVersion.current !== version) return;
+        const restoredId = textValue(conversation.conversationId) || id;
+        setConversationId(restoredId);
+        setSummary(textValue(conversation.summary));
+        setMessages(
+          conversation.messages
+            .filter((message) => message && (message.role === "user" || message.role === "assistant"))
+            .map((message) => ({
+              id: ++nextMessageId.current,
+              role: message.role,
+              text: textValue(message.text),
+              sources: Array.isArray(message.sources) ? message.sources : [],
+              confidence: message.confidence,
+            })),
+        );
+        try {
+          localStorage.setItem(lastKey, restoredId);
+        } catch {
+          /* Restore still works for this mount. */
+        }
+        setHistoryOpen(false);
+        questionRef.current?.focus();
+      } catch (error) {
+        if (requestVersion.current !== version) return;
+        setHealth({ kind: "warning", message: error.message || "تعذر تحميل المحادثة. حاول مرة أخرى." });
+      } finally {
+        if (requestVersion.current === version) setRestoringId("");
+      }
+    },
+    [baseUrl, lastKey, rememberSession],
+  );
+
+  const deleteConversation = async (id, event) => {
+    event.stopPropagation();
+    if (!id || loading) return;
+    if (typeof window !== "undefined" && !window.confirm("تحذف المحادثة دي؟ لا يمكن الرجوع بعد الحذف."))
+      return;
+    try {
+      const response = await fetch(`${baseUrl}/api/chat/conversations/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        credentials: "omit",
+        headers: { "X-Chat-Session": sessionRef.current },
+      });
+      if (response.status === 401) {
+        rememberSession("");
+        return;
+      }
+      if (!response.ok && response.status !== 404) {
+        const data = await response.json().catch(() => null);
+        throw new Error(textValue(data?.message) || "تعذر حذف المحادثة.");
+      }
+      setConversations((current) => current.filter((item) => item.conversationId !== id));
+      if (conversationId === id) startNewConversation();
+      try {
+        if (localStorage.getItem(lastKey) === id) localStorage.removeItem(lastKey);
+      } catch {
+        /* No local id to clear. */
+      }
+    } catch (error) {
+      setHealth({ kind: "warning", message: error.message || "تعذر حذف المحادثة. حاول مرة أخرى." });
+    }
+  };
+
   useEffect(() => {
     sessionRef.current = "";
     try {
-      sessionRef.current = sessionStorage.getItem(storageKey) || "";
+      sessionRef.current = localStorage.getItem(storageKey) || sessionStorage.getItem(storageKey) || "";
+      if (sessionRef.current && !localStorage.getItem(storageKey))
+        localStorage.setItem(storageKey, sessionRef.current);
+      sessionStorage.removeItem(storageKey);
     } catch {
       /* Storage may be unavailable; retain the token in memory. */
     }
@@ -182,11 +368,25 @@ export default function ChatPage({ apiUrl }) {
     setValidation("");
     setMessages([]);
     setConversationId(null);
+    setSummary("");
+    setConversations([]);
+    setHistoryOpen(false);
+    setRestoringId("");
     setFailedRequest(null);
     checkHealth();
+    let last = "";
+    try {
+      last = localStorage.getItem(lastKey) || "";
+    } catch {
+      /* No saved conversation id. */
+    }
+    if (sessionRef.current) {
+      loadHistory();
+      if (last) openConversation(last);
+    }
     const offline = () => {
       healthController.current?.abort();
-      setHealth({ kind: "offline", message: "انقطع اتصال الإنترنت. احتفظنا بالمحادثة الحالية هنا." });
+      setHealth({ kind: "offline", message: "انقطع اتصال الإنترنت. احتفظنا بالمحادثة المحفوظة هنا." });
     };
     window.addEventListener("online", checkHealth);
     window.addEventListener("offline", offline);
@@ -194,29 +394,20 @@ export default function ChatPage({ apiUrl }) {
       requestVersion.current += 1;
       askController.current?.abort();
       healthController.current?.abort();
+      historyController.current?.abort();
       window.removeEventListener("online", checkHealth);
       window.removeEventListener("offline", offline);
     };
-  }, [storageKey, checkHealth]);
+  }, [storageKey, lastKey, checkHealth, openConversation, loadHistory]);
 
   useEffect(() => {
     const log = logRef.current;
     if (!log) return;
-    log.scrollTo({ top: messages.length || loading ? log.scrollHeight : 0, behavior: "auto" });
-  }, [messages, loading]);
-
-  const rememberSession = (token) => {
-    sessionRef.current = token;
-    try {
-      if (token) sessionStorage.setItem(storageKey, token);
-      else sessionStorage.removeItem(storageKey);
-    } catch {
-      /* The current mount still has an in-memory session. */
-    }
-  };
+    log.scrollTo({ top: messages.length || loading || restoringId ? log.scrollHeight : 0, behavior: "auto" });
+  }, [messages, loading, restoringId, summary]);
 
   const sendQuestion = async (rawQuestion, retry = null) => {
-    if (busyRef.current) return;
+    if (busyRef.current || restoringId) return;
     const cleanQuestion = rawQuestion.trim();
     if (!cleanQuestion || rawQuestion.length > 1000 || /[<>]/.test(rawQuestion)) {
       setValidation(
@@ -292,8 +483,15 @@ export default function ChatPage({ apiUrl }) {
       if (typeof data.answer !== "string" || !data.answer.trim() || !Array.isArray(data.sources))
         throw new Error("وصل رد غير مكتمل من الخدمة. لم تُعرض أي إجابة.");
       if (requestVersion.current !== version || controller.signal.aborted) return;
-      if (typeof data.conversationId === "string" && data.conversationId)
+      if (typeof data.conversationId === "string" && data.conversationId) {
         setConversationId(data.conversationId);
+        try {
+          localStorage.setItem(lastKey, data.conversationId);
+        } catch {
+          /* Restore after reload is optional. */
+        }
+      }
+      setSummary(typeof data.summary === "string" ? data.summary : "");
       setMessages((current) => [
         ...current,
         {
@@ -301,9 +499,10 @@ export default function ChatPage({ apiUrl }) {
           role: "assistant",
           text: data.answer,
           sources: data.sources,
-          confidence: textValue(data.confidence),
+          confidence: data.confidence,
         },
       ]);
+      loadHistory({ silent: true });
       questionRef.current?.focus();
     } catch (error) {
       if (requestVersion.current !== version || (controller.signal.aborted && !timedOut)) return;
@@ -322,19 +521,9 @@ export default function ChatPage({ apiUrl }) {
     }
   };
 
-  const clearConversation = () => {
-    requestVersion.current += 1;
-    askController.current?.abort();
-    busyRef.current = false;
-    setLoading(false);
-    setMessages([]);
-    setConversationId(null);
-    setFailedRequest(null);
-    setQuestion("");
-    setValidation("");
-    questionRef.current?.focus();
-    // Local reset only: the public page never deletes server-side conversations or sources.
-  };
+  const hasConversation = Boolean(messages.length || summary || conversationId);
+  const activeConversation = conversationId;
+  const busy = loading || Boolean(restoringId);
 
   return (
     <main className="ritual-chat-page" dir="rtl" lang="ar">
@@ -348,8 +537,8 @@ export default function ChatPage({ apiUrl }) {
               <BookOpen size={27} aria-hidden="true" />
             </span>
             <div>
-              <p className="ritual-chat-kicker">معرفة كنسية من المصادر المتاحة</p>
-              <h1>اسأل عن الطقس</h1>
+              <p className="ritual-chat-kicker">محادثة تعليمية من المصادر الكنسية</p>
+              <h1>اسأل عن الكنيسة</h1>
             </div>
           </div>
           <p className="ritual-chat-disclaimer">
@@ -378,21 +567,97 @@ export default function ChatPage({ apiUrl }) {
           </aside>
         )}
 
-        <section className="ritual-chat-panel" aria-label="محادثة اسأل عن الطقس">
-          <div className="ritual-chat-panel-heading">
-            <span>
-              <span className="ritual-chat-status-dot" aria-hidden="true" /> سؤال وجواب مع إحالات
-            </span>
-            <button
-              className="ritual-chat-text-button"
-              type="button"
-              onClick={clearConversation}
-              disabled={!messages.length && !loading}
-              aria-label="مسح المحادثة الحالية محليًا"
-            >
-              <Trash2 size={16} aria-hidden="true" /> مسح المحادثة
-            </button>
+        <section className="ritual-chat-panel" aria-label="محادثة اسأل عن الكنيسة">
+          <div className="ritual-chat-panel-bar">
+            <div className="ritual-chat-panel-heading">
+              <span>
+                <span className="ritual-chat-status-dot" aria-hidden="true" /> محادثة كنسية من المصادر
+              </span>
+              <div className="ritual-chat-panel-actions">
+                <button
+                  className={`ritual-chat-text-button${historyOpen ? " is-active" : ""}`}
+                  type="button"
+                  onClick={() => setHistoryOpen((open) => !open)}
+                  aria-expanded={historyOpen}
+                  aria-controls={historyId}
+                >
+                  <History size={16} aria-hidden="true" /> المحادثات
+                </button>
+                <button
+                  className="ritual-chat-text-button"
+                  type="button"
+                  onClick={startNewConversation}
+                  disabled={!hasConversation || busy}
+                >
+                  <Plus size={16} aria-hidden="true" /> جديدة
+                </button>
+              </div>
+            </div>
+
+            {historyOpen && (
+              <div
+                className="ritual-chat-history"
+                id={historyId}
+                role="region"
+                aria-label="المحادثات المحفوظة"
+              >
+                {historyLoading ? (
+                  <p className="ritual-chat-history-empty">جارٍ تحميل المحادثات…</p>
+                ) : !conversations.length ? (
+                  <p className="ritual-chat-history-empty">
+                    لسه مفيش محادثات محفوظة. أول سؤال هيتحفظ هنا تلقائيًا لحد ما تمسحه.
+                  </p>
+                ) : (
+                  <ul>
+                    {conversations.map((conversation) => {
+                      const id = textValue(conversation.conversationId);
+                      const title = textValue(conversation.title) || "محادثة كنسية";
+                      const preview = textValue(conversation.summary);
+                      return (
+                        <li className="ritual-chat-history-row" key={id}>
+                          <button
+                            className={`ritual-chat-history-item${id === activeConversation ? " is-active" : ""}`}
+                            type="button"
+                            onClick={() => openConversation(id)}
+                            disabled={busy}
+                          >
+                            <strong>{title}</strong>
+                            {preview && <span className="ritual-chat-history-preview">{preview}</span>}
+                            <small>
+                              {formatDate(conversation.updatedAt)}
+                              {Number(conversation.messageCount) > 0
+                                ? ` · ${conversation.messageCount} رسالة`
+                                : ""}
+                            </small>
+                          </button>
+                          <button
+                            className="ritual-chat-history-delete"
+                            type="button"
+                            onClick={(event) => deleteConversation(id, event)}
+                            disabled={busy}
+                            aria-label={`حذف ${title}`}
+                            title="حذف المحادثة"
+                          >
+                            <Trash2 size={14} aria-hidden="true" />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
+
+          {summary && (
+            <aside className="ritual-chat-summary" aria-label="ملخص المحادثة">
+              <span className="ritual-chat-summary-title">
+                <BookOpen size={15} aria-hidden="true" /> ملخص المحادثة
+              </span>
+              <p className="ritual-chat-plain-text">{summary}</p>
+            </aside>
+          )}
+
           <div
             className="ritual-chat-log"
             ref={logRef}
@@ -400,16 +665,21 @@ export default function ChatPage({ apiUrl }) {
             aria-label="رسائل المحادثة"
             aria-live="polite"
             aria-relevant="additions text"
-            aria-busy={loading}
+            aria-busy={busy}
             tabIndex={0}
           >
-            {!messages.length && !loading && (
+            {restoringId && !messages.length && (
+              <div className="ritual-chat-loading" role="status">
+                <RefreshCw className="ritual-chat-spin" size={18} aria-hidden="true" /> جارٍ تحميل المحادثة…
+              </div>
+            )}
+            {!messages.length && !loading && !restoringId && (
               <div className="ritual-chat-welcome">
                 <span className="ritual-chat-welcome-icon">
                   <BookOpen size={32} aria-hidden="true" />
                 </span>
-                <h2>ما الذي تريد أن تعرفه؟</h2>
-                <p>اسأل عن الطقوس والخدمة، وراجع المصدر المرفق مع الإجابة.</p>
+                <h2>تحب تعرف إيه النهارده؟</h2>
+                <p>اسأل عن الكتاب المقدس، أو القديسين، أو الطقس، أو الألحان، أو أي موضوع في الكنيسة.</p>
                 <div className="ritual-chat-samples">
                   {SAMPLE_QUESTIONS.map((sample) => (
                     <button
@@ -417,7 +687,7 @@ export default function ChatPage({ apiUrl }) {
                       type="button"
                       key={sample}
                       onClick={() => sendQuestion(sample)}
-                      disabled={loading}
+                      disabled={busy}
                     >
                       {sample}
                       <ArrowRight size={15} aria-hidden="true" />
@@ -433,7 +703,7 @@ export default function ChatPage({ apiUrl }) {
                 aria-label={message.role === "user" ? "سؤالك" : "رد الخدمة"}
               >
                 <p className="ritual-chat-message-label">
-                  {message.role === "user" ? "أنت" : "اسأل عن الطقس"}
+                  {message.role === "user" ? "أنت" : "اسأل عن الكنيسة"}
                 </p>
                 {message.failure ? (
                   <div className={`ritual-chat-failure ritual-chat-failure--${message.failure.kind}`}>
@@ -446,7 +716,7 @@ export default function ChatPage({ apiUrl }) {
                       <button
                         className="ritual-chat-button ritual-chat-button--secondary"
                         type="button"
-                        disabled={loading}
+                        disabled={busy}
                         onClick={() => sendQuestion(failedRequest.question, failedRequest)}
                       >
                         <RefreshCw size={16} aria-hidden="true" /> إعادة إرسال السؤال نفسه
@@ -458,10 +728,12 @@ export default function ChatPage({ apiUrl }) {
                     <p className="ritual-chat-plain-text">{message.text}</p>
                     {message.role === "assistant" && (
                       <>
-                        <AnswerSources sources={message.sources} />
-                        {message.confidence && (
+                        {Array.isArray(message.sources) && message.sources.length > 0 && (
+                          <AnswerSources sources={message.sources} />
+                        )}
+                        {Number(message.confidence) > 0 && (
                           <p className="ritual-chat-confidence">
-                            مؤشر الثقة من الخدمة: <bdi>{message.confidence}</bdi>
+                            مؤشر الثقة من الخدمة: <bdi>{textValue(message.confidence)}</bdi>
                           </p>
                         )}
                       </>
@@ -472,8 +744,8 @@ export default function ChatPage({ apiUrl }) {
             ))}
             {loading && (
               <div className="ritual-chat-loading" role="status">
-                <RefreshCw className="ritual-chat-spin" size={18} aria-hidden="true" /> جارٍ البحث في المصادر
-                وإعداد الإجابة…
+                <RefreshCw className="ritual-chat-spin" size={18} aria-hidden="true" /> بيدور في المصادر ويكتب
+                لك الإجابة…
               </div>
             )}
           </div>
@@ -494,10 +766,10 @@ export default function ChatPage({ apiUrl }) {
               maxLength={1000}
               rows={3}
               required
-              readOnly={loading}
+              readOnly={busy}
               aria-invalid={Boolean(validation)}
               aria-describedby={`${helpId}${validation ? ` ${validationId}` : ""}`}
-              placeholder="اكتب سؤالك عن الطقس أو الخدمة…"
+              placeholder="اكتب سؤالك في أي موضوع كنسي…"
               onChange={(event) => {
                 setQuestion(event.target.value);
                 setValidation("");
@@ -521,13 +793,15 @@ export default function ChatPage({ apiUrl }) {
                   <bdi>{question.length}/1000</bdi> حرف
                 </span>
               </p>
-              <button className="ritual-chat-button" type="submit" disabled={loading || !question.trim()}>
+              <button className="ritual-chat-button" type="submit" disabled={busy || !question.trim()}>
                 <Send size={17} aria-hidden="true" /> {loading ? "جارٍ الإرسال…" : "إرسال"}
               </button>
             </div>
           </form>
         </section>
-        <p className="ritual-chat-local-note">مسح المحادثة يمسح عرضها هنا فقط، ولا يحذف بيانات من الخادم.</p>
+        <p className="ritual-chat-local-note">
+          المحادثات بتتحفظ على الخادم وترجع لك من نفس المتصفح، وتقدر تحذف أي محادثة في أي وقت.
+        </p>
       </div>
     </main>
   );

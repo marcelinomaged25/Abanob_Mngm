@@ -213,7 +213,9 @@
   border-color: #e2d2a8;
   border-radius: 15px;
   background: linear-gradient(160deg, #fffdf7, #fbf1dc);
-  box-shadow: 0 12px 24px -18px #b18a37, inset 0 0 0 1px #ffffff;
+  box-shadow:
+    0 12px 24px -18px #b18a37,
+    inset 0 0 0 1px #ffffff;
   color: #8a6824;
 }
 .ritual-chat-heading h1 {
@@ -280,6 +282,11 @@
     0 24px 60px -40px #17365c73,
     0 2px 10px -6px #17365c24;
 }
+.ritual-chat-panel-bar {
+  position: relative;
+  flex-shrink: 0;
+  z-index: 5;
+}
 .ritual-chat-panel-heading {
   display: flex;
   align-items: center;
@@ -313,6 +320,142 @@
   background: #c79b3f;
   box-shadow: 0 0 0 2px #c79b3f26;
   animation: ritual-chat-pulse 2.6s ease-in-out infinite;
+}
+.ritual-chat-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+.ritual-chat-panel-actions .ritual-chat-text-button {
+  min-height: 38px;
+  padding: 4px 8px;
+  font-size: 11.5px;
+}
+.ritual-chat-text-button.is-active {
+  border-color: #dbe5f0;
+  background: #eef3fa;
+  color: #17365c;
+}
+.ritual-chat-history {
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  z-index: 6;
+  max-height: min(52vh, 360px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 10px 12px;
+  border-bottom: 1px solid #dbe4ef;
+  border-radius: 0 0 16px 16px;
+  background: #f8fafd;
+  box-shadow:
+    0 22px 38px -26px #17365c73,
+    0 8px 18px -14px #17365c2e;
+}
+.ritual-chat-history ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ritual-chat-history-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 5px;
+  align-items: stretch;
+}
+.ritual-chat-history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #dde5ef;
+  border-radius: 11px;
+  background: #fff;
+  text-align: start;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease;
+}
+.ritual-chat-history-item:hover:not(:disabled) {
+  border-color: #b9cbe1;
+  background: #fdfefe;
+}
+.ritual-chat-history-item.is-active {
+  border-color: #cbb47d;
+  background: #fffdf7;
+  box-shadow: inset 3px 0 0 #b18a37;
+}
+.ritual-chat-history-item strong {
+  overflow: hidden;
+  color: #1c3350;
+  font-size: 12.5px;
+  font-weight: 650;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ritual-chat-history-preview {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #566a84;
+  font-size: 11px;
+  line-height: 1.65;
+}
+.ritual-chat-history-item small {
+  color: #8491a4;
+  font-size: 10px;
+}
+.ritual-chat-history-delete {
+  display: grid;
+  place-items: center;
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #96718a;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+.ritual-chat-history-delete:hover:not(:disabled) {
+  border-color: #f0d7de;
+  background: #fff4f6;
+  color: #a53248;
+}
+.ritual-chat-history-empty {
+  padding: 6px 2px;
+  color: #6a7b92;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.ritual-chat-summary {
+  flex-shrink: 0;
+  max-height: 104px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 9px 14px;
+  border-bottom: 1px solid #efe3c9;
+  background: #fffdf5;
+}
+.ritual-chat-summary-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 3px;
+  color: #806222;
+  font-size: 11px;
+  font-weight: 700;
+}
+.ritual-chat-summary p {
+  margin: 0 !important;
+  color: #4f5c70;
+  font-size: 12.5px;
+  line-height: 1.8;
 }
 @keyframes ritual-chat-pulse {
   50% {
@@ -383,7 +526,10 @@
   color: var(--knowledge-navy);
   font-size: 13px;
   text-align: start;
-  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    transform 140ms ease;
 }
 .ritual-chat-sample:hover:not(:disabled) {
   background: #f7fafe;
@@ -603,7 +749,9 @@
   font-size: 16px;
   resize: vertical;
   line-height: 1.65;
-  transition: border-color 140ms ease, box-shadow 140ms ease;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease;
 }
 .ritual-chat-composer textarea:focus {
   outline: none;
@@ -1232,6 +1380,15 @@
   }
   .ritual-chat-log {
     padding: 14px 12px;
+  }
+  .ritual-chat-welcome-icon {
+    display: none;
+  }
+  .ritual-chat-welcome h2 {
+    font-size: 19px;
+  }
+  .ritual-chat-samples {
+    margin-top: 13px;
   }
   .ritual-chat-composer {
     padding-bottom: 12px;

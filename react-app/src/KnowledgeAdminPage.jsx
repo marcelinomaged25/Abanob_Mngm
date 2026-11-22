@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import "./knowledge.css";
 
-const CATEGORIES = ["الكتاب المقدس", "الطقوس", "العقيدة", "التفاسير", "الألحان", "اللغة القبطية", "كتب أخرى"];
+const CATEGORIES = ["الكتاب المقدس", "الطقوس", "العقيدة", "التفاسير", "الألحان", "اللغة القبطية", "القديسون", "تاريخ الكنيسة", "كتب أخرى"];
 const PROCESSING = new Set(["queued", "extracting", "embedding"]);
 const STATUS_LABELS = {
   pending: "لم تتم الفهرسة",
@@ -722,7 +722,7 @@ export default function KnowledgeAdminPage({ apiUrl, username, password }) {
         <div>
           <p className="knowledge-kicker">إدارة المحتوى · للخدام فقط</p>
           <h1>مصادر المعرفة</h1>
-          <p>أضف مصادرك التعليمية وراجع جاهزيتها قبل الاستناد إليها في «اسأل عن الطقس».</p>
+          <p>أضف مصادرك التعليمية وراجع جاهزيتها قبل الاستناد إليها في «اسأل عن الكنيسة».</p>
         </div>
       </header>
       <aside className="knowledge-rights-note">

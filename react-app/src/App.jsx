@@ -2730,7 +2730,7 @@ function ContentManagementChooser({ onChoose }) {
         >
           <BookOpen size={27} />
           <strong>قاعدة المعرفة</strong>
-          <span>إدارة مصادر التعليم والفهرسة لشات اسأل عن الطقس.</span>
+          <span>إدارة مصادر التعليم والفهرسة لشات اسأل عن الكنيسة.</span>
           <ChevronLeft size={19} />
         </button>
       </div>
@@ -3446,7 +3446,7 @@ function PublicNavigation({ subtitle, homeActions }) {
           <p>التعليم</p>
           <a href="/ask-about-ritual">
             <MessageCircle size={18} />
-            <span>اسأل عن الطقس</span>
+            <span>اسأل عن الكنيسة</span>
             <ChevronLeft size={17} />
           </a>
           <a href="https://stgeorgesaman.com/coptic/" target="_blank" rel="noreferrer">

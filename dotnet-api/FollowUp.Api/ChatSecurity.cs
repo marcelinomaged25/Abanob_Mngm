@@ -9,7 +9,7 @@ internal sealed class ChatSecurity(NpgsqlDataSource database, IConfiguration con
 
     internal string CreateSession()
     {
-        var payload = $"{DateTimeOffset.UtcNow.AddHours(12).ToUnixTimeSeconds()}.{Convert.ToHexString(RandomNumberGenerator.GetBytes(16))}";
+        var payload = $"{DateTimeOffset.UtcNow.AddDays(30).ToUnixTimeSeconds()}.{Convert.ToHexString(RandomNumberGenerator.GetBytes(16))}";
         return $"{payload}.{Convert.ToHexString(HMACSHA256.HashData(signingKey, Encoding.UTF8.GetBytes(payload)))}";
     }
 
@@ -19,7 +19,7 @@ internal sealed class ChatSecurity(NpgsqlDataSource database, IConfiguration con
         var parts = token.Split('.');
         if (parts.Length != 3 || parts[1].Length != 32 || parts[2].Length != 64 || !long.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var expires)) return null;
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        if (expires < now || expires > now + 12 * 3600 + 60) return null;
+        if (expires < now || expires > now + 30 * 86400 + 60) return null;
         try
         {
             var expected = HMACSHA256.HashData(signingKey, Encoding.UTF8.GetBytes($"{parts[0]}.{parts[1]}"));

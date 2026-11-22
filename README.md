@@ -37,17 +37,20 @@
 
 ## النشر
 
-- **Render PostgreSQL:** استخدم قاعدة الموقع الموجودة أو قاعدة جديدة، واضبط `DATABASE_URL` داخل Render فقط. لا تنقل البيانات القديمة ولا تشغّل اختبارات على قاعدة الموقع.
-- **Render API:** استخدم `render.yaml` وDockerfile الموجود. أضف `DATABASE_URL` و`APP_PASSWORD` و`FRONTEND_ORIGIN` و`AI_API_KEY` و`CHAT_SESSION_SECRET` كمتغيرات خاصة. أمر التشغيل داخل الحاوية `dotnet FollowUp.Api.dll`، والمنفذ 10000.
+- **Render PostgreSQL:** استخدم قاعدة الموقع الموجودة أو قاعدة جديدة، واضبط `DATABASE_URL` داخل Render فقط. لا تنقل البيانات القديمة ولا تشغّل اختبارات على قاعدة الموقع. جداول المحادثات (`chat_conversations` و`chat_messages`) تُنشأ تلقائيًا عند بدء API دون المساس ببيانات الخورس.
+- **Render API:** استخدم `render.yaml` وDockerfile الموجود. أضف `DATABASE_URL` و`APP_PASSWORD` و`FRONTEND_ORIGIN` و`AI_API_KEY` و`CHAT_SESSION_SECRET` كمتغيرات خاصة، وكذلك `KNOWLEDGE_OCR_URL` و`KNOWLEDGE_OCR_SECRET` عند تفعيل PDF. أمر التشغيل داخل الحاوية `dotnet FollowUp.Api.dll`، والمنفذ 10000.
+- **Render OCR worker:** `render.yaml` يعرّف خدمة `abanoub-knowledge-ocr` من `knowledge-worker/Dockerfile` على خطة مجانية. ضع فيها `KNOWLEDGE_OCR_SECRET` (نفس قيمة API، بلا نشرها في Git) و`KNOWLEDGE_OCR_ENABLED=true`، ثم انسخ عنوانها إلى `KNOWLEDGE_OCR_URL` في خدمة API.
 - **Vercel:** إعداد المستودع الحالي يبني `react-app`؛ أضف `VITE_API_URL` بعنوان API الفعلي ثم أعد البناء. لا تضع أي إعداد `AI_*` في Vercel أو في متغيرات تبدأ بـ`VITE_`.
 - حدّث `FRONTEND_ORIGIN` في Render إلى عنوان Vercel الفعلي. اختبر `/health` و`/api/health` و`/api/chat/health` بعد النشر.
 - بدء API يطبّق المخطط الإضافي `knowledge-schema.sql` تلقائيًا. خذ نسخة احتياطية وراجع التغييرات قبل إعادة نشره على قاعدة الموقع؛ لا يلزم تغيير سجلات الخورس القديمة.
 
 ملفات `.env` مستثناة من Git لحماية بيانات الدخول.
 
-## اسأل عن الطقس وقاعدة المعرفة
+## اسأل عن الكنيسة وقاعدة المعرفة
 
-صفحة `/ask-about-ritual` عامة ولا تتطلب دخول الخدام. إدارة المصادر موجودة داخل **إدارة المحتوى ← قاعدة المعرفة** وتتطلب ترويسات دخول الخدام الموجودة؛ إخفاء الرابط ليس بديلًا عن الحماية في API.
+صفحة `/ask-about-ritual` عامة ولا تتطلب دخول الخدام، لكنها الآن شات كامل لأي موضوع كنسي (طقس، كتاب مقدس، قديسون، ألحان، عقيدة، تاريخ الكنيسة، حياة روحية) وليس للطقس فقط. المحادثات تُحفظ على الخادم لكل جلسة، ويظهر ملخص ظاهر أعلى الرسائل يتحدث كل 4 رسائل جديدة، مع قائمة المحادثات السابقة وإمكانية حذف أي محادثة. الجلسة المجهولة توقَّع لمدة 30 يومًا وتُخزن في `localStorage`، ويعيد فتح الصفحة آخر محادثة تلقائيًا. إدارة المصادر موجودة داخل **إدارة المحتوى ← قاعدة المعرفة** وتتطلب ترويسات دخول الخدام الموجودة؛ إخفاء الرابط ليس بديلًا عن الحماية في API.
+
+الردود بلهجة مصرية بسيطة كخادم يتكلم مع ولد، وتبقى من المصادر فقط، وتُذيَّل بالملاحظة: الإجابة ليست بديلًا عن إرشاد الكاهن في أمور العقيدة أو الطقس. التحيات والشكر وأسئلة التعريف تُجاب محليًا بدون استدعاء النموذج، والأسئلة القصيرة تُفهم كسؤال متابعة على سياق نفس المحادثة (يُرسل الملخص وآخر الرسائل مع الطلب).
 
 أضف إلى `.env` في جذر المشروع:
 
@@ -64,6 +67,8 @@ CHAT_GLOBAL_DAILY_LIMIT=200
 KNOWLEDGE_BOOTSTRAP_PATH=
 KNOWLEDGE_OCR_URL=
 KNOWLEDGE_OCR_SECRET=
+KNOWLEDGE_OCR_BATCH_PAGES=12
+KNOWLEDGE_OCR_TIMEOUT_SECONDS=110
 ```
 
 ضع المفتاح والسر محليًا بدون نشرهما. إن لم تضبط سر الجلسة يستخدم الخادم كلمة دخول الخدمة لتوقيع الجلسات؛ يفضل سر مستقل طويل على Render. النموذج الافتراضي اقتصادي وتم التحقق من الوصول إليه؛ الأسعار والحصص لدى المزود قابلة للتغيير. يمكن ضبط `AI_ADVANCED_CHAT_MODEL` اختياريًا، ولا يستخدم إلا عند إرسال `advanced=true`؛ الافتراضي هو النموذج الاقتصادي نفسه. تغيير نموذج/أبعاد التضمين يتطلب إعادة فهرسة كل مصدر؛ المقاطع ذات ملف تضمين مختلف لا تدخل البحث. مهايئ Gemini الحالي يدعم تضمينات النص `gemini-embedding-001`؛ مزود آخر ينفذ `IAiProvider` و`IKnowledgeVectorStore` بدل تغيير مسار الأسئلة.
@@ -89,23 +94,30 @@ KNOWLEDGE_OCR_SECRET=
 
 ### PDF وOCR
 
-شغّل العامل المنفصل عند الحاجة إلى PDF:
+رفع أي PDF يعمل تلقائيًا: الصفحات النصية تُستخرج مباشرة بـPyMuPDF، والصفحات التي بلا نص تُصوَّر وتُقرأ بـTesseract (ara+eng) داخل العامل المنفصل، ثم تُقسم وتُضمَّن كالمعتاد. لا حاجة لخطوة يدوية لكل ملف. شغّل العامل محليًا:
 
 ```sh
 docker build -t choir-knowledge-worker ./knowledge-worker
 docker run --rm --init --read-only --cap-drop=ALL --security-opt=no-new-privileges --memory=1g --cpus=1 --pids-limit=32 --tmpfs /tmp:rw,noexec,nosuid,size=256m,mode=1777 -p 127.0.0.1:8090:8090 -e KNOWLEDGE_OCR_SECRET -e KNOWLEDGE_OCR_ENABLED=true choir-knowledge-worker
 ```
 
-صدّر `KNOWLEDGE_OCR_SECRET` في بيئة نافذة Docker أولًا؛ الأمر يمرر هذا السر وحده ولا يمرر ملف إعداد API كله للعامل. اضبط `KNOWLEDGE_OCR_URL` على عنوان العامل الفعلي و`KNOWLEDGE_OCR_SECRET` على سر مستقل طويل في العامل وAPI. عند نشره استخدم خدمة Docker خاصة منفصلة وحدود ذاكرة مناسبة؛ لا تعرّضه للعامة بلا سر. بدون عامل تظهر حالة **يتطلب OCR** بدل الإيهام بالفهرسة. استخراج PDF النصي وOCR العربي يعملان في عملية معزولة بحدود وقت وحجم وصفحات، ويعرضان الصفحات الفاشلة. لا تُعالج الملفات الكبيرة داخل طلب الرفع في API الرئيسي.
+صدّر `KNOWLEDGE_OCR_SECRET` في بيئة نافذة Docker أولًا؛ الأمر يمرر هذا السر وحده ولا يمرر ملف إعداد API كله للعامل. اضبط `KNOWLEDGE_OCR_URL` على عنوان العامل الفعلي و`KNOWLEDGE_OCR_SECRET` على سر مستقل طويل في العامل وAPI. عند نشره استخدم خدمة Docker خاصة منفصلة وحدود ذاكرة مناسبة؛ لا تعرّضه للعامة بلا سر.
+
+- API يطلب الصفحات على دفعات بحجم `KNOWLEDGE_OCR_BATCH_PAGES` (12 افتراضيًا، بين 3 و60) ولمهلة لكل دفعة `KNOWLEDGE_OCR_TIMEOUT_SECONDS` (110 افتراضيًا، بين 20 و180). هذا يمنع تعليق الملفات الكبيرة في طلب واحد ويعيد المحاولة تلقائيًا عند تعطل العامل أو انتهاء المهلة أو 429/502/503/504.
+- العامل يعالج النطاق المطلوب فقط، وإن طلب API نهاية أكبر من عدد صفحات الملف يقصّها العامل للعدد الفعلي. الصفحات الناقصة تُعلَّم فاشلة، ويظهر المصدر «فشل جزئي» أو «يتطلب OCR» ولا يصبح جاهزًا للإجابة.
+- بدون عامل تظهر حالة **يتطلب OCR** بدل الإيهام بالفهرسة. استخراج PDF النصي وOCR العربي يعملان في عملية معزولة بحدود وقت وحجم وصفحات، ويعرضان الصفحات الفاشلة.
+- على Render استخدم الخدمة `abanoub-knowledge-ocr` المعرَّفة في `render.yaml` (خطة مجانية تنام بعد خمول). بعد خمول طويل قد يستغرق أول طلب نحو دقيقة، والدفعات تعيد المحاولة تلقائيًا؛ لو استمر الفشل أعد الفهرسة من الزر. اضبط `KNOWLEDGE_OCR_URL` في API على عنوان الخدمة، ونفس `KNOWLEDGE_OCR_SECRET` في API والعامل، و`KNOWLEDGE_OCR_ENABLED=true` في العامل.
 
 ### عقود API
 
-- `POST /api/chat/session` → `{sessionToken}`.
-- `POST /api/chat/ask` مع `X-Chat-Session` وجسم `{question,conversationId?}` → `{answer,sources:[{title,page,snippet}],confidence,conversationId}`.
+- `POST /api/chat/session` → `{sessionToken}` صالح 30 يومًا.
+- `POST /api/chat/ask` مع `X-Chat-Session` وجسم `{question,conversationId?,advanced?}` → `{answer,sources:[{title,page,snippet}],confidence,conversationId,summary}`. تمرير `conversationId` يكمل نفس المحادثة، و`summary` هو الملخص المحدَّث بعد 4 رسائل جديدة أو الأخير كما هو.
+- `GET /api/chat/conversations` → `{conversations:[{conversationId,title,summary,messageCount,updatedAt}]}` (آخر 30 محادثة للجلسة).
+- `GET /api/chat/conversations/{id}` → `{conversation:{conversationId,title,summary,messages}}` (آخر 40 رسالة)، و`DELETE` يحذفها نهائيًا. كلها تعيد `401 session_required` بدون جلسة، و`404 not_found` لمحادثة جلسة أخرى.
 - `GET /api/chat/health`: اتصال القاعدة ووجود إعداد المزود؛ ليس اختبار توليد حيًا ولا تأكيدًا لرصيد المزود.
 - إدارة محمية: `GET/POST /api/knowledge/sources`، `PUT/DELETE /api/knowledge/sources/{id}`، `POST /api/knowledge/sources/{id}/ingest`، `GET /api/knowledge/chunks/{sourceId}?offset=0&limit=50`.
 - إنشاء المصدر multipart، والتعديل JSON. الأخطاء تعيد رسالة مناسبة، وأخطاء الشات تحتوي `code` و`message`.
 
 اختبارات التحقق من الاقتباسات والجلسات: `dotnet run --project dotnet-api/FollowUp.Api.Tests`. وبعد تشغيل API محلي على المنفذ 5089 وفهرسة الكتاب: `node tests/chat.integration.mjs`؛ يمكن ضبط `TEST_API_URL` و`TEST_APP_PASSWORD` محليًا، ويرفض الاختبار عنوان إنتاج. فحوص الحماية: `node tests/chat-security.integration.mjs` مع حد جلسة 12 وحد IP محلي 100؛ يعطّل الكتاب مؤقتًا ويعيد تفعيله في `finally`، ويجب أن تكون المصادر الأخرى غير مفعلة. يمكن تمرير `TEST_FAILURE_API_URL` لنسخة API محلية مستقلة بنموذج محادثة غير موجود لاختبار خطأ المزود.
 
-تحقق حيًا بعد فهرسة المصدر من «ما هي رتب الشمامسة؟»، «ما معنى الإبصالتس؟»، «ما الزيوت المستخدمة في المعمودية؟»، «ما وظيفة الإيبوذياكون؟»، وسؤال غير موجود. راجع الاقتباس ورقم الصفحة مقابل المصدر، ثم جرّب تعطيل المصدر وتعطل المزود وواجهة الهاتف 390/412px. البناء وحده لا يثبت صحة الإجابات أو OCR.
+تحقق حيًا بعد فهرسة المصدر من «ما هي رتب الشمامسة؟»، «ما معنى الإبصالتس؟»، «ما الزيوت المستخدمة في المعمودية؟»، «ما وظيفة الإيبوذياكون؟»، وسؤال غير موجود. راجع الاقتباس ورقم الصفحة مقابل المصدر، ثم جرّب تعطيل المصدر وتعطل المزود وواجهة الهاتف 390/412px. البناء وحده لا يثبت صحة الإجابات أو OCR. لاختبار OCR محليًا: شغّل العامل بـ`KNOWLEDGE_OCR_ENABLED=true` مع Tesseract بيانات `ara` و`eng`، ثم ارفع PDF نصي متعدد الصفحات وآخر ممسوح الصور وتأكد أن الأول يستخرج نصه دون OCR وأن الثاني يُقرأ ويُفهرس، وافتح المحادثة بعد إعادة تحميل الصفحة للتأكد من حفظ الملخص والسجل.

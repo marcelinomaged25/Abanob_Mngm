@@ -38,3 +38,19 @@ services:
         sync: false
       - key: KNOWLEDGE_OCR_SECRET
         sync: false
+      - key: KNOWLEDGE_OCR_BATCH_PAGES
+        value: 12
+      - key: KNOWLEDGE_OCR_TIMEOUT_SECONDS
+        value: 110
+  - type: web
+    name: abanoub-knowledge-ocr
+    runtime: docker
+    plan: free
+    dockerfilePath: ./knowledge-worker/Dockerfile
+    dockerContext: ./knowledge-worker
+    healthCheckPath: /health
+    envVars:
+      - key: KNOWLEDGE_OCR_ENABLED
+        value: "true"
+      - key: KNOWLEDGE_OCR_SECRET
+        sync: false
