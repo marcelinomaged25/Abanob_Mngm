@@ -42,6 +42,25 @@ Check(ChatPrompts.ExtractJson("```json\n{\"evidence\":[],\"answer\":\"\"}\n```")
 Check(AiProviderRouter.ParseOrder(null).SequenceEqual(AiProviderRouter.DefaultOrder), "default chat provider order");
 Check(AiProviderRouter.ParseOrder(" Groq , openrouter,,groq ").SequenceEqual(new[] { "groq", "openrouter" }), "chat provider order parsed and deduplicated");
 Check(ChatEngine.Normalize(" نص\n\t  عربي ") == "نص عربي", "whitespace normalized");
+var estimateWeeks = new[]
+{
+    new WeeklyActivity(new DateOnly(2026, 10, 26), 10, 8, 4, 6),
+    new WeeklyActivity(new DateOnly(2026, 11, 2), 12, 9, 5, 7),
+    new WeeklyActivity(new DateOnly(2026, 11, 9), 20, 14, 8, 10),
+    new WeeklyActivity(new DateOnly(2026, 11, 16), 22, 15, 9, 11)
+};
+using var estimateDoc = JsonDocument.Parse(JsonSerializer.Serialize(AnalyticsEstimate.Build(estimateWeeks)));
+Check(estimateDoc.RootElement.GetProperty("basedOnWeeks").GetInt32() == 4
+    && estimateDoc.RootElement.GetProperty("choir").GetInt64() == 16
+    && estimateDoc.RootElement.GetProperty("mass").GetInt64() == 12
+    && estimateDoc.RootElement.GetProperty("lastWeek").GetString() == "2026-11-16"
+    && estimateDoc.RootElement.GetProperty("trend").GetString() == "up",
+    "weekly estimate averages the last four weeks and detects rising attendance");
+Check(AnalyticsEstimate.Build([]) is null, "weekly estimate is null without recorded weeks");
+Check(AnalyticsEstimate.Trend([5, 5, 5]) == "unknown", "weekly trend unknown with fewer than four weeks");
+Check(AnalyticsEstimate.Trend([20, 20, 5, 5]) == "down", "weekly trend detects falling attendance");
+Check(AnalyticsEstimate.Trend([10, 10, 10, 10]) == "flat", "weekly trend detects stable attendance");
+Check(AnalyticsEstimate.Average([2, 3, 4]) == 3, "weekly average rounds to the nearest whole record");
 
 using var database = NpgsqlDataSource.Create("Host=127.0.0.1;Database=not_used;Username=not_used;Password=not_used");
 var settings = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["APP_PASSWORD"] = "unit-test-secret", ["CHAT_SESSION_SECRET"] = "" }).Build();

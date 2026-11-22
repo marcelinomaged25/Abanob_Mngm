@@ -763,7 +763,31 @@ api.MapGet("/analytics", async (NpgsqlDataSource db) =>
     await using (var reader = await command.ExecuteReaderAsync())
         while (await reader.ReadAsync()) needsAttention.Add(new { recordKey = reader.GetInt32(0), name = reader.GetString(1), group = reader.GetString(2), photoUrl = reader.IsDBNull(3) ? "" : reader.GetString(3), choirRate = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4), massRate = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5), followUpRate = reader.IsDBNull(6) ? 0 : reader.GetDecimal(6) });
 
-    return Results.Ok(new { summary = new { startedAt, boys, servants, choirAttendance, massAttendance, visits, calls, choirRate = Math.Round(choirAttendance * 100d / expectedAttendance), massRate = Math.Round(massAttendance * 100d / expectedAttendance) }, monthly, groups, servants = servantRows, needsAttention });
+    var weekly = new List<WeeklyActivity>();
+    await using (var command = new NpgsqlCommand(@"
+        with events as (
+          select date_trunc('week',a.attendance_date)::date week_start,
+                 count(distinct a.person_id) filter(where a.attendance_type='choir') choir,
+                 count(distinct a.person_id) filter(where a.attendance_type='mass') mass,
+                 0::bigint visits, 0::bigint calls
+          from attendance_records a join people p on p.id=a.person_id
+          where p.is_active=true and p.role='boy' group by 1
+          union all
+          select date_trunc('week',v.visit_date)::date,0,0,count(distinct v.person_id),0
+          from visit_records v join people p on p.id=v.person_id
+          where p.is_active=true and p.role='boy' group by 1
+          union all
+          select date_trunc('week',c.week_start)::date,0,0,0,count(distinct c.person_id)
+          from call_records c join people p on p.id=c.person_id
+          where p.is_active=true and p.role='boy' group by 1
+        )
+        select week_start,sum(choir)::bigint,sum(mass)::bigint,sum(visits)::bigint,sum(calls)::bigint
+        from events group by 1 order by 1", connection))
+    await using (var reader = await command.ExecuteReaderAsync())
+        while (await reader.ReadAsync())
+            weekly.Add(new WeeklyActivity(DateOnly.FromDateTime(reader.GetDateTime(0)), reader.GetInt64(1), reader.GetInt64(2), reader.GetInt64(3), reader.GetInt64(4)));
+
+    return Results.Ok(new { summary = new { startedAt, boys, servants, choirAttendance, massAttendance, visits, calls, choirRate = Math.Round(choirAttendance * 100d / expectedAttendance), massRate = Math.Round(massAttendance * 100d / expectedAttendance) }, monthly, groups, servants = servantRows, needsAttention, estimate = AnalyticsEstimate.Build(weekly) });
 });
 
 api.MapGet("/state", async (string? mode, string? date, string? week, NpgsqlDataSource db) =>

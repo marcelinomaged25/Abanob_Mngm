@@ -64,7 +64,6 @@ const writeApiCache = (path, value) => {
     /* storage is optional */
   }
 };
-const forecastUrl = (import.meta.env.VITE_FORECAST_URL || "").replace(/\/$/, "");
 const today = () => {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Africa/Cairo",
@@ -190,7 +189,7 @@ const emptyServiceAnalytics = {
   groups: [],
   servants: [],
   needsAttention: [],
-  forecast: null,
+  estimate: null,
 };
 const defaultWhatsAppTemplate = "أهلاً {{name}}، بنطمن عليك. يا رب تكون بخير.";
 const emptyPerson = {
@@ -585,17 +584,6 @@ export default function App() {
               })),
               needsAttention,
             });
-          }
-          if (forecastUrl) {
-            try {
-              const forecastResponse = await fetch(`${forecastUrl}/predict`);
-              if (forecastResponse.ok) {
-                const forecast = await forecastResponse.json();
-                setServiceAnalytics((current) => ({ ...current, forecast }));
-              }
-            } catch {
-              // Forecasting is optional; historical analytics must remain available.
-            }
           }
           return;
         }
@@ -4625,6 +4613,8 @@ function ServiceAnalyticsPage({ analytics, exportFull }) {
     new Intl.DateTimeFormat("ar-EG", { month: "short", year: "numeric" }).format(
       new Date(`${month}-01T12:00:00`),
     );
+  const estimate = analytics.estimate;
+  const estimateTrend = estimate ? { up: "بيزيد", down: "بيقل", flat: "مستقر" }[estimate.trend] || "لسه مش واضح" : "";
   return (
     <section className="service-analytics-page">
       <section className="analytics-hero">
@@ -4640,39 +4630,35 @@ function ServiceAnalyticsPage({ analytics, exportFull }) {
           <Download size={17} /> تنزيل ملف Excel
         </button>
       </section>
-      <section
-        className={`table-section analytics-forecast-card ${analytics.forecast ? "is-ready" : "is-pending"}`}
-      >
+      <section className="table-section analytics-estimate-card">
         <div>
-          <p className="section-kicker">توقع مبدئي</p>
-          <h2>التوقع للجمعة القادمة</h2>
+          <p className="section-kicker">تقدير أسبوعي</p>
+          <h2>تقدير النشاط من الأسابيع المسجلة</h2>
           <p>
-            {analytics.forecast
-              ? `مبني على ${analytics.forecast.basedOnSessions || 0} جلسات مسجلة، ويزيد تحسنه مع استمرار التسجيل.`
-              : "خدمة التنبؤ غير مربوطة بعد. أضف رابط خدمة ML في VITE_FORECAST_URL ثم أعد النشر."}
+            {estimate
+              ? `مبني على آخر ${Math.min(4, estimate.basedOnWeeks)} من ${estimate.basedOnWeeks} أسبوع مسجل، آخرها ${estimate.lastWeek ? dateLabel(estimate.lastWeek) : "غير محدد"}. ده متوسط تقديري من البيانات، مش تنبؤ مضمون. اتجاه حضور الخورس: ${estimateTrend}.`
+              : "لسه مفيش أسابيع مسجلة كفاية لحساب تقدير."}
           </p>
         </div>
-        {analytics.forecast ? (
-          <div className="analytics-forecast-values">
+        {estimate && (
+          <div className="analytics-estimate-values">
             <strong>
-              {analytics.forecast.nextChoirAttendance || 0}
-              <span> حضور خورس متوقع</span>
+              {estimate.choir || 0}
+              <span> حضور خورس تقديري</span>
             </strong>
             <strong>
-              {analytics.forecast.nextMassAttendance || 0}
-              <span> حضور قداس متوقع</span>
+              {estimate.mass || 0}
+              <span> حضور قداس تقديري</span>
             </strong>
             <strong>
-              {analytics.forecast.nextVisits || 0}
-              <span> زيارة متوقعة</span>
+              {estimate.visits || 0}
+              <span> زيارات تقديرية</span>
             </strong>
             <strong>
-              {analytics.forecast.nextCalls || 0}
-              <span> اتصال متوقع</span>
+              {estimate.calls || 0}
+              <span> اتصالات تقديرية</span>
             </strong>
           </div>
-        ) : (
-          <span className="analytics-forecast-status">في انتظار الربط</span>
         )}
       </section>
       <section className="analytics-kpi-grid">
