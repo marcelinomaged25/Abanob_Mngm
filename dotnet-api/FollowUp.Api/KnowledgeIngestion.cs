@@ -12,6 +12,9 @@ internal sealed class KnowledgeIngestionWorker : BackgroundService
     private readonly IConfiguration configuration;
     private readonly ILogger<KnowledgeIngestionWorker> logger;
     private readonly HttpClient ocrClient = new(new SocketsHttpHandler { AllowAutoRedirect = false }) { Timeout = Timeout.InfiniteTimeSpan };
+    private readonly TimeSpan batchDelay;
+    private readonly TimeSpan rateLimitDelay;
+    private readonly int rateLimitAttempts;
     private const int MaxPages = 1000;
     private const int MaxChunks = 10000;
     private const int MaxExtractedChars = 30 * 1024 * 1024;
@@ -20,6 +23,11 @@ internal sealed class KnowledgeIngestionWorker : BackgroundService
     public KnowledgeIngestionWorker(KnowledgeStore store, IAiProvider provider, IConfiguration configuration, ILogger<KnowledgeIngestionWorker> logger)
     {
         this.store = store; this.provider = provider; this.configuration = configuration; this.logger = logger;
+        var delaySeconds = int.TryParse(configuration["KNOWLEDGE_EMBEDDING_BATCH_DELAY_SECONDS"], out var configuredDelay) ? Math.Clamp(configuredDelay, 0, 120) : 10;
+        batchDelay = TimeSpan.FromSeconds(delaySeconds);
+        var retrySeconds = int.TryParse(configuration["KNOWLEDGE_EMBEDDING_RATE_LIMIT_RETRY_SECONDS"], out var configuredRetry) ? Math.Clamp(configuredRetry, 10, 300) : 45;
+        rateLimitDelay = TimeSpan.FromSeconds(retrySeconds);
+        rateLimitAttempts = int.TryParse(configuration["KNOWLEDGE_EMBEDDING_RATE_LIMIT_ATTEMPTS"], out var configuredAttempts) ? Math.Clamp(configuredAttempts, 1, 20) : 6;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -164,12 +172,32 @@ internal sealed class KnowledgeIngestionWorker : BackgroundService
                 // A requeue after a partial run keeps already embedded chunks, so quota is spent only on the rest.
                 if (embedded.TryGetValue((page.PageNumber, ++number), out var stored) && stored == content) continue;
                 batch.Add(new KnowledgePendingChunk(Guid.NewGuid(), page.PageNumber, number, content));
-                if (batch.Count == 20) { await EmbedBatchAsync(lease, batch, profile, dimensions, ct); batch.Clear(); }
+                if (batch.Count == 20) { await EmbedBatchWithRetryAsync(lease, batch, profile, dimensions, ct); batch.Clear(); }
             }
         }
-        if (batch.Count > 0) await EmbedBatchAsync(lease, batch, profile, dimensions, ct);
+        if (batch.Count > 0) await EmbedBatchWithRetryAsync(lease, batch, profile, dimensions, ct);
         var status = extraction.FailedPages.Length > 0 ? "partial" : extraction.RequiresOcr ? "needs_ocr" : chunkCount > 0 ? "ready" : "failed";
         await store.FinishAsync(lease, status, extraction.Error ?? (chunkCount == 0 ? "No usable chunks were extracted." : null), ct);
+    }
+
+    private async Task EmbedBatchWithRetryAsync(KnowledgeLease lease, List<KnowledgePendingChunk> batch, string profile, int dimensions, CancellationToken ct)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await EmbedBatchAsync(lease, batch, profile, dimensions, ct);
+                break;
+            }
+            catch (AiProviderException error) when (error.Code == "provider_rate_limit" && attempt < rateLimitAttempts)
+            {
+                // Free embedding tiers throttle per minute; the heartbeat keeps the lease while we wait.
+                logger.LogInformation("Embedding rate limited for {SourceId}; retry {Attempt}/{Attempts} in {Seconds}s.", lease.SourceId, attempt, rateLimitAttempts, rateLimitDelay.TotalSeconds);
+                await Task.Delay(rateLimitDelay, ct);
+            }
+        }
+        // Space batches out so a token-per-minute limit is not exhausted again on the next request.
+        if (batchDelay > TimeSpan.Zero) await Task.Delay(batchDelay, ct);
     }
 
     private async Task EmbedBatchAsync(KnowledgeLease lease, List<KnowledgePendingChunk> batch, string profile, int dimensions, CancellationToken ct)
