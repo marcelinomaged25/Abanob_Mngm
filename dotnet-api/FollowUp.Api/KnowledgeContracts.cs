@@ -24,6 +24,14 @@ internal interface IChatCompletion
     Task<bool> CheckAsync(CancellationToken cancellationToken);
 }
 
+internal interface IEmbeddingProvider
+{
+    string EmbeddingProfile { get; }
+    int Dimensions { get; }
+    bool EmbeddingsConfigured { get; }
+    Task<float[][]> EmbedAsync(IReadOnlyList<string> texts, bool query, CancellationToken cancellationToken);
+}
+
 internal interface IKnowledgeVectorStore
 {
     Task<IReadOnlyList<KnowledgeHit>> SearchAsync(float[] embedding, string profile, int topK, CancellationToken cancellationToken);

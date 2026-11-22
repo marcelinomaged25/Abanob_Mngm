@@ -38,7 +38,7 @@
 ## النشر
 
 - **Render PostgreSQL:** استخدم قاعدة الموقع الموجودة أو قاعدة جديدة، واضبط `DATABASE_URL` داخل Render فقط. لا تنقل البيانات القديمة ولا تشغّل اختبارات على قاعدة الموقع. جداول المحادثات (`chat_conversations` و`chat_messages`) تُنشأ تلقائيًا عند بدء API دون المساس ببيانات الخورس.
-- **Render API:** استخدم `render.yaml` وDockerfile الموجود. أضف `DATABASE_URL` و`APP_PASSWORD` و`FRONTEND_ORIGIN` و`AI_API_KEY` و`CHAT_SESSION_SECRET` كمتغيرات خاصة، وكذلك `KNOWLEDGE_OCR_URL` و`KNOWLEDGE_OCR_SECRET` عند تفعيل PDF. أمر التشغيل داخل الحاوية `dotnet FollowUp.Api.dll`، والمنفذ 10000.
+- **Render API:** استخدم `render.yaml` وDockerfile الموجود. أضف `DATABASE_URL` و`APP_PASSWORD` و`FRONTEND_ORIGIN` و`AI_API_KEY` و`CHAT_SESSION_SECRET` كمتغيرات خاصة، وكذلك `KNOWLEDGE_OCR_URL` و`KNOWLEDGE_OCR_SECRET` عند تفعيل PDF. لو استخدمت Jina للتضمين أضف `AI_EMBEDDING_PROVIDER=jina` و`JINA_API_KEY` (و`JINA_EMBEDDING_DIMENSIONS` عند تغيير الأبعاد)، ثم أعد فهرسة المصادر. أمر التشغيل داخل الحاوية `dotnet FollowUp.Api.dll`، والمنفذ 10000.
 - **Render OCR worker:** `render.yaml` يعرّف خدمة `abanoub-knowledge-ocr` من `knowledge-worker/Dockerfile` على خطة مجانية. ضع فيها `KNOWLEDGE_OCR_SECRET` (نفس قيمة API، بلا نشرها في Git) و`KNOWLEDGE_OCR_ENABLED=true`، ثم انسخ عنوانها إلى `KNOWLEDGE_OCR_URL` في خدمة API.
 - **Vercel:** إعداد المستودع الحالي يبني `react-app`؛ أضف `VITE_API_URL` بعنوان API الفعلي ثم أعد البناء. لا تضع أي إعداد `AI_*` في Vercel أو في متغيرات تبدأ بـ`VITE_`.
 - حدّث `FRONTEND_ORIGIN` في Render إلى عنوان Vercel الفعلي. اختبر `/health` و`/api/health` و`/api/chat/health` بعد النشر.
@@ -60,6 +60,10 @@ AI_CHAT_MODEL=gemini-3.1-flash-lite
 AI_EMBEDDING_MODEL=gemini-embedding-001
 AI_EMBEDDING_DIMENSIONS=768
 AI_API_KEY=
+AI_EMBEDDING_PROVIDER=gemini
+JINA_API_KEY=
+JINA_EMBEDDING_MODEL=jina-embeddings-v3
+JINA_EMBEDDING_DIMENSIONS=1024
 AI_CHAT_PROVIDERS=gemini,openrouter,groq,deepseek,openai
 OPENROUTER_API_KEY=
 OPENROUTER_CHAT_MODEL=
@@ -80,7 +84,12 @@ KNOWLEDGE_OCR_BATCH_PAGES=12
 KNOWLEDGE_OCR_TIMEOUT_SECONDS=110
 ```
 
-ضع المفتاح والسر محليًا بدون نشرهما. إن لم تضبط سر الجلسة يستخدم الخادم كلمة دخول الخدمة لتوقيع الجلسات؛ يفضل سر مستقل طويل على Render. النموذج الافتراضي اقتصادي وتم التحقق من الوصول إليه؛ الأسعار والحصص لدى المزود قابلة للتغيير. يمكن ضبط `AI_ADVANCED_CHAT_MODEL` اختياريًا، ولا يستخدم إلا عند إرسال `advanced=true`؛ الافتراضي هو النموذج الاقتصادي نفسه. تغيير نموذج/أبعاد التضمين يتطلب إعادة فهرسة كل مصدر؛ المقاطع ذات ملف تضمين مختلف لا تدخل البحث. التضمينات تظل على Gemini عبر `AI_API_KEY` مهما اشتغلت مزوّدات الردود، لأن تغييرها يتطلب إعادة فهرسة كل المصادر.
+ضع المفتاح والسر محليًا بدون نشرهما. إن لم تضبط سر الجلسة يستخدم الخادم كلمة دخول الخدمة لتوقيع الجلسات؛ يفضل سر مستقل طويل على Render. النموذج الافتراضي اقتصادي وتم التحقق من الوصول إليه؛ الأسعار والحصص لدى المزود قابلة للتغيير. يمكن ضبط `AI_ADVANCED_CHAT_MODEL` اختياريًا، ولا يستخدم إلا عند إرسال `advanced=true`؛ الافتراضي هو النموذج الاقتصادي نفسه. تغيير نموذج/أبعاد التضمين يتطلب إعادة فهرسة كل مصدر؛ المقاطع ذات ملف تضمين مختلف لا تدخل البحث.
+
+### اختيار مزوّد التضمين وإعادة الفهرسة
+
+`AI_EMBEDDING_PROVIDER=gemini` هو الافتراضي ويستخدم `AI_API_KEY`. لو نفدت حصة Gemini أثناء الفهرسة، اضبط `AI_EMBEDDING_PROVIDER=jina` و`JINA_API_KEY` (مفتاح مجاني من `jina.ai`)، والتضمين حينها يتم عبر `jina-embeddings-v3` بأبعاد `JINA_EMBEDDING_DIMENSIONS` (1024 افتراضيًا) مع تطبيع L2، ويمكن لمسؤول ضبط `JINA_BASE_URL` لتجاوز `https://api.jina.ai/v1`. مزوّد التضمين لا يتنقل تلقائيًا بين المزودين لأن كل مزوّد مساحة متجهات مختلفة؛ عند تغييره من Gemini إلى Jina (أو العكس) **يجب إعادة فهرسة كل المصادر المفعّلة** من زر إعادة الفهرسة، لأن فهرسة المصدر تحذف مقاطعه القديمة ذات الملف السابق وتعيد تضمينها بالملف الجديد، والمصادر غير المفهرسة بالملف الحالي لا تدخل البحث. الردود تظل تتنقل بين مزوّدي الشات كما في القسم التالي، أما مفتاح `AI_API_KEY` فيبقى مطلوبًا لو أردت الرجوع إلى Gemini في التضمين أو الشات.
+
 
 ### مزوّدو الردود والتنقّل عند نفاد الحصة
 

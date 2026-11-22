@@ -3,15 +3,15 @@ using System.Text.Json;
 internal sealed class AiProviderRouter : IAiProvider
 {
     internal static readonly string[] DefaultOrder = ["gemini", "openrouter", "groq", "deepseek", "openai"];
-    private readonly GeminiAiProvider embeddings;
+    private readonly IEmbeddingProvider embeddings;
     private readonly IChatCompletion[] chain;
     private readonly ILogger<AiProviderRouter> logger;
 
-    public AiProviderRouter(GeminiAiProvider embeddings, IHttpClientFactory factory, IConfiguration configuration, ILogger<AiProviderRouter> logger)
+    public AiProviderRouter(GeminiAiProvider gemini, IHttpClientFactory factory, IConfiguration configuration, ILogger<AiProviderRouter> logger)
     {
-        this.embeddings = embeddings;
         this.logger = logger;
-        var candidates = Build(factory, configuration);
+        embeddings = SelectEmbeddingProvider(gemini, factory, configuration);
+        var candidates = Build(factory, configuration, gemini);
         var ordered = new List<IChatCompletion>();
         foreach (var name in ParseOrder(configuration["AI_CHAT_PROVIDERS"]))
         {
@@ -83,17 +83,31 @@ internal sealed class AiProviderRouter : IAiProvider
         throw failure ?? new AiProviderException("provider_unavailable");
     }
 
-    private Dictionary<string, IChatCompletion> Build(IHttpClientFactory factory, IConfiguration configuration)
+    private Dictionary<string, IChatCompletion> Build(IHttpClientFactory factory, IConfiguration configuration, GeminiAiProvider gemini)
     {
         var candidates = new Dictionary<string, IChatCompletion>(StringComparer.OrdinalIgnoreCase)
         {
-            ["gemini"] = embeddings
+            ["gemini"] = gemini
         };
         Add(factory, configuration, candidates, "openrouter", "https://openrouter.ai/api/v1", null);
         Add(factory, configuration, candidates, "groq", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile");
         Add(factory, configuration, candidates, "deepseek", "https://api.deepseek.com/v1", "deepseek-chat");
         Add(factory, configuration, candidates, "openai", "https://api.openai.com/v1", "gpt-4o-mini");
         return candidates;
+    }
+
+    private IEmbeddingProvider SelectEmbeddingProvider(GeminiAiProvider gemini, IHttpClientFactory factory, IConfiguration configuration)
+    {
+        var name = (configuration["AI_EMBEDDING_PROVIDER"] ?? "gemini").Trim().ToLowerInvariant();
+        IEmbeddingProvider provider = name switch
+        {
+            "gemini" => gemini,
+            "jina" => new JinaEmbeddingProvider(factory, configuration),
+            _ => throw new InvalidOperationException("AI_EMBEDDING_PROVIDER must be gemini or jina.")
+        };
+        if (!provider.EmbeddingsConfigured)
+            logger.LogError("The selected embedding provider {Provider} is not configured; ingestion and search are unavailable", name);
+        return provider;
     }
 
     private void Add(IHttpClientFactory factory, IConfiguration configuration, Dictionary<string, IChatCompletion> candidates,

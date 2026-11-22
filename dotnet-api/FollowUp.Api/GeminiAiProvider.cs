@@ -8,7 +8,7 @@ internal sealed class AiProviderException(string code) : Exception(code)
     internal string Code { get; } = code;
 }
 
-internal sealed class GeminiAiProvider : IChatCompletion
+internal sealed class GeminiAiProvider : IChatCompletion, IEmbeddingProvider
 {
     private readonly HttpClient client;
     private readonly string key;
@@ -21,7 +21,7 @@ internal sealed class GeminiAiProvider : IChatCompletion
     public string EmbeddingProfile => $"gemini:{embeddingModel}:{Dimensions}:v1";
     public int Dimensions { get; }
     public bool IsConfigured { get; }
-    internal bool EmbeddingsConfigured { get; }
+    public bool EmbeddingsConfigured { get; }
 
     public GeminiAiProvider(IHttpClientFactory factory, IConfiguration configuration)
     {

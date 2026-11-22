@@ -142,6 +142,70 @@ var routerFactory = new ServiceCollection().AddHttpClient().BuildServiceProvider
 var router = new AiProviderRouter(new GeminiAiProvider(routerFactory, routerSettings), routerFactory, routerSettings, NullLogger<AiProviderRouter>.Instance);
 Check(router.ChatProfile == "gemini:gemini-3.1-flash-lite/gemini-3.1-flash-lite,openrouter:provider/model:free,groq:llama-3.3-70b-versatile,openai:gpt-4o-mini", "chat provider chain follows configured order");
 Check(router.IsConfigured, "router is configured when embeddings and one chat provider exist");
+var embedListener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+embedListener.Start();
+var embedPort = ((System.Net.IPEndPoint)embedListener.LocalEndpoint).Port;
+var embedServer = Task.Run(async () =>
+{
+    using var connection = await embedListener.AcceptTcpClientAsync();
+    await using var stream = connection.GetStream();
+    var buffer = new byte[65536];
+    var read = 0;
+    while (true)
+    {
+        var count = await stream.ReadAsync(buffer.AsMemory(read));
+        if (count == 0) break;
+        read += count;
+        var text = System.Text.Encoding.UTF8.GetString(buffer, 0, read);
+        var headerEnd = text.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+        if (headerEnd < 0) continue;
+        var headers = text[..headerEnd];
+        var body = text[(headerEnd + 4)..];
+        if (headers.Contains("Transfer-Encoding: chunked", StringComparison.OrdinalIgnoreCase)
+            ? body.EndsWith("0\r\n\r\n", StringComparison.Ordinal)
+            : body.Length > 0) break;
+    }
+    var requestText = System.Text.Encoding.UTF8.GetString(buffer, 0, read);
+    var requestHeaderEnd = requestText.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+    var requestHeaders = requestText[..requestHeaderEnd];
+    var requestBody = requestText[(requestHeaderEnd + 4)..];
+    if (requestHeaders.Contains("Transfer-Encoding: chunked", StringComparison.OrdinalIgnoreCase)) requestBody = Dechunk(requestBody);
+    var first = Enumerable.Repeat(0f, 32).ToArray();
+    first[0] = 3;
+    first[1] = 4;
+    var second = Enumerable.Repeat(0f, 32).ToArray();
+    second[3] = 2;
+    var payload = JsonSerializer.Serialize(new { data = new object[] { new { index = 1, embedding = second }, new { index = 0, embedding = first } } });
+    var bytes = System.Text.Encoding.UTF8.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {System.Text.Encoding.UTF8.GetByteCount(payload)}\r\nConnection: close\r\n\r\n{payload}");
+    await stream.WriteAsync(bytes);
+    await stream.FlushAsync();
+    embedListener.Stop();
+    return (Headers: requestHeaders, Body: requestBody);
+});
+var jinaSettings = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+{
+    ["JINA_API_KEY"] = "jina-test-key",
+    ["JINA_BASE_URL"] = $"http://127.0.0.1:{embedPort}/v1",
+    ["JINA_EMBEDDING_MODEL"] = "jina-embeddings-v3",
+    ["JINA_EMBEDDING_DIMENSIONS"] = "32"
+}).Build();
+var jinaVectors = await new JinaEmbeddingProvider(routerFactory, jinaSettings).EmbedAsync(["نص أول", "نص ثاني"], false, CancellationToken.None);
+Check(jinaVectors.Length == 2 && Math.Abs(jinaVectors[0][0] - 0.6f) < 1e-6 && Math.Abs(jinaVectors[0][1] - 0.8f) < 1e-6, "Jina embeddings sorted by index and normalized");
+Check(Math.Abs(jinaVectors[1][3] - 1f) < 1e-6, "second Jina embedding normalized in place");
+var embedRequest = await embedServer;
+Check(embedRequest.Headers.Contains("POST /v1/embeddings") && embedRequest.Headers.Contains("Bearer jina-test-key"), "Jina embeddings request targets the embeddings endpoint with bearer key");
+using var embedBody = JsonDocument.Parse(embedRequest.Body);
+Check(embedBody.RootElement.GetProperty("model").GetString() == "jina-embeddings-v3" && embedBody.RootElement.GetProperty("dimensions").GetInt32() == 32, "Jina embeddings request carries model and dimensions");
+Check(embedBody.RootElement.GetProperty("task").GetString() == "retrieval.passage", "Jina document embeddings use the passage task");
+var jinaRouterSettings = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+{
+    ["AI_API_KEY"] = "gemini-test-key",
+    ["AI_EMBEDDING_PROVIDER"] = "jina",
+    ["JINA_API_KEY"] = "jina-test-key",
+    ["JINA_EMBEDDING_DIMENSIONS"] = "512"
+}).Build();
+var jinaRouter = new AiProviderRouter(new GeminiAiProvider(routerFactory, jinaRouterSettings), routerFactory, jinaRouterSettings, NullLogger<AiProviderRouter>.Instance);
+Check(jinaRouter.EmbeddingProfile.StartsWith("jina:jina-embeddings-v3:512:", StringComparison.Ordinal) && jinaRouter.Dimensions == 512 && jinaRouter.IsConfigured, "router switches embeddings to Jina while Gemini stays for chat");
 Console.WriteLine("All grounding, ingestion and session unit checks passed.");
 
 void Check(bool condition, string name)
