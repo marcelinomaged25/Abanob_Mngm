@@ -166,6 +166,22 @@ using var stubBody = JsonDocument.Parse(stubRequest.Body);
 Check(stubBody.RootElement.GetProperty("model").GetString() == "test-model", "OpenAI-compatible request carries the model");
 using var stubPayload = JsonDocument.Parse(stubBody.RootElement.GetProperty("messages")[1].GetProperty("content").GetString()!);
 Check(stubPayload.RootElement.GetProperty("question").GetString() == "ما هي رتب الشمامسة؟", "OpenAI-compatible request carries the question");
+var adaptBodies = await RunChatStub(
+    [(400, "{\"error\":{\"message\":\"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead. Unsupported value: 'temperature' does not support 0.2 with this model.\"}}"),
+     (200, JsonSerializer.Serialize(new { choices = new[] { new { message = new { content = "{\"evidence\":[],\"answer\":\"\"}" } } } }))],
+    async baseUrl => await new OpenAiChatProvider(httpFactory, "openai", baseUrl, "test-key", "test-model", "test-model")
+        .SelectEvidenceAsync("سؤال", [hit], false, "", CancellationToken.None));
+using var adaptBody = JsonDocument.Parse(adaptBodies[1]);
+Check(adaptBody.RootElement.TryGetProperty("max_completion_tokens", out _) && !adaptBody.RootElement.TryGetProperty("max_tokens", out _) && !adaptBody.RootElement.TryGetProperty("temperature", out _), "provider adapts legacy parameters after a 400 rejection");
+var effortBodies = await RunChatStub(
+    [(200, JsonSerializer.Serialize(new { choices = new[] { new { finish_reason = "length", message = new { content = "" } } } })),
+     (200, JsonSerializer.Serialize(new { choices = new[] { new { finish_reason = "stop", message = new { content = "{\"evidence\":[],\"answer\":\"\"}" } } } }))],
+    async baseUrl => await new OpenAiChatProvider(httpFactory, "groq", baseUrl, "test-key", "test-model", "test-model")
+        .SelectEvidenceAsync("سؤال", [hit], false, "", CancellationToken.None));
+using var effortFirst = JsonDocument.Parse(effortBodies[0]);
+Check(!effortFirst.RootElement.TryGetProperty("reasoning_effort", out _), "reasoning effort is not sent proactively");
+using var effortBody = JsonDocument.Parse(effortBodies[1]);
+Check(effortBody.RootElement.TryGetProperty("reasoning_effort", out var effort) && effort.GetString() == "low", "provider retries with low reasoning effort when the token budget is exhausted");
 var routerSettings = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
 {
     ["AI_API_KEY"] = "gemini-test-key",
@@ -179,7 +195,7 @@ var routerSettings = new ConfigurationBuilder().AddInMemoryCollection(new Dictio
 }).Build();
 var routerFactory = new ServiceCollection().AddHttpClient().BuildServiceProvider().GetRequiredService<IHttpClientFactory>();
 var router = new AiProviderRouter(new GeminiAiProvider(routerFactory, routerSettings), routerFactory, routerSettings, NullLogger<AiProviderRouter>.Instance);
-Check(router.ChatProfile == "gemini:gemini-3.1-flash-lite/gemini-3.1-flash-lite,openrouter:provider/model:free,groq:llama-3.3-70b-versatile,openai:gpt-4o-mini", "chat provider chain follows configured order");
+Check(router.ChatProfile == "gemini:gemini-3.1-flash-lite/gemini-3.1-flash-lite,openrouter:provider/model:free,groq:openai/gpt-oss-120b,openai:gpt-4o-mini", "chat provider chain follows configured order");
 Check(router.IsConfigured, "router is configured when embeddings and one chat provider exist");
 var embedListener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
 embedListener.Start();
@@ -272,6 +288,52 @@ static string Dechunk(string body)
         index = lineEnd + 2 + size + 2;
     }
     return result.ToString();
+}
+static async Task<List<string>> RunChatStub((int Status, string Payload)[] responses, Func<string, Task> call)
+{
+    var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+    listener.Start();
+    var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+    var bodies = new List<string>();
+    var server = Task.Run(async () =>
+    {
+        foreach (var (status, payload) in responses)
+        {
+            using var connection = await listener.AcceptTcpClientAsync();
+            await using var stream = connection.GetStream();
+            var buffer = new byte[65536];
+            var read = 0;
+            while (true)
+            {
+                var count = await stream.ReadAsync(buffer.AsMemory(read));
+                if (count == 0) break;
+                read += count;
+                var text = System.Text.Encoding.UTF8.GetString(buffer, 0, read);
+                var headerEnd = text.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+                if (headerEnd < 0) continue;
+                var headers = text[..headerEnd];
+                var body = text[(headerEnd + 4)..];
+                var chunked = headers.Contains("Transfer-Encoding: chunked", StringComparison.OrdinalIgnoreCase);
+                var contentLength = headers.Split("\r\n")
+                    .Where(line => line.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
+                    .Select(line => int.Parse(line.Split(':', 2)[1].Trim()))
+                    .FirstOrDefault();
+                if (chunked ? body.EndsWith("0\r\n\r\n", StringComparison.Ordinal) : System.Text.Encoding.UTF8.GetByteCount(body) >= contentLength) break;
+            }
+            var requestText = System.Text.Encoding.UTF8.GetString(buffer, 0, read);
+            var requestHeaderEnd = requestText.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+            var requestBody = requestText[(requestHeaderEnd + 4)..];
+            if (requestText[..requestHeaderEnd].Contains("Transfer-Encoding: chunked", StringComparison.OrdinalIgnoreCase)) requestBody = Dechunk(requestBody);
+            bodies.Add(requestBody);
+            var bytes = System.Text.Encoding.UTF8.GetBytes($"HTTP/1.1 {status} {(status == 200 ? "OK" : "Bad Request")}\r\nContent-Type: application/json\r\nContent-Length: {System.Text.Encoding.UTF8.GetByteCount(payload)}\r\nConnection: close\r\n\r\n{payload}");
+            await stream.WriteAsync(bytes);
+            await stream.FlushAsync();
+        }
+        listener.Stop();
+    });
+    await call($"http://127.0.0.1:{port}/v1");
+    await server;
+    return bodies;
 }
 
 sealed class FakeChat(string name, string? reply = null, string? fail = null) : IChatCompletion

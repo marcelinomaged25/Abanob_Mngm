@@ -44,7 +44,7 @@ internal sealed class OpenAiChatProvider : IChatCompletion
 
     public async Task<string> VerifyAsync(string question, string answer, IReadOnlyList<ChatCitation> sources, CancellationToken cancellationToken)
     {
-        var content = await CompleteAsync(chatModel, 0, 64, ChatPrompts.VerifyInstruction, ChatPrompts.VerifyPayload(question, answer, sources), cancellationToken, 20);
+        var content = await CompleteAsync(chatModel, 0, 512, ChatPrompts.VerifyInstruction, ChatPrompts.VerifyPayload(question, answer, sources), cancellationToken, 20);
         return ChatPrompts.ExtractJson(content);
     }
 
@@ -76,38 +76,65 @@ internal sealed class OpenAiChatProvider : IChatCompletion
         if (!IsConfigured) throw new AiProviderException("provider_not_configured");
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+        // Newer models reject legacy parameters and spend the token budget on reasoning; adapt on the provider's own error.
+        var completionTokensParam = false;
+        var dropTemperature = false;
+        var lowEffort = false;
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"{endpoint}/chat/completions");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
-            request.Content = JsonContent.Create(new
+            for (var attempt = 0; attempt < 5; attempt++)
             {
-                model,
-                temperature,
-                max_tokens = maxTokens,
-                messages = new object[]
+                using var request = new HttpRequestMessage(HttpMethod.Post, $"{endpoint}/chat/completions");
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
+                var body = new Dictionary<string, object?>
                 {
-                    new { role = "system", content = instruction },
-                    new { role = "user", content = payload }
+                    ["model"] = model,
+                    [completionTokensParam ? "max_completion_tokens" : "max_tokens"] = maxTokens,
+                    ["messages"] = new object[]
+                    {
+                        new { role = "system", content = instruction },
+                        new { role = "user", content = payload }
+                    }
+                };
+                if (!dropTemperature) body["temperature"] = temperature;
+                if (lowEffort) body["reasoning_effort"] = "low";
+                request.Content = JsonContent.Create(body);
+                using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var status = (int)response.StatusCode;
+                    if (status == 400)
+                    {
+                        var error = await response.Content.ReadAsStringAsync(deadline.Token);
+                        var adjusted = false;
+                        if (!completionTokensParam && error.Contains("max_tokens", StringComparison.Ordinal)) { completionTokensParam = true; adjusted = true; }
+                        if (!dropTemperature && error.Contains("temperature", StringComparison.Ordinal)) { dropTemperature = true; adjusted = true; }
+                        if (lowEffort && error.Contains("reasoning_effort", StringComparison.Ordinal)) { lowEffort = false; adjusted = true; }
+                        if (adjusted) continue;
+                    }
+                    throw new AiProviderException(response.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.PaymentRequired
+                        ? "provider_rate_limit"
+                        : response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden
+                            ? "provider_auth"
+                            : status >= 500 ? "provider_unavailable" : $"provider_http_{status}");
                 }
-            });
-            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
-            if (!response.IsSuccessStatusCode)
-            {
-                var status = (int)response.StatusCode;
-                throw new AiProviderException(response.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.PaymentRequired
-                    ? "provider_rate_limit"
-                    : response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden
-                        ? "provider_auth"
-                        : status >= 500 ? "provider_unavailable" : $"provider_http_{status}");
+                using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(deadline.Token), cancellationToken: deadline.Token);
+                if (!document.RootElement.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0
+                    || !choices[0].TryGetProperty("message", out var message))
+                    throw new AiProviderException("invalid_provider_response");
+                var content = ReadContent(message);
+                if (string.IsNullOrWhiteSpace(content))
+                {
+                    if (!lowEffort && choices[0].TryGetProperty("finish_reason", out var finish) && finish.GetString() == "length")
+                    {
+                        lowEffort = true;
+                        continue;
+                    }
+                    throw new AiProviderException("invalid_provider_response");
+                }
+                return content;
             }
-            using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(deadline.Token), cancellationToken: deadline.Token);
-            if (!document.RootElement.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0
-                || !choices[0].TryGetProperty("message", out var message))
-                throw new AiProviderException("invalid_provider_response");
-            var content = ReadContent(message);
-            if (string.IsNullOrWhiteSpace(content)) throw new AiProviderException("invalid_provider_response");
-            return content;
+            throw new AiProviderException("invalid_provider_response");
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { throw new AiProviderException("provider_timeout"); }
         catch (HttpRequestException) { throw new AiProviderException("provider_unavailable"); }

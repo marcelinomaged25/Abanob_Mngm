@@ -93,9 +93,9 @@ internal sealed class AiProviderRouter : IAiProvider
             ["gemini"] = gemini
         };
         Add(factory, configuration, candidates, "openrouter", "https://openrouter.ai/api/v1", null);
-        Add(factory, configuration, candidates, "groq", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile");
-        Add(factory, configuration, candidates, "deepseek", "https://api.deepseek.com/v1", "deepseek-chat");
-        Add(factory, configuration, candidates, "openai", "https://api.openai.com/v1", "gpt-4o-mini");
+        Add(factory, configuration, candidates, "groq", "https://api.groq.com/openai/v1", "openai/gpt-oss-120b");
+        Add(factory, configuration, candidates, "deepseek", "https://api.deepseek.com/v1", "deepseek-flash");
+        Add(factory, configuration, candidates, "openai", "https://api.openai.com/v1", "gpt-6-luna");
         return candidates;
     }
 
