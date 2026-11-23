@@ -219,7 +219,7 @@ internal sealed class ChatEngine(KnowledgeStore store, ChatStore chats, IKnowled
             .Select(term => term.StartsWith("ال", StringComparison.Ordinal) ? term[2..] : term).Where(term => term.Length > 1).Distinct().ToArray();
         var candidates = hits.Where(hit => hit.Similarity >= 0.25).ToArray();
         if (candidates.Length == 0) return [];
-        var cutoff = Math.Max(0.25, candidates.Max(hit => hit.Similarity) - 0.12);
+        var cutoff = Math.Max(0.25, candidates.Max(hit => hit.Similarity) - 0.20);
         candidates = candidates.Where(hit => hit.Similarity >= cutoff).ToArray();
         var texts = candidates.Select(hit => SearchText(hit.Content)).ToArray();
         var weights = terms.Select(term => 1.0 / (1 + texts.Count(text => text.Contains(term, StringComparison.Ordinal)))).ToArray();

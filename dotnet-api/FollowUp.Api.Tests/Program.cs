@@ -33,6 +33,8 @@ Check(ChatEngine.SelectHits("ما هي رتب الشمامسة؟", [generic, glo
 var noise = hit with { Id = Guid.NewGuid(), Content = "موضوع تاني خالص", Similarity = 0.30 };
 var strong = hit with { Id = Guid.NewGuid(), Similarity = 0.80 };
 Check(ChatEngine.SelectHits("ما هي رتب الشمامسة؟", [strong, noise]).Length == 1, "weak unrelated tail hits dropped");
+var moderate = hit with { Id = Guid.NewGuid(), Similarity = 0.62 };
+Check(ChatEngine.SelectHits("ما هي رتب الشمامسة؟", [strong, moderate, noise]).Length == 2, "moderately similar context kept alongside the best hit");
 Check(!ChatEngine.IsFollowUp("ما هي رتب الشمامسة؟") && !ChatEngine.IsFollowUp("ما معنى الإبصالتس؟"), "standalone questions with هو/هي are not treated as follow-ups");
 Check(ChatEngine.IsFollowUp("ليه؟") && ChatEngine.IsFollowUp("طب ليه؟") && ChatEngine.IsFollowUp("وكمان إيه؟") && ChatEngine.IsFollowUp("هو مين؟"), "short pronoun and connective questions are follow-ups");
 Check(ChatPrompts.IsSupported("{\"supported\":true}") && !ChatPrompts.IsSupported("{\"supported\":false}") && !ChatPrompts.IsSupported("{}"), "verification verdict parsed strictly");
