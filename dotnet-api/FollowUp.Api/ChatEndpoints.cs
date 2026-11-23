@@ -166,19 +166,24 @@ internal sealed class ChatEngine(KnowledgeStore store, ChatStore chats, IKnowled
                 throw new AiProviderException("invalid_evidence");
             var rewrite = Normalize(answerElement.GetString() ?? "");
             if (rewrite.Length == 0) return new ChatAnswer(Absent, [], 0, conversationId);
-            if (rewrite.Length is < 15 or > 4000 || rewrite.Contains('\0')) throw new AiProviderException("invalid_evidence");
+            if (rewrite.Length > 4000)
+            {
+                var boundary = rewrite.LastIndexOf(' ', 4000);
+                rewrite = rewrite[..(boundary > 3000 ? boundary : 4000)].TrimEnd();
+            }
+            if (rewrite.Length < 15 || rewrite.Contains('\0')) throw new AiProviderException("invalid_evidence");
             var citations = new List<ChatCitation>();
             var similarities = new List<double>();
             foreach (var item in evidence.EnumerateArray())
             {
                 if (!item.TryGetProperty("chunkId", out var id) || !Guid.TryParse(id.GetString(), out var chunkId) || !item.TryGetProperty("segment", out var segmentElement) || !segmentElement.TryGetInt32(out var segment))
-                    throw new AiProviderException("invalid_evidence");
+                    continue;
                 var hit = hits.FirstOrDefault(value => value.Id == chunkId);
-                if (hit is null) throw new AiProviderException("invalid_evidence");
+                if (hit is null) continue;
                 var segments = EvidenceSegments(hit.Content);
-                if (segment < 0 || segment >= segments.Length) throw new AiProviderException("invalid_evidence");
+                if (segment < 0 || segment >= segments.Length) continue;
                 var quote = segments[segment];
-                if (quote.Length < 15) throw new AiProviderException("invalid_evidence");
+                if (quote.Length < 15) continue;
                 if (citations.Any(value => value.Title == hit.Title && value.Page == hit.PageNumber && value.Snippet == quote)) continue;
                 citations.Add(new ChatCitation(hit.Title, hit.PageNumber, quote));
                 similarities.Add(hit.Similarity);

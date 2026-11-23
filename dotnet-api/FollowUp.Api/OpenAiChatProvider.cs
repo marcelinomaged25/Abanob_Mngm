@@ -37,7 +37,7 @@ internal sealed class OpenAiChatProvider : IChatCompletion
 
     public async Task<string> SelectEvidenceAsync(string question, IReadOnlyList<KnowledgeHit> hits, bool advanced, string conversation, CancellationToken cancellationToken)
     {
-        var content = await CompleteAsync(advanced ? advancedModel : chatModel, 0.2, 2200, ChatPrompts.EvidenceInstruction,
+        var content = await CompleteAsync(advanced ? advancedModel : chatModel, 0.2, 3200, ChatPrompts.EvidenceInstruction,
             ChatPrompts.EvidencePayload(question, hits, conversation), cancellationToken);
         return ChatPrompts.ExtractJson(content);
     }

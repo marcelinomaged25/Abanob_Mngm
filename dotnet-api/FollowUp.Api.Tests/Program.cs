@@ -13,12 +13,15 @@ Check(answer.Sources.Count == 1 && answer.Sources[0].Page == 135, "citation page
 Check(answer.Answer == rewrite, "answer uses only the model rewriting");
 Check(!answer.Answer.Contains($"«{answer.Sources[0].Snippet}»"), "answer does not paste the stored chunk verbatim");
 Check(ChatEngine.Ground("{\"evidence\":[]}", [hit], "test").Answer == ChatEngine.Absent, "exact abstention");
-Reject(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, quote = "هذا تفسير لم يرد مطلقًا في المصدر." } }, answer = rewrite }), "fabricated quotation rejected");
+Check(ChatEngine.Ground(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, quote = "هذا تفسير لم يرد مطلقًا في المصدر." } }, answer = rewrite }), [hit], "test").Answer == ChatEngine.Absent, "fabricated quotation never reaches the answer");
 Reject(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, segment = 0 } } }), "evidence without a rewritten answer rejected");
 Check(ChatEngine.Ground(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, segment = 0 } }, answer = " " }), [hit], "test").Answer == ChatEngine.Absent, "empty rewriting yields exact abstention");
 Reject(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, segment = 0 } }, answer = "قصير" }), "too short rewritten answer rejected");
-Reject(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = Guid.NewGuid(), segment = 0 } }, answer = rewrite }), "unknown chunk rejected");
-Reject(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, segment = 9 } }, answer = rewrite }), "unknown evidence segment rejected");
+Check(ChatEngine.Ground(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = Guid.NewGuid(), segment = 0 } }, answer = rewrite }), [hit], "test").Answer == ChatEngine.Absent, "unknown chunk degrades to abstention");
+Check(ChatEngine.Ground(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, segment = 9 } }, answer = rewrite }), [hit], "test").Answer == ChatEngine.Absent, "unknown evidence segment degrades to abstention");
+var longRewrite = string.Join(" ", Enumerable.Repeat("جملة عربية طويلة تكررت للتأكد من القص.", 200));
+var trimmed = ChatEngine.Ground(JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, segment = 0 } }, answer = longRewrite }), [hit], "test");
+Check(trimmed.Answer.Length is > 3000 and <= 4000 && trimmed.Sources.Count == 1, "overlong rewritten answer trimmed instead of failing");
 var extraText = JsonSerializer.Serialize(new { evidence = new[] { new { chunkId = id, segment = 0, quote = "نص مختلق من النموذج" } }, answer = rewrite });
 Check(ChatEngine.Ground(extraText, [hit], "test").Sources[0].Snippet == hit.Content, "only original server text can be quoted");
 var fourHits = Enumerable.Range(0, 4).Select(index => hit with { Id = Guid.NewGuid(), PageNumber = 100 + index }).ToArray();

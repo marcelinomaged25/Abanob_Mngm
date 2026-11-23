@@ -92,7 +92,7 @@ internal sealed class GeminiAiProvider : IChatCompletion, IEmbeddingProvider
         {
             systemInstruction = new { parts = new[] { new { text = ChatPrompts.EvidenceInstruction } } },
             contents = new[] { new { role = "user", parts = new[] { new { text = payload } } } },
-            generationConfig = new { temperature = 0.2, maxOutputTokens = 2200, responseMimeType = "application/json", responseSchema = schema }
+            generationConfig = new { temperature = 0.2, maxOutputTokens = 3200, responseMimeType = "application/json", responseSchema = schema }
         }, cancellationToken, requireChat: true);
         if (!response.RootElement.TryGetProperty("candidates", out var candidates) || candidates.GetArrayLength() == 0)
             throw new AiProviderException("invalid_evidence");
