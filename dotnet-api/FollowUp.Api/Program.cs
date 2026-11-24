@@ -1354,7 +1354,6 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
     // group/save action must never rebalance unrelated groups.
     if (payload.Redistribute)
         await BalanceUncalledMembersAsync(connection, transaction, week, existingAssignments.Keys.ToArray());
-
     // Persist every displayed weekly assignment before writing call records.
     // Auto-assigned groups must still carry their servant into call_records.
     var displayedAssignments = Assignments(groups, servants, week, rotationStart);
@@ -1382,6 +1381,20 @@ api.MapPost("/calls", async (CallSave payload, NpgsqlDataSource db) =>
         saveCalls.Parameters.AddWithValue(week);
         saveCalls.Parameters.AddWithValue(JsonSerializer.Serialize(checks));
         await saveCalls.ExecuteNonQueryAsync();
+    }
+    // Ordinary saves rebalance only when a listed servant has nobody to call.
+    var assignedGroups = existingAssignments.Keys.ToArray();
+    await using (var emptyCommand = new NpgsqlCommand(
+        @"select count(*) from groups g
+          where g.number=any($1)
+            and not exists (
+              select 1 from people p
+              where p.group_number=g.number and p.is_active=true and p.role='boy'
+            )", connection, transaction))
+    {
+        emptyCommand.Parameters.AddWithValue(assignedGroups);
+        if ((long)(await emptyCommand.ExecuteScalarAsync() ?? 0L) > 0)
+            await BalanceUncalledMembersAsync(connection, transaction, week, assignedGroups);
     }
     await transaction.CommitAsync();
     return Results.Ok(await BuildState(db, "call", null, null));

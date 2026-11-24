@@ -1029,7 +1029,13 @@ export default function App() {
       setRotationStart(result.rotationStart || rotationStart);
       setServantsText((result.servants || []).join("\n"));
       if (mode === "call") await load("history");
-      setNotice(assign ? "تم حفظ دورة التوزيع" : "تم حفظ العلامات");
+      setNotice(
+        mode === "call" && !assign && (result.groups || []).length > state.groups.length
+          ? "تم توزيع المخدومين بالتساوي على كل مسؤولي الاتصال"
+          : assign
+            ? "تم حفظ دورة التوزيع"
+            : "تم حفظ العلامات",
+      );
     } catch (saveError) {
       setError(saveError.message);
     } finally {

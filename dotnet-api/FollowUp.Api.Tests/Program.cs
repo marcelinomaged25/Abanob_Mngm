@@ -67,6 +67,25 @@ Check(AnalyticsEstimate.Trend([20, 20, 5, 5]) == "down", "weekly trend detects f
 Check(AnalyticsEstimate.Trend([10, 10, 10, 10]) == "flat", "weekly trend detects stable attendance");
 Check(AnalyticsEstimate.Average([2, 3, 4]) == 3, "weekly average rounds to the nearest whole record");
 
+var rotationServants = Enumerable.Range(1, 11).Select(index => $"خادم {index}").ToArray();
+var rotationGroups = Enumerable.Range(1, 11).Select(index => index.ToString()).ToArray();
+var rotationStart = new DateOnly(2026, 11, 23);
+var rotationAssignments = ApiHelpers.Assignments(rotationGroups, rotationServants, rotationStart, rotationStart);
+Check(rotationAssignments.Count == 11 && rotationAssignments.Values.Distinct(StringComparer.Ordinal).Count() == 11,
+    "eleven listed servants each receive exactly one calling group");
+Check(rotationGroups.All(group => rotationAssignments[group] == rotationServants[rotationGroups.ToList().IndexOf(group)]),
+    "first rotation week preserves the listed servant order");
+for (var weekOffset = 1; weekOffset < 11; weekOffset++)
+{
+    var nextWeek = rotationStart.AddDays(weekOffset * 7);
+    var nextAssignments = ApiHelpers.Assignments(rotationGroups, rotationServants, nextWeek, rotationStart);
+    Check(rotationGroups.All(group => nextAssignments[group] != rotationAssignments[group]), $"every caller changes in rotation week {weekOffset + 1}");
+    Check(nextAssignments.Values.Distinct(StringComparer.Ordinal).Count() == 11, $"all servants still have one group in rotation week {weekOffset + 1}");
+}
+var repeatedAssignments = ApiHelpers.Assignments(rotationGroups, rotationServants, rotationStart.AddDays(77), rotationStart);
+Check(rotationGroups.All(group => repeatedAssignments[group] == rotationAssignments[group]), "weekly caller rotation repeats only after the full eleven-week cycle");
+Check(ApiHelpers.Assignments(rotationGroups, rotationServants, rotationStart.AddDays(7), rotationStart.AddDays(7)).Count == 11,
+    "changing the rotation start recalculates the current week");
 using var database = NpgsqlDataSource.Create("Host=127.0.0.1;Database=not_used;Username=not_used;Password=not_used");
 var settings = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["APP_PASSWORD"] = "unit-test-secret", ["CHAT_SESSION_SECRET"] = "" }).Build();
 var security = new ChatSecurity(database, settings);
