@@ -82,6 +82,11 @@ for (var weekOffset = 1; weekOffset < 11; weekOffset++)
     Check(rotationGroups.All(group => nextAssignments[group] != rotationAssignments[group]), $"every caller changes in rotation week {weekOffset + 1}");
     Check(nextAssignments.Values.Distinct(StringComparer.Ordinal).Count() == 11, $"all servants still have one group in rotation week {weekOffset + 1}");
 }
+var midWeekServants = Enumerable.Range(1, 11).Select(index => $"خادم {index}").ToArray();
+var midWeekGroups = Enumerable.Range(1, 11).Select(index => index.ToString()).ToArray();
+var midWeek = ApiHelpers.Assignments(midWeekGroups, midWeekServants, new DateOnly(2026, 11, 26), rotationStart);
+Check(midWeekGroups.All(group => midWeek[group] == rotationAssignments[group]), "caller rotation advances only when the week changes");
+Check(ApiHelpers.Assignments(midWeekGroups, midWeekServants, new DateOnly(2026, 11, 30), rotationStart)["1"] == midWeekServants[1], "caller changes on the first day of the next distribution week");
 var repeatedAssignments = ApiHelpers.Assignments(rotationGroups, rotationServants, rotationStart.AddDays(77), rotationStart);
 Check(rotationGroups.All(group => repeatedAssignments[group] == rotationAssignments[group]), "weekly caller rotation repeats only after the full eleven-week cycle");
 Check(ApiHelpers.Assignments(rotationGroups, rotationServants, rotationStart.AddDays(7), rotationStart.AddDays(7)).Count == 11,

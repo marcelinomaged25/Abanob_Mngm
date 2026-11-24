@@ -790,8 +790,12 @@ api.MapGet("/analytics", async (NpgsqlDataSource db) =>
     return Results.Ok(new { summary = new { startedAt, boys, servants, choirAttendance, massAttendance, visits, calls, choirRate = Math.Round(choirAttendance * 100d / expectedAttendance), massRate = Math.Round(massAttendance * 100d / expectedAttendance) }, monthly, groups, servants = servantRows, needsAttention, estimate = AnalyticsEstimate.Build(weekly) });
 });
 
-api.MapGet("/state", async (string? mode, string? date, string? week, NpgsqlDataSource db) =>
-    Results.Ok(await BuildState(db, mode == "visit" ? "visit" : "call", date, week)));
+api.MapGet("/state", async (string? mode, string? date, string? week, NpgsqlDataSource db, HttpContext context) =>
+{
+    var requestedWeek = context.Request.Query.ContainsKey("week") ? week : null;
+    context.Response.Headers.CacheControl = "no-store";
+    return Results.Ok(await BuildState(db, mode == "visit" ? "visit" : "call", date, requestedWeek));
+});
 
 api.MapGet("/dashboard", async (string? date, string? month, NpgsqlDataSource db) =>
 {

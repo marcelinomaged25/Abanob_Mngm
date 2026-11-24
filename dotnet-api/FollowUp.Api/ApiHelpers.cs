@@ -10,7 +10,9 @@ internal static class ApiHelpers
         var date = ParseDate(selectedDate, today);
         var rotation = ParseDate(await GetSetting<string?>(connection, "rotationStart"), today);
         var distributionNotStarted = mode == "call" && today < rotation;
-        var week = mode == "call" ? (distributionNotStarted ? rotation : WeekStart(today, rotation)) : WeekStart(ParseDate(selectedWeek, today), rotation);
+        var week = mode == "call"
+            ? (distributionNotStarted ? rotation : WeekStart(ParseDate(selectedWeek, today), rotation))
+            : WeekStart(today, rotation);
         var availableServants = await GetServantNamesAsync(connection);
         var verse = await GetSetting<string?>(connection, "verse") ?? "";
         var people = new List<Person>();

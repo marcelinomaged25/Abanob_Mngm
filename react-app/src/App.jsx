@@ -394,10 +394,12 @@ export default function App() {
   const request = useCallback(
     async (path, options = {}, auth = password, user = username) => {
       const isGet = !options.method || options.method.toUpperCase() === "GET";
-      const cached = isGet && cacheableApiPath(path) ? readApiCache(path) : null;
+      const cacheable = isGet && cacheableApiPath(path);
+      const cached = cacheable ? readApiCache(path) : null;
       if (cached !== null) return cached;
       const requestOptions = {
         ...options,
+        cache: isGet ? "no-store" : undefined,
         headers: {
           ...(options.body ? { "Content-Type": "application/json" } : {}),
           ...(auth ? { "X-App-Password": auth } : {}),
@@ -434,7 +436,7 @@ export default function App() {
                 : body.error || "تعذر إكمال الطلب، حاول مرة أخرى";
         throw new Error(message);
       }
-      if (isGet && cacheableApiPath(path)) writeApiCache(path, body);
+      if (cacheable) writeApiCache(path, body);
       if (!isGet && path.startsWith("/api/followup-notes"))
         localStorage.removeItem(apiCacheKey("/api/followup-notes"));
       if (!isGet) {
@@ -641,6 +643,7 @@ export default function App() {
         }
         const params = new URLSearchParams({ mode: nextMode === "visit" ? "visit" : "call" });
         if (nextMode === "visit") params.set("date", date || today());
+        if (nextMode === "call") params.set("_", String(Date.now()));
         const result = await request(`/api/state?${params}`, {}, auth);
         setState(result);
         if (nextMode === "visit") setSelectedDate(result.selectedDate);
